@@ -191,7 +191,7 @@ export default function UrlPage() {
               <button
                 onClick={handleNavigateMyAnnotations}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-100 dark:bg-surface-700 hover:bg-surface-200 dark:hover:bg-surface-600 text-surface-700 dark:text-surface-200 text-sm font-medium rounded-lg transition-colors"
-                title="Copy link to your annotations on this page"
+                title="See your annotations for this page"
               >
                 <User size={14} /> My Annotations
               </button>
