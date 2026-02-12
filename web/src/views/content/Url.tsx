@@ -290,7 +290,10 @@ export default function UrlPage() {
             <Tabs
               tabs={[
                 { id: "all", label: `All (${totalItems})` },
-                { id: "annotations", label: `Notes (${annotations.length})` },
+                {
+                  id: "annotations",
+                  label: `Annotations (${annotations.length})`,
+                },
                 {
                   id: "highlights",
                   label: `Highlights (${highlights.length})`,
