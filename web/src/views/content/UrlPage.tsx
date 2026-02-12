@@ -1,25 +1,24 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import { useStore } from "@nanostores/react";
-import { $user } from "../../store/auth";
-import { getByTarget } from "../../api/client";
-import type { AnnotationItem } from "../../types";
-import Card from "../../components/common/Card";
 import {
-  PenTool,
-  Highlighter,
-  Search,
   AlertTriangle,
-  Globe,
-  Copy,
   Check,
+  Copy,
   ExternalLink,
+  Globe,
+  Highlighter,
   Loader2,
-  Users,
+  PenTool,
+  Search,
   User,
+  Users,
 } from "lucide-react";
-
-import { Tabs, EmptyState, Input, Button } from "../../components/ui";
+import React, { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { getByTarget } from "../../api/client";
+import Card from "../../components/common/Card";
+import { Button, EmptyState, Input, Tabs } from "../../components/ui";
+import { $user } from "../../store/auth";
+import type { AnnotationItem } from "../../types";
 
 export default function UrlPage() {
   const params = useParams();
@@ -144,6 +143,19 @@ export default function UrlPage() {
         </div>
       </div>
     );
+  }
+
+  const items = [
+    ...(activeTab === "all" || activeTab === "annotations" ? annotations : []),
+    ...(activeTab === "all" || activeTab === "highlights" ? highlights : []),
+  ];
+
+  if (activeTab === "all") {
+    items.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
+    });
   }
 
   return (
@@ -280,10 +292,9 @@ export default function UrlPage() {
               />
             )}
 
-            {(activeTab === "all" || activeTab === "annotations") &&
-              annotations.map((a) => <Card key={a.uri} item={a} />)}
-            {(activeTab === "all" || activeTab === "highlights") &&
-              highlights.map((h) => <Card key={h.uri} item={h} />)}
+            {items.map((item) => (
+              <Card key={item.uri} item={item} />
+            ))}
           </div>
         </div>
       )}
