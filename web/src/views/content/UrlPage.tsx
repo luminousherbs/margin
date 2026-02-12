@@ -35,7 +35,6 @@ export default function UrlPage() {
     "all" | "annotations" | "highlights"
   >("all");
   const [copied, setCopied] = useState(false);
-  const [userLinkCopied, setUserLinkCopied] = useState(false);
   const user = useStore($user);
 
   useEffect(() => {
@@ -71,17 +70,10 @@ export default function UrlPage() {
     }
   }, []);
 
-  const handleCopyUserLink = useCallback(async () => {
+  const handleNavigateMyAnnotations = useCallback(async () => {
     if (!user?.handle || !targetUrl) return;
-    try {
-      const url = `${window.location.origin}/${user.handle}/url/${encodeURIComponent(targetUrl)}`;
-      await navigator.clipboard.writeText(url);
-      setUserLinkCopied(true);
-      setTimeout(() => setUserLinkCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy user link:", err);
-    }
-  }, [user?.handle, targetUrl]);
+    navigate(`/${user.handle}/url/${encodeURIComponent(targetUrl)}`);
+  }, [user?.handle, targetUrl, navigate]);
 
   const totalItems = annotations.length + highlights.length;
 
@@ -185,12 +177,11 @@ export default function UrlPage() {
           <div className="flex items-center gap-2 shrink-0">
             {user && (
               <button
-                onClick={handleCopyUserLink}
+                onClick={handleNavigateMyAnnotations}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-100 dark:bg-surface-700 hover:bg-surface-200 dark:hover:bg-surface-600 text-surface-700 dark:text-surface-200 text-sm font-medium rounded-lg transition-colors"
                 title="Copy link to your annotations on this page"
               >
-                {userLinkCopied ? <Check size={14} /> : <User size={14} />}
-                {userLinkCopied ? "Copied!" : "My Link"}
+                <User size={14} /> My Annotations
               </button>
             )}
             <button
