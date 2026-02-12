@@ -21,7 +21,7 @@ import {
 
 import { Tabs, EmptyState, Input, Button } from "../../components/ui";
 
-export default function SitePage() {
+export default function UrlPage() {
   const params = useParams();
   const navigate = useNavigate();
   const urlPath = params["*"];
@@ -120,7 +120,7 @@ export default function SitePage() {
             />
           </div>
           <h1 className="text-3xl font-display font-bold text-surface-900 dark:text-white mb-3">
-            Site Annotations
+            URL Annotations
           </h1>
           <p className="text-surface-500 dark:text-surface-400 max-w-md mx-auto mb-8">
             Enter a URL to see all public annotations and highlights from the
@@ -134,7 +134,7 @@ export default function SitePage() {
               const q = (formData.get("q") as string)?.trim();
               if (q) {
                 const encoded = encodeURIComponent(q);
-                navigate(`/site/${encoded}`);
+                navigate(`/url/${encoded}`);
               }
             }}
             className="max-w-md mx-auto flex gap-2"
