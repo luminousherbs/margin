@@ -948,16 +948,23 @@ func generateOGImagePNG(author, text, quote, source, avatarURL string) image.Ima
 	height := 630
 	padding := 100
 
-	bgPrimary := color.RGBA{10, 10, 13, 255}
-	accent := color.RGBA{149, 122, 134, 255}
-	textPrimary := color.RGBA{234, 234, 238, 255}
-	textSecondary := color.RGBA{168, 164, 171, 255}
-	border := color.RGBA{42, 40, 46, 255}
+	bgColor := color.RGBA{9, 9, 11, 255}
+	primaryColor := color.RGBA{59, 130, 246, 255}
+	primaryLight := color.RGBA{96, 165, 250, 255}
+	textPrimary := color.RGBA{250, 250, 250, 255}
+	textSecondary := color.RGBA{161, 161, 170, 255}
+	borderColor := color.RGBA{63, 63, 70, 255}
+	cardBg := color.RGBA{24, 24, 27, 255}
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 
-	draw.Draw(img, img.Bounds(), &image.Uniform{bgPrimary}, image.Point{}, draw.Src)
-	draw.Draw(img, image.Rect(0, 0, width, 12), &image.Uniform{accent}, image.Point{}, draw.Src)
+	draw.Draw(img, img.Bounds(), &image.Uniform{bgColor}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(0, 0, width, 6), &image.Uniform{primaryColor}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(60, 50, width-60, height-50), &image.Uniform{cardBg}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(60, 50, width-60, 51), &image.Uniform{borderColor}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(60, height-51, width-60, height-50), &image.Uniform{borderColor}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(60, 50, 61, height-50), &image.Uniform{borderColor}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(width-61, 50, width-60, height-50), &image.Uniform{borderColor}, image.Point{}, draw.Src)
 
 	avatarSize := 64
 	avatarX := padding
@@ -967,7 +974,7 @@ func generateOGImagePNG(author, text, quote, source, avatarURL string) image.Ima
 	if avatarImg != nil {
 		drawCircularAvatar(img, avatarImg, avatarX, avatarY, avatarSize)
 	} else {
-		drawDefaultAvatar(img, author, avatarX, avatarY, avatarSize, accent)
+		drawDefaultAvatar(img, author, avatarX, avatarY, avatarSize, primaryColor)
 	}
 	drawText(img, author, avatarX+avatarSize+24, avatarY+42, textSecondary, 28, false)
 
@@ -1015,7 +1022,7 @@ func generateOGImagePNG(author, text, quote, source, avatarURL string) image.Ima
 		numLines := min(len(lines), maxQuoteLines)
 		barHeight := numLines * quoteLineHeight
 
-		draw.Draw(img, image.Rect(padding, yPos, padding+6, yPos+barHeight), &image.Uniform{accent}, image.Point{}, draw.Src)
+		draw.Draw(img, image.Rect(padding, yPos, padding+6, yPos+barHeight), &image.Uniform{primaryLight}, image.Point{}, draw.Src)
 
 		for i := 0; i < numLines; i++ {
 			line := lines[i]
@@ -1027,9 +1034,15 @@ func generateOGImagePNG(author, text, quote, source, avatarURL string) image.Ima
 		yPos += barHeight + 40
 	}
 
-	draw.Draw(img, image.Rect(padding, yPos, width-padding, yPos+1), &image.Uniform{border}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(padding, yPos, width-padding, yPos+1), &image.Uniform{borderColor}, image.Point{}, draw.Src)
 	yPos += 40
 	drawText(img, source, padding, yPos+32, textSecondary, 24, false)
+
+	if logoImage != nil {
+		logoSize := 36
+		drawScaledImage(img, logoImage, width-padding-logoSize, height-80, logoSize, logoSize)
+		drawText(img, "margin.at", width-padding-logoSize-120, height-52, textSecondary, 22, true)
+	}
 
 	return img
 }
@@ -1155,17 +1168,22 @@ func generateCollectionOGImagePNG(author, collectionName, description, icon, ava
 	height := 630
 	padding := 120
 
-	bgPrimary := color.RGBA{10, 10, 13, 255}
-	accent := color.RGBA{149, 122, 134, 255}
-	textPrimary := color.RGBA{234, 234, 238, 255}
-	textSecondary := color.RGBA{168, 164, 171, 255}
-	textTertiary := color.RGBA{107, 103, 112, 255}
-	border := color.RGBA{42, 40, 46, 255}
+	bgColor := color.RGBA{9, 9, 11, 255}
+	primaryColor := color.RGBA{59, 130, 246, 255}
+	textPrimary := color.RGBA{250, 250, 250, 255}
+	textSecondary := color.RGBA{161, 161, 170, 255}
+	textTertiary := color.RGBA{113, 113, 122, 255}
+	borderColor := color.RGBA{63, 63, 70, 255}
+	cardBg := color.RGBA{24, 24, 27, 255}
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
-
-	draw.Draw(img, img.Bounds(), &image.Uniform{bgPrimary}, image.Point{}, draw.Src)
-	draw.Draw(img, image.Rect(0, 0, width, 12), &image.Uniform{accent}, image.Point{}, draw.Src)
+	draw.Draw(img, img.Bounds(), &image.Uniform{bgColor}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(0, 0, width, 6), &image.Uniform{primaryColor}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(60, 50, width-60, height-50), &image.Uniform{cardBg}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(60, 50, width-60, 51), &image.Uniform{borderColor}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(60, height-51, width-60, height-50), &image.Uniform{borderColor}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(60, 50, 61, height-50), &image.Uniform{borderColor}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(width-61, 50, width-60, height-50), &image.Uniform{borderColor}, image.Point{}, draw.Src)
 
 	iconY := 120
 	var iconWidth int
@@ -1202,7 +1220,7 @@ func generateCollectionOGImagePNG(author, collectionName, description, icon, ava
 	}
 
 	yPos = 480
-	draw.Draw(img, image.Rect(padding, yPos, width-padding, yPos+1), &image.Uniform{border}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(padding, yPos, width-padding, yPos+1), &image.Uniform{borderColor}, image.Point{}, draw.Src)
 
 	avatarSize := 64
 	avatarX := padding
@@ -1212,11 +1230,17 @@ func generateCollectionOGImagePNG(author, collectionName, description, icon, ava
 	if avatarImg != nil {
 		drawCircularAvatar(img, avatarImg, avatarX, avatarY, avatarSize)
 	} else {
-		drawDefaultAvatar(img, author, avatarX, avatarY, avatarSize, accent)
+		drawDefaultAvatar(img, author, avatarX, avatarY, avatarSize, primaryColor)
 	}
 
 	handleX := avatarX + avatarSize + 24
 	drawText(img, author, handleX, avatarY+42, textTertiary, 28, false)
+
+	if logoImage != nil {
+		logoSize := 36
+		drawScaledImage(img, logoImage, width-padding-logoSize, height-80, logoSize, logoSize)
+		drawText(img, "margin.at", width-padding-logoSize-120, height-52, textSecondary, 22, true)
+	}
 
 	return img
 }
@@ -1257,16 +1281,23 @@ func generateHighlightOGImagePNG(author, pageTitle, quote, source, avatarURL str
 	height := 630
 	padding := 100
 
-	bgPrimary := color.RGBA{10, 10, 13, 255}
-	accent := color.RGBA{149, 122, 134, 255}
-	textPrimary := color.RGBA{234, 234, 238, 255}
-	textSecondary := color.RGBA{168, 164, 171, 255}
-	border := color.RGBA{42, 40, 46, 255}
+	bgColor := color.RGBA{9, 9, 11, 255}
+	primaryColor := color.RGBA{59, 130, 246, 255}
+	primaryLight := color.RGBA{96, 165, 250, 255}
+	textPrimary := color.RGBA{250, 250, 250, 255}
+	textSecondary := color.RGBA{161, 161, 170, 255}
+	borderColor := color.RGBA{63, 63, 70, 255}
+	cardBg := color.RGBA{24, 24, 27, 255}
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 
-	draw.Draw(img, img.Bounds(), &image.Uniform{bgPrimary}, image.Point{}, draw.Src)
-	draw.Draw(img, image.Rect(0, 0, width, 12), &image.Uniform{accent}, image.Point{}, draw.Src)
+	draw.Draw(img, img.Bounds(), &image.Uniform{bgColor}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(0, 0, width, 6), &image.Uniform{primaryColor}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(60, 50, width-60, height-50), &image.Uniform{cardBg}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(60, 50, width-60, 51), &image.Uniform{borderColor}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(60, height-51, width-60, height-50), &image.Uniform{borderColor}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(60, 50, 61, height-50), &image.Uniform{borderColor}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(width-61, 50, width-60, height-50), &image.Uniform{borderColor}, image.Point{}, draw.Src)
 
 	avatarSize := 64
 	avatarX := padding
@@ -1276,7 +1307,7 @@ func generateHighlightOGImagePNG(author, pageTitle, quote, source, avatarURL str
 	if avatarImg != nil {
 		drawCircularAvatar(img, avatarImg, avatarX, avatarY, avatarSize)
 	} else {
-		drawDefaultAvatar(img, author, avatarX, avatarY, avatarSize, accent)
+		drawDefaultAvatar(img, author, avatarX, avatarY, avatarSize, primaryColor)
 	}
 	drawText(img, author, avatarX+avatarSize+24, avatarY+42, textSecondary, 28, false)
 
@@ -1302,7 +1333,7 @@ func generateHighlightOGImagePNG(author, pageTitle, quote, source, avatarURL str
 		numLines := min(len(lines), maxLines)
 		barHeight := numLines * lineHeight
 
-		draw.Draw(img, image.Rect(padding, yPos, padding+8, yPos+barHeight), &image.Uniform{accent}, image.Point{}, draw.Src)
+		draw.Draw(img, image.Rect(padding, yPos, padding+8, yPos+barHeight), &image.Uniform{primaryLight}, image.Point{}, draw.Src)
 
 		for i := 0; i < numLines; i++ {
 			line := lines[i]
@@ -1314,7 +1345,7 @@ func generateHighlightOGImagePNG(author, pageTitle, quote, source, avatarURL str
 		yPos += barHeight + 40
 	}
 
-	draw.Draw(img, image.Rect(padding, yPos, width-padding, yPos+1), &image.Uniform{border}, image.Point{}, draw.Src)
+	draw.Draw(img, image.Rect(padding, yPos, width-padding, yPos+1), &image.Uniform{borderColor}, image.Point{}, draw.Src)
 	yPos += 40
 
 	if pageTitle != "" {
@@ -1326,6 +1357,12 @@ func generateHighlightOGImagePNG(author, pageTitle, quote, source, avatarURL str
 
 	if source != "" {
 		drawText(img, source, padding, yPos+80, textSecondary, 24, false)
+	}
+
+	if logoImage != nil {
+		logoSize := 36
+		drawScaledImage(img, logoImage, width-padding-logoSize, height-80, logoSize, logoSize)
+		drawText(img, "margin.at", width-padding-logoSize-120, height-52, textSecondary, 22, true)
 	}
 
 	return img

@@ -211,7 +211,7 @@ export default function Settings() {
               </p>
             </div>
             <Switch
-              checked={$preferences.get().disableExternalLinkWarning}
+              checked={preferences.disableExternalLinkWarning}
               onCheckedChange={setDisableExternalLinkWarning}
             />
           </div>

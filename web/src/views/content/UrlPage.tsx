@@ -12,7 +12,7 @@ import {
   User,
   Users,
 } from "lucide-react";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getByTarget } from "../../api/client";
 import Card from "../../components/common/Card";
@@ -29,12 +29,25 @@ export default function UrlPage() {
   const [annotations, setAnnotations] = useState<AnnotationItem[]>([]);
   const [highlights, setHighlights] = useState<AnnotationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [offset, setOffset] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
     "all" | "annotations" | "highlights"
   >("all");
   const [copied, setCopied] = useState(false);
   const user = useStore($user);
+
+  const LIMIT = 50;
+  const loadMoreTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (loadMoreTimerRef.current) clearTimeout(loadMoreTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     async function fetchData() {
@@ -47,9 +60,15 @@ export default function UrlPage() {
         setLoading(true);
         setError(null);
 
-        const data = await getByTarget(targetUrl);
-        setAnnotations(data.annotations || []);
-        setHighlights(data.highlights || []);
+        const data = await getByTarget(targetUrl, LIMIT, 0);
+        const fetchedAnnotations = data.annotations || [];
+        const fetchedHighlights = data.highlights || [];
+        setAnnotations(fetchedAnnotations);
+        setHighlights(fetchedHighlights);
+        const totalFetched =
+          fetchedAnnotations.length + fetchedHighlights.length;
+        setHasMore(totalFetched >= LIMIT);
+        setOffset(totalFetched);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load data");
       } finally {
@@ -58,6 +77,29 @@ export default function UrlPage() {
     }
     fetchData();
   }, [targetUrl]);
+
+  const loadMore = useCallback(async () => {
+    setLoadingMore(true);
+    setLoadMoreError(null);
+    try {
+      const data = await getByTarget(targetUrl, LIMIT, offset);
+      const fetchedAnnotations = data.annotations || [];
+      const fetchedHighlights = data.highlights || [];
+      setAnnotations((prev) => [...prev, ...fetchedAnnotations]);
+      setHighlights((prev) => [...prev, ...fetchedHighlights]);
+      const totalFetched = fetchedAnnotations.length + fetchedHighlights.length;
+      setHasMore(totalFetched >= LIMIT);
+      setOffset((prev) => prev + totalFetched);
+    } catch (err) {
+      console.error("Failed to load more:", err);
+      const msg = err instanceof Error ? err.message : "Something went wrong";
+      setLoadMoreError(msg);
+      if (loadMoreTimerRef.current) clearTimeout(loadMoreTimerRef.current);
+      loadMoreTimerRef.current = setTimeout(() => setLoadMoreError(null), 5000);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [targetUrl, offset]);
 
   const handleCopyLink = useCallback(async () => {
     try {
@@ -210,16 +252,6 @@ export default function UrlPage() {
         {!loading && totalItems > 0 && (
           <div className="mt-4 pt-4 border-t border-surface-100 dark:border-surface-700 flex items-center gap-4 text-sm text-surface-500 dark:text-surface-400">
             <span className="flex items-center gap-1.5">
-              <PenTool size={14} />
-              {annotations.length} annotation
-              {annotations.length !== 1 ? "s" : ""}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Highlighter size={14} />
-              {highlights.length} highlight
-              {highlights.length !== 1 ? "s" : ""}
-            </span>
-            <span className="flex items-center gap-1.5">
               <Users size={14} />
               {authorCount} contributor{authorCount !== 1 ? "s" : ""}
             </span>
@@ -259,15 +291,9 @@ export default function UrlPage() {
           <div className="mb-6">
             <Tabs
               tabs={[
-                { id: "all", label: `All (${totalItems})` },
-                {
-                  id: "annotations",
-                  label: `Annotations (${annotations.length})`,
-                },
-                {
-                  id: "highlights",
-                  label: `Highlights (${highlights.length})`,
-                },
+                { id: "all", label: "All" },
+                { id: "annotations", label: "Annotations" },
+                { id: "highlights", label: "Highlights" },
               ]}
               activeTab={activeTab}
               onChange={(id: string) =>
@@ -296,6 +322,30 @@ export default function UrlPage() {
               <Card key={item.uri} item={item} />
             ))}
           </div>
+
+          {hasMore && (
+            <div className="flex flex-col items-center gap-2 py-6">
+              {loadMoreError && (
+                <p className="text-sm text-red-500 dark:text-red-400">
+                  Failed to load more: {loadMoreError}
+                </p>
+              )}
+              <button
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-xl bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors disabled:opacity-50"
+              >
+                {loadingMore ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  "Load more"
+                )}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

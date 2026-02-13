@@ -146,10 +146,11 @@ export default function CollectionDetail({
               <span>
                 by{" "}
                 <Link
-                  to={`/profile/${collection.creator.did}`}
+                  to={`/profile/${collection.creator?.did}`}
                   className="hover:text-primary-600 dark:hover:text-primary-400 hover:underline transition-colors"
                 >
-                  {collection.creator.displayName || collection.creator.handle}
+                  {collection.creator?.displayName ||
+                    collection.creator?.handle}
                 </Link>
               </span>
             </div>
@@ -157,7 +158,7 @@ export default function CollectionDetail({
           <div className="flex items-center gap-1">
             <ShareMenu
               uri={collection.uri}
-              handle={collection.creator.handle}
+              handle={collection.creator?.handle}
               type="Collection"
               text={collection.name}
             />
@@ -187,7 +188,12 @@ export default function CollectionDetail({
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         collection={collection}
-        onUpdate={(updated) => setCollection(updated)}
+        onUpdate={(updated) =>
+          setCollection({
+            ...updated,
+            creator: updated.creator || collection.creator,
+          })
+        }
       />
 
       <div className="space-y-2">

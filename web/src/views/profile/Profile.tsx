@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   getProfile,
   getFeed,
@@ -63,6 +63,8 @@ interface ProfileProps {
 
 type Tab = "all" | "annotations" | "highlights" | "bookmarks" | "collections";
 
+const LIMIT = 50;
+
 export default function Profile({ did }: ProfileProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,6 +82,17 @@ export default function Profile({ did }: ProfileProps) {
   const [showEdit, setShowEdit] = useState(false);
   const [externalLink, setExternalLink] = useState<string | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState<
+    Record<string, { hasMore: boolean; offset: number }>
+  >({
+    all: { hasMore: false, offset: 0 },
+    annotations: { hasMore: false, offset: 0 },
+    highlights: { hasMore: false, offset: 0 },
+    bookmarks: { hasMore: false, offset: 0 },
+  });
+  const loadMoreTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [modRelation, setModRelation] = useState<ModerationRelationship>({
     blocking: false,
     muting: false,
@@ -182,6 +195,12 @@ export default function Profile({ did }: ProfileProps) {
   }, []);
 
   useEffect(() => {
+    return () => {
+      if (loadMoreTimerRef.current) clearTimeout(loadMoreTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
     const loadTabContent = async () => {
       const isHandle = !did.startsWith("did:");
       const resolvedDid = isHandle ? profile?.did : did;
@@ -189,34 +208,70 @@ export default function Profile({ did }: ProfileProps) {
       if (!resolvedDid) return;
 
       setDataLoading(true);
+      setPagination((prev) => ({
+        ...prev,
+        [activeTab]: { hasMore: false, offset: 0 },
+      }));
       try {
         if (activeTab === "all") {
           const res = await getFeed({
             creator: resolvedDid,
-            limit: 50,
+            limit: LIMIT,
           });
-          setAll(res.items || []);
+          const items = res.items || [];
+          setAll(items);
+          setPagination((prev) => ({
+            ...prev,
+            all: {
+              hasMore: res.hasMore ?? items.length >= LIMIT,
+              offset: res.fetchedCount ?? items.length,
+            },
+          }));
         } else if (activeTab === "annotations") {
           const res = await getFeed({
             creator: resolvedDid,
             motivation: "commenting",
-            limit: 50,
+            limit: LIMIT,
           });
-          setAnnotations(res.items || []);
+          const items = res.items || [];
+          setAnnotations(items);
+          setPagination((prev) => ({
+            ...prev,
+            annotations: {
+              hasMore: res.hasMore ?? items.length >= LIMIT,
+              offset: res.fetchedCount ?? items.length,
+            },
+          }));
         } else if (activeTab === "highlights") {
           const res = await getFeed({
             creator: resolvedDid,
             motivation: "highlighting",
-            limit: 50,
+            limit: LIMIT,
           });
-          setHighlights(res.items || []);
+          const items = res.items || [];
+          setHighlights(items);
+          setPagination((prev) => ({
+            ...prev,
+            highlights: {
+              hasMore: res.hasMore ?? items.length >= LIMIT,
+              offset: res.fetchedCount ?? items.length,
+            },
+          }));
         } else if (activeTab === "bookmarks") {
           const res = await getFeed({
             creator: resolvedDid,
             motivation: "bookmarking",
-            limit: 50,
+            limit: LIMIT,
           });
-          setBookmarks(res.items || []);
+          const items = res.items || [];
+          setBookmarks(items);
+          setPagination((prev) => ({
+            ...prev,
+            bookmarks: {
+              hasMore: res.hasMore ?? items.length >= LIMIT,
+              offset: res.fetchedCount ?? items.length,
+            },
+          }));
         } else if (activeTab === "collections") {
           const res = await getCollections(resolvedDid);
           setCollections(res);
@@ -229,6 +284,60 @@ export default function Profile({ did }: ProfileProps) {
     };
     loadTabContent();
   }, [profile?.did, did, activeTab]);
+
+  const loadMore = useCallback(async () => {
+    const isHandle = !did.startsWith("did:");
+    const resolvedDid = isHandle ? profile?.did : did;
+    if (!resolvedDid) return;
+
+    const tabPagination = pagination[activeTab];
+    if (!tabPagination) return;
+
+    const capturedTab = activeTab;
+    setLoadingMore(true);
+    setLoadMoreError(null);
+    try {
+      const motivationMap: Record<string, string | undefined> = {
+        all: undefined,
+        annotations: "commenting",
+        highlights: "highlighting",
+        bookmarks: "bookmarking",
+      };
+      const res = await getFeed({
+        creator: resolvedDid,
+        motivation: motivationMap[capturedTab],
+        limit: LIMIT,
+        offset: tabPagination.offset,
+      });
+      const fetched = res.items || [];
+      const setters: Record<
+        string,
+        React.Dispatch<React.SetStateAction<AnnotationItem[]>>
+      > = {
+        annotations: setAnnotations,
+        highlights: setHighlights,
+        bookmarks: setBookmarks,
+      };
+      const setter = setters[capturedTab] ?? setAll;
+      setter((prev) => [...prev, ...fetched]);
+      setPagination((prev) => ({
+        ...prev,
+        [capturedTab]: {
+          hasMore: res.hasMore ?? fetched.length >= LIMIT,
+          offset:
+            prev[capturedTab].offset + (res.fetchedCount ?? fetched.length),
+        },
+      }));
+    } catch (e) {
+      console.error(e);
+      const msg = e instanceof Error ? e.message : "Something went wrong";
+      setLoadMoreError(msg);
+      if (loadMoreTimerRef.current) clearTimeout(loadMoreTimerRef.current);
+      loadMoreTimerRef.current = setTimeout(() => setLoadMoreError(null), 5000);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [did, profile?.did, activeTab, pagination]);
 
   if (loading) {
     return (
@@ -674,6 +783,26 @@ export default function Profile({ did }: ProfileProps) {
                 : `No ${activeTab}`
             }
           />
+        )}
+
+        {activeTab !== "collections" && pagination[activeTab]?.hasMore && (
+          <div className="flex flex-col items-center gap-2 py-6">
+            {loadMoreError && (
+              <p className="text-sm text-red-500 dark:text-red-400">
+                Failed to load more: {loadMoreError}
+              </p>
+            )}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={loadMore}
+              loading={loadingMore}
+              disabled={loadingMore}
+              className="rounded-xl"
+            >
+              Load more
+            </Button>
+          </div>
         )}
       </div>
 

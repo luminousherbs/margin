@@ -1,7 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
-import { getTrendingTags, type Tag } from "../../api/client";
+import {
+  getTrendingTags,
+  searchActors,
+  type ActorSearchItem,
+  type Tag,
+} from "../../api/client";
+import { Avatar } from "../ui";
+
+function looksLikeUrl(query: string): boolean {
+  const q = query.trim().toLowerCase();
+  return (
+    q.startsWith("http://") ||
+    q.startsWith("https://") ||
+    /\.(com|org|net|io|dev|me|co|app|xyz|edu|gov)\b/.test(q)
+  );
+}
 
 export default function RightSidebar() {
   const navigate = useNavigate();
@@ -15,12 +30,113 @@ export default function RightSidebar() {
     return "other";
   });
   const [searchQuery, setSearchQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<ActorSearchItem[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
 
-  const handleSearch = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && searchQuery.trim()) {
-      navigate(`/url/${encodeURIComponent(searchQuery.trim())}`);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  const isSelectionRef = useRef(false);
+  const latestQueryRef = useRef(searchQuery);
+
+  useEffect(() => {
+    latestQueryRef.current = searchQuery;
+
+    if (searchQuery.length < 3 || looksLikeUrl(searchQuery)) {
+      return;
     }
-  };
+
+    if (isSelectionRef.current) {
+      isSelectionRef.current = false;
+      return;
+    }
+
+    const capturedQuery = searchQuery;
+    const timer = setTimeout(async () => {
+      try {
+        const data = await searchActors(capturedQuery);
+        if (capturedQuery !== latestQueryRef.current) return;
+        setSuggestions(data.actors || []);
+        setShowSuggestions((data.actors || []).length > 0);
+        setSelectedIndex(-1);
+      } catch (e) {
+        console.error("Search failed:", e);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(e.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(e.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectSuggestion = useCallback(
+    (actor: ActorSearchItem) => {
+      isSelectionRef.current = true;
+      setSearchQuery("");
+      setSuggestions([]);
+      setShowSuggestions(false);
+      navigate(`/profile/${encodeURIComponent(actor.handle)}`);
+    },
+    [navigate],
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (showSuggestions && suggestions.length > 0) {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setSelectedIndex((prev) =>
+            Math.min(prev + 1, suggestions.length - 1),
+          );
+          return;
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setSelectedIndex((prev) => Math.max(prev - 1, -1));
+          return;
+        } else if (e.key === "Enter" && selectedIndex >= 0) {
+          e.preventDefault();
+          selectSuggestion(suggestions[selectedIndex]);
+          return;
+        } else if (e.key === "Escape") {
+          setShowSuggestions(false);
+          return;
+        }
+      }
+
+      if (e.key === "Enter" && searchQuery.trim()) {
+        const q = searchQuery.trim();
+        if (looksLikeUrl(q)) {
+          navigate(`/url/${encodeURIComponent(q)}`);
+        } else {
+          navigate(`/profile/${encodeURIComponent(q)}`);
+        }
+        setSearchQuery("");
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    },
+    [
+      showSuggestions,
+      suggestions,
+      selectedIndex,
+      searchQuery,
+      navigate,
+      selectSuggestion,
+    ],
+  );
 
   useEffect(() => {
     getTrendingTags(10).then(setTags);
@@ -44,13 +160,51 @@ export default function RightSidebar() {
             />
           </div>
           <input
+            ref={inputRef}
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={handleSearch}
-            placeholder="Search..."
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              if (e.target.value.length < 3) {
+                setSuggestions([]);
+                setShowSuggestions(false);
+              }
+            }}
+            onKeyDown={handleKeyDown}
+            onFocus={() =>
+              searchQuery.length >= 3 &&
+              suggestions.length > 0 &&
+              setShowSuggestions(true)
+            }
+            placeholder="Search users or URLs..."
             className="w-full bg-surface-100 dark:bg-surface-800/80 rounded-lg pl-9 pr-4 py-2 text-sm text-surface-900 dark:text-white placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:bg-white dark:focus:bg-surface-800 transition-all border border-surface-200/60 dark:border-surface-700/60"
           />
+
+          {showSuggestions && suggestions.length > 0 && (
+            <div
+              ref={suggestionsRef}
+              className="absolute top-[calc(100%+6px)] left-0 right-0 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl overflow-hidden z-50 animate-fade-in max-h-[280px] overflow-y-auto"
+            >
+              {suggestions.map((actor, index) => (
+                <button
+                  key={actor.did}
+                  type="button"
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 border-b border-surface-100 dark:border-surface-800 last:border-0 hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors text-left ${index === selectedIndex ? "bg-surface-50 dark:bg-surface-800" : ""}`}
+                  onClick={() => selectSuggestion(actor)}
+                >
+                  <Avatar src={actor.avatar} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-surface-900 dark:text-white truncate text-sm leading-tight">
+                      {actor.displayName || actor.handle}
+                    </div>
+                    <div className="text-surface-500 dark:text-surface-400 text-xs truncate">
+                      @{actor.handle}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="rounded-xl p-4 bg-gradient-to-br from-primary-50 to-primary-100/50 dark:from-primary-950/30 dark:to-primary-900/10 border border-primary-200/40 dark:border-primary-800/30">

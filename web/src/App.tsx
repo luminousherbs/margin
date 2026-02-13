@@ -21,7 +21,6 @@ import {
 } from "./routes/wrappers";
 import About from "./views/About";
 import AdminModeration from "./views/core/AdminModeration";
-import NotFound from "./views/NotFound";
 
 export default function App() {
   React.useEffect(() => {
@@ -220,7 +219,7 @@ export default function App() {
           }
         />
 
-        <Route path="*" element={<NotFound />} />
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </BrowserRouter>
   );
