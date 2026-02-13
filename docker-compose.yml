@@ -4,8 +4,10 @@ services:
     container_name: margin-at
     environment:
       - PORT=8080
+      - API_PORT=8081
+      - API_URL=http://localhost:8081
       - DATABASE_URL=postgres://margin:margin@margin-db:5432/margin?sslmode=disable
-      - STATIC_DIR=dist
+      - HOST=0.0.0.0
       - OAUTH_KEY_PATH=/data/oauth_private_key.pem
     env_file:
       - .env

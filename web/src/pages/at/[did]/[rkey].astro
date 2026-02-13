@@ -1,0 +1,23 @@
+---
+export const prerender = false;
+
+import OGLayout from '../../../layouts/OGLayout.astro';
+import { fetchOGForRoute } from '../../../lib/og';
+
+const { did, rkey } = Astro.params;
+
+let title = 'Margin';
+let description = 'Annotate the web';
+let image = 'https://margin.at/og.png';
+
+if (did && rkey) {
+	const data = await fetchOGForRoute(did, rkey);
+	if (data) {
+		title = data.title;
+		description = data.description;
+		image = data.image;
+	}
+}
+---
+
+<OGLayout title={title} description={description} image={image} />

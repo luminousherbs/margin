@@ -1,0 +1,26 @@
+---
+export const prerender = false;
+
+import OGLayout from '../../../layouts/OGLayout.astro';
+import { resolveHandle, fetchOGForRoute } from '../../../lib/og';
+
+const { handle, rkey } = Astro.params;
+
+let title = 'Margin';
+let description = 'Annotate the web';
+let image = 'https://margin.at/og.png';
+
+if (handle && rkey) {
+	const did = await resolveHandle(handle);
+	if (did) {
+		const data = await fetchOGForRoute(did, rkey, 'at.margin.bookmark');
+		if (data) {
+			title = data.title;
+			description = data.description;
+			image = data.image;
+		}
+	}
+}
+---
+
+<OGLayout title={title} description={description} image={image} />

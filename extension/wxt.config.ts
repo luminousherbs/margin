@@ -81,25 +81,25 @@ export default defineConfig({
       },
       ...(browser === 'chrome'
         ? {
-          side_panel: {
-            default_path: 'sidepanel.html',
-          },
-        }
+            side_panel: {
+              default_path: 'sidepanel.html',
+            },
+          }
         : {
-          sidebar_action: {
-            default_title: 'Margin',
-            default_panel: 'sidepanel.html',
-          },
-          browser_specific_settings: {
-            gecko: {
-              id: 'hello@margin.at',
-              strict_min_version: '140.0',
-              data_collection_permissions: {
-                required: ['none'],
+            sidebar_action: {
+              default_title: 'Margin',
+              default_panel: 'sidepanel.html',
+            },
+            browser_specific_settings: {
+              gecko: {
+                id: 'hello@margin.at',
+                strict_min_version: '140.0',
+                data_collection_permissions: {
+                  required: ['none'],
+                },
               },
             },
-          },
-        }),
+          }),
     };
   },
 });

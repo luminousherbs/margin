@@ -104,21 +104,10 @@ func main() {
 	r.Get("/client-metadata.json", oauthHandler.HandleClientMetadata)
 	r.Get("/jwks.json", oauthHandler.HandleJWKS)
 
-	ogHandler := api.NewOGHandler(database)
-	r.Get("/og-image", ogHandler.HandleOGImage)
-	r.Get("/annotation/{did}/{rkey}", ogHandler.HandleAnnotationPage)
-	r.Get("/at/{did}/{rkey}", ogHandler.HandleAnnotationPage)
-	r.Get("/{handle}/annotation/{rkey}", ogHandler.HandleAnnotationPage)
-	r.Get("/{handle}/highlight/{rkey}", ogHandler.HandleAnnotationPage)
-	r.Get("/{handle}/bookmark/{rkey}", ogHandler.HandleAnnotationPage)
-
 	r.Get("/api/tags/trending", handler.HandleGetTrendingTags)
 	r.Put("/api/profile", handler.UpdateProfile)
 	r.Get("/api/profile/{did}", handler.GetProfile)
 	r.Post("/api/profile/avatar", handler.UploadAvatar)
-
-	r.Get("/collection/{uri}", ogHandler.HandleCollectionPage)
-	r.Get("/{handle}/collection/{rkey}", ogHandler.HandleCollectionPage)
 
 	staticDir := getEnv("STATIC_DIR", "../web/dist")
 	serveStatic(r, staticDir)

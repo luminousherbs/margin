@@ -17,19 +17,30 @@ RUN go mod download
 COPY backend/ ./
 RUN CGO_ENABLED=1 GOOS=linux go build -a -ldflags '-linkmode external -extldflags "-static"' -o margin-server ./cmd/server
 
-FROM alpine:3.19
+FROM node:20-alpine
 
 RUN apk add --no-cache ca-certificates tzdata
 
 WORKDIR /app
 
-COPY --from=backend-builder /app/margin-server .
+COPY --from=backend-builder /app/margin-server ./margin-server
+
 COPY --from=frontend-builder /app/web/dist ./dist
 
 ENV PORT=8080
+ENV API_PORT=8081
 ENV DATABASE_URL=margin.db
-ENV STATIC_DIR=/app/dist
+ENV HOST=0.0.0.0
+ENV API_URL=http://localhost:8081
 
 EXPOSE 8080
 
-CMD ["./margin-server"]
+COPY <<'EOF' /app/start.sh
+#!/bin/sh
+PORT=$API_PORT ./margin-server &
+node ./dist/server/entry.mjs &
+wait -n
+EOF
+RUN chmod +x /app/start.sh
+
+CMD ["/app/start.sh"]

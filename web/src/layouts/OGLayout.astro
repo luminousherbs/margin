@@ -1,0 +1,16 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import App from '../App';
+
+interface Props {
+	title?: string;
+	description?: string;
+	image?: string;
+}
+
+const { title = 'Margin', description = 'Annotate the web', image = 'https://margin.at/og.png' } = Astro.props;
+---
+
+<BaseLayout title={title} description={description} image={image}>
+	<App client:only="react" />
+</BaseLayout>
