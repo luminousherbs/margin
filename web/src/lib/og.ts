@@ -32,7 +32,8 @@ export interface OGData {
 }
 
 interface APIAnnotation {
-  uri: string;
+  id?: string;
+  uri?: string;
   author?: { did: string; handle?: string };
   creator?: { did: string; handle?: string };
   target?: { source?: string; title?: string; selector?: { exact?: string } };
@@ -50,7 +51,8 @@ interface APIAnnotation {
 }
 
 interface APICollection {
-  uri: string;
+  id?: string;
+  uri?: string;
   name: string;
   description?: string;
   icon?: string;
@@ -105,6 +107,7 @@ export async function fetchAnnotationOG(uri: string): Promise<OGData | null> {
   )) as APIAnnotation | null;
   if (!item) return null;
 
+  const itemURI = item.id || item.uri || uri;
   const author = getAuthorHandle(item);
   const source = item.target?.source || item.url || item.source || "";
   const domain = extractDomain(source);
@@ -130,9 +133,9 @@ export async function fetchAnnotationOG(uri: string): Promise<OGData | null> {
   return {
     title,
     description,
-    image: `${BASE_URL}/og-image?uri=${encodeURIComponent(item.uri)}`,
+    image: `${BASE_URL}/og-image?uri=${encodeURIComponent(itemURI)}`,
     author,
-    pageURL: `${BASE_URL}/at/${encodeURIComponent(item.uri.slice(5))}`,
+    pageURL: `${BASE_URL}/at/${encodeURIComponent(itemURI.slice(5))}`,
   };
 }
 
@@ -142,6 +145,7 @@ export async function fetchHighlightOG(uri: string): Promise<OGData | null> {
   )) as APIAnnotation | null;
   if (!item) return null;
 
+  const itemURI = item.id || item.uri || uri;
   const author = getAuthorHandle(item);
   const source = item.target?.source || item.url || item.source || "";
   const domain = extractDomain(source);
@@ -164,9 +168,9 @@ export async function fetchHighlightOG(uri: string): Promise<OGData | null> {
   return {
     title,
     description,
-    image: `${BASE_URL}/og-image?uri=${encodeURIComponent(item.uri)}`,
+    image: `${BASE_URL}/og-image?uri=${encodeURIComponent(itemURI)}`,
     author,
-    pageURL: `${BASE_URL}/at/${encodeURIComponent(item.uri.slice(5))}`,
+    pageURL: `${BASE_URL}/at/${encodeURIComponent(itemURI.slice(5))}`,
   };
 }
 
@@ -176,6 +180,7 @@ export async function fetchBookmarkOG(uri: string): Promise<OGData | null> {
   )) as APIAnnotation | null;
   if (!item) return null;
 
+  const itemURI = item.id || item.uri || uri;
   const author = getAuthorHandle(item);
   const source = item.target?.source || item.url || item.source || "";
   const domain = extractDomain(source);
@@ -189,9 +194,9 @@ export async function fetchBookmarkOG(uri: string): Promise<OGData | null> {
   return {
     title,
     description,
-    image: `${BASE_URL}/og-image?uri=${encodeURIComponent(item.uri)}`,
+    image: `${BASE_URL}/og-image?uri=${encodeURIComponent(itemURI)}`,
     author,
-    pageURL: `${BASE_URL}/at/${encodeURIComponent(item.uri.slice(5))}`,
+    pageURL: `${BASE_URL}/at/${encodeURIComponent(itemURI.slice(5))}`,
   };
 }
 
@@ -201,6 +206,7 @@ export async function fetchCollectionOG(uri: string): Promise<OGData | null> {
   )) as APICollection | null;
   if (!item) return null;
 
+  const itemURI = item.id || item.uri || uri;
   const author = getAuthorHandle(item);
   const icon = item.icon || "📁";
   const title = `${icon} ${item.name}`;
@@ -215,9 +221,9 @@ export async function fetchCollectionOG(uri: string): Promise<OGData | null> {
   return {
     title,
     description,
-    image: `${BASE_URL}/og-image?uri=${encodeURIComponent(item.uri)}`,
+    image: `${BASE_URL}/og-image?uri=${encodeURIComponent(itemURI)}`,
     author,
-    pageURL: `${BASE_URL}/collection/${encodeURIComponent(item.uri)}`,
+    pageURL: `${BASE_URL}/collection/${encodeURIComponent(itemURI)}`,
   };
 }
 

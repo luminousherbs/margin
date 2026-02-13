@@ -11,14 +11,18 @@ let description = 'Annotate the web';
 let image = 'https://margin.at/og.png';
 
 if (handle && rkey) {
-	const did = await resolveHandle(handle);
-	if (did) {
-		const data = await fetchOGForRoute(did, rkey, 'at.margin.annotation');
-		if (data) {
-			title = data.title;
-			description = data.description;
-			image = data.image;
+	try {
+		const did = await resolveHandle(handle);
+		if (did) {
+			const data = await fetchOGForRoute(did, rkey, 'at.margin.annotation');
+			if (data) {
+				title = data.title;
+				description = data.description;
+				image = data.image;
+			}
 		}
+	} catch (e) {
+		console.error('OG fetch error (annotation):', e);
 	}
 }
 ---

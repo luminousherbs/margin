@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -109,20 +107,14 @@ func main() {
 	r.Get("/api/profile/{did}", handler.GetProfile)
 	r.Post("/api/profile/avatar", handler.UploadAvatar)
 
-	staticDir := getEnv("STATIC_DIR", "../web/dist")
-	serveStatic(r, staticDir)
-
-	port := getEnv("PORT", "8080")
+	port := getEnv("PORT", "8081")
 	server := &http.Server{
 		Addr:    ":" + port,
 		Handler: r,
 	}
 
-	baseURL := getEnv("BASE_URL", "http://localhost:"+port)
 	go func() {
-		log.Printf("🚀 Margin server running on %s", baseURL)
-		log.Printf("📝 App: %s", baseURL)
-		log.Printf("🔗 API: %s/api/annotations", baseURL)
+		log.Printf("Margin API server running on :%s", port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)
 		}
@@ -150,58 +142,4 @@ func getEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
-}
-
-func serveStatic(r chi.Router, staticDir string) {
-	absPath, err := filepath.Abs(staticDir)
-	if err != nil {
-		log.Printf("Warning: Could not resolve static directory: %v", err)
-		return
-	}
-
-	if _, err := os.Stat(absPath); os.IsNotExist(err) {
-		log.Printf("Warning: Static directory does not exist: %s", absPath)
-		log.Printf("Run 'npm run build' in the web directory first")
-		return
-	}
-
-	log.Printf("📂 Serving static files from: %s", absPath)
-
-	fileServer := http.FileServer(http.Dir(absPath))
-
-	r.Get("/*", func(w http.ResponseWriter, req *http.Request) {
-		path := req.URL.Path
-
-		if strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/auth/") {
-			http.NotFound(w, req)
-			return
-		}
-
-		filePath := filepath.Join(absPath, path)
-		if _, err := os.Stat(filePath); err == nil {
-			fileServer.ServeHTTP(w, req)
-			return
-		}
-
-		if strings.HasPrefix(path, "/.well-known/") {
-			http.NotFound(w, req)
-			return
-		}
-
-		lastSlash := strings.LastIndex(path, "/")
-		lastSegment := path
-		if lastSlash >= 0 {
-			lastSegment = path[lastSlash+1:]
-		}
-
-		staticExts := []string{".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf", ".eot", ".map"}
-		for _, ext := range staticExts {
-			if strings.HasSuffix(lastSegment, ext) {
-				http.NotFound(w, req)
-				return
-			}
-		}
-
-		http.ServeFile(w, req, filepath.Join(absPath, "index.html"))
-	})
 }

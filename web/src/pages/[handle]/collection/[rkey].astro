@@ -11,15 +11,19 @@ let description = 'Annotate the web';
 let image = 'https://margin.at/og.png';
 
 if (handle && rkey) {
-	const did = await resolveHandle(handle);
-	if (did) {
-		const uri = `at://${did}/at.margin.collection/${rkey}`;
-		const data = await fetchCollectionOG(uri);
-		if (data) {
-			title = data.title;
-			description = data.description;
-			image = data.image;
+	try {
+		const did = await resolveHandle(handle);
+		if (did) {
+			const uri = `at://${did}/at.margin.collection/${rkey}`;
+			const data = await fetchCollectionOG(uri);
+			if (data) {
+				title = data.title;
+				description = data.description;
+				image = data.image;
+			}
 		}
+	} catch (e) {
+		console.error('OG fetch error (collection):', e);
 	}
 }
 ---
