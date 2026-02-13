@@ -1,6 +1,7 @@
 import type { APIContext } from "astro";
 
-const API_URL = process.env.API_URL || "http://localhost:8081";
+const API_PORT = process.env.API_PORT || 8081;
+const API_URL = process.env.API_URL || `http://localhost:${API_PORT}`;
 
 const PROXY_PATHS = ["/api/", "/auth/", "/client-metadata.json", "/jwks.json"];
 

@@ -4,6 +4,8 @@ import react from "@astrojs/react";
 import tailwind from "@astrojs/tailwind";
 import node from "@astrojs/node";
 
+const API_PORT = process.env.API_PORT || 8081;
+
 // https://astro.build/config
 export default defineConfig({
   adapter: node({ mode: "standalone" }),
@@ -19,11 +21,11 @@ export default defineConfig({
     server: {
       proxy: {
         "/api": {
-          target: "http://localhost:8080",
+          target: `http://localhost:${API_PORT}`,
           changeOrigin: true,
         },
         "/auth": {
-          target: "http://localhost:8080",
+          target: `http://localhost:${API_PORT}`,
           changeOrigin: true,
         },
       },
