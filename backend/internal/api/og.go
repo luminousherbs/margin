@@ -1039,9 +1039,8 @@ func generateOGImagePNG(author, text, quote, source, avatarURL string) image.Ima
 	drawText(img, source, padding, yPos+32, textSecondary, 24, false)
 
 	if logoImage != nil {
-		logoSize := 36
-		drawScaledImage(img, logoImage, width-padding-logoSize, height-80, logoSize, logoSize)
-		drawText(img, "margin.at", width-padding-logoSize-120, height-52, textSecondary, 22, true)
+		logoSize := 32
+		drawScaledImage(img, logoImage, width-padding-logoSize, height-90, logoSize, logoSize)
 	}
 
 	return img
@@ -1188,15 +1187,9 @@ func generateCollectionOGImagePNG(author, collectionName, description, icon, ava
 	iconY := 120
 	var iconWidth int
 	if icon != "" {
-		emojiImg := fetchTwemojiImage(icon)
-		if emojiImg != nil {
-			iconSize := 96
-			drawScaledImage(img, emojiImg, padding, iconY, iconSize, iconSize)
-			iconWidth = iconSize + 32
-		} else {
-			drawText(img, icon, padding, iconY+70, textPrimary, 80, true)
-			iconWidth = 100
-		}
+		// Render emoji using the fallback font directly
+		drawText(img, icon, padding, iconY+70, textPrimary, 80, true)
+		iconWidth = 100
 	}
 
 	drawText(img, collectionName, padding+iconWidth, iconY+65, textPrimary, 64, true)
@@ -1237,42 +1230,10 @@ func generateCollectionOGImagePNG(author, collectionName, description, icon, ava
 	drawText(img, author, handleX, avatarY+42, textTertiary, 28, false)
 
 	if logoImage != nil {
-		logoSize := 36
-		drawScaledImage(img, logoImage, width-padding-logoSize, height-80, logoSize, logoSize)
-		drawText(img, "margin.at", width-padding-logoSize-120, height-52, textSecondary, 22, true)
+		logoSize := 32
+		drawScaledImage(img, logoImage, width-padding-logoSize, height-90, logoSize, logoSize)
 	}
 
-	return img
-}
-
-func fetchTwemojiImage(emoji string) image.Image {
-	var codes []string
-	for _, r := range emoji {
-		codes = append(codes, fmt.Sprintf("%x", r))
-	}
-	hexCode := strings.Join(codes, "-")
-
-	url := fmt.Sprintf("https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/%s.png", hexCode)
-
-	resp, err := http.Get(url)
-	if err != nil || resp.StatusCode != 200 {
-		if strings.Contains(hexCode, "-fe0f") {
-			simpleHex := strings.ReplaceAll(hexCode, "-fe0f", "")
-			url = fmt.Sprintf("https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/%s.png", simpleHex)
-			resp, err = http.Get(url)
-			if err != nil || resp.StatusCode != 200 {
-				return nil
-			}
-		} else {
-			return nil
-		}
-	}
-	defer resp.Body.Close()
-
-	img, _, err := image.Decode(resp.Body)
-	if err != nil {
-		return nil
-	}
 	return img
 }
 
@@ -1360,9 +1321,8 @@ func generateHighlightOGImagePNG(author, pageTitle, quote, source, avatarURL str
 	}
 
 	if logoImage != nil {
-		logoSize := 36
-		drawScaledImage(img, logoImage, width-padding-logoSize, height-80, logoSize, logoSize)
-		drawText(img, "margin.at", width-padding-logoSize-120, height-52, textSecondary, 22, true)
+		logoSize := 32
+		drawScaledImage(img, logoImage, width-padding-logoSize, height-90, logoSize, logoSize)
 	}
 
 	return img

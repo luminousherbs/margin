@@ -583,9 +583,17 @@ export default function Profile({ did }: ProfileProps) {
                           ? link
                           : `https://${link}`;
                         try {
+                          const prefs = $preferences.get();
+                          if (prefs.disableExternalLinkWarning) {
+                            window.open(
+                              fullUrl,
+                              "_blank",
+                              "noopener,noreferrer",
+                            );
+                            return;
+                          }
                           const hostname = new URL(fullUrl).hostname;
-                          const skipped =
-                            $preferences.get().externalLinkSkippedHostnames;
+                          const skipped = prefs.externalLinkSkippedHostnames;
                           if (skipped.includes(hostname)) {
                             window.open(
                               fullUrl,
