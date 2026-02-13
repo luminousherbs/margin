@@ -10,6 +10,9 @@ const API_PORT = process.env.API_PORT || 8081;
 export default defineConfig({
   adapter: node({ mode: "standalone" }),
   integrations: [react(), tailwind()],
+  security: {
+    checkOrigin: false,
+  },
   vite: {
     ssr: {
       noExternal: true,
