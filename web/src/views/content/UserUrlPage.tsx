@@ -1,17 +1,16 @@
-import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
-import { getUserTargetItems } from "../../api/client";
-import type { AnnotationItem, UserProfile } from "../../types";
-import Card from "../../components/common/Card";
+import { clsx } from "clsx";
 import {
-  PenTool,
-  Highlighter,
-  Search,
   AlertTriangle,
   ExternalLink,
+  Highlighter,
+  PenTool,
+  Search,
 } from "lucide-react";
-import { clsx } from "clsx";
-import { getAvatarUrl } from "../../api/client";
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { getAvatarUrl, getUserTargetItems } from "../../api/client";
+import Card from "../../components/common/Card";
+import type { AnnotationItem, UserProfile } from "../../types";
 
 export default function UserUrlPage() {
   const params = useParams();
@@ -107,12 +106,26 @@ export default function UserUrlPage() {
       );
     }
 
+    const items = [
+      ...(activeTab === "all" || activeTab === "annotations"
+        ? annotations
+        : []),
+      ...(activeTab === "all" || activeTab === "highlights" ? highlights : []),
+    ];
+
+    if (activeTab === "all") {
+      items.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA;
+      });
+    }
+
     return (
       <div className="space-y-6">
-        {(activeTab === "all" || activeTab === "annotations") &&
-          annotations.map((a) => <Card key={a.uri} item={a} />)}
-        {(activeTab === "all" || activeTab === "highlights") &&
-          highlights.map((h) => <Card key={h.uri} item={h} />)}
+        {items.map((item) => (
+          <Card key={item.uri} item={item} />
+        ))}
       </div>
     );
   };

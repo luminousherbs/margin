@@ -1,27 +1,26 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import { useStore } from "@nanostores/react";
-import { $user } from "../../store/auth";
-import { getByTarget } from "../../api/client";
-import type { AnnotationItem } from "../../types";
-import Card from "../../components/common/Card";
 import {
-  PenTool,
-  Highlighter,
-  Search,
   AlertTriangle,
-  Globe,
-  Copy,
   Check,
+  Copy,
   ExternalLink,
+  Globe,
+  Highlighter,
   Loader2,
-  Users,
+  PenTool,
+  Search,
   User,
+  Users,
 } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { getByTarget } from "../../api/client";
+import Card from "../../components/common/Card";
+import { Button, EmptyState, Input, Tabs } from "../../components/ui";
+import { $user } from "../../store/auth";
+import type { AnnotationItem } from "../../types";
 
-import { Tabs, EmptyState, Input, Button } from "../../components/ui";
-
-export default function SitePage() {
+export default function UrlPage() {
   const params = useParams();
   const navigate = useNavigate();
   const urlPath = params["*"];
@@ -35,7 +34,6 @@ export default function SitePage() {
     "all" | "annotations" | "highlights"
   >("all");
   const [copied, setCopied] = useState(false);
-  const [userLinkCopied, setUserLinkCopied] = useState(false);
   const user = useStore($user);
 
   useEffect(() => {
@@ -71,17 +69,10 @@ export default function SitePage() {
     }
   }, []);
 
-  const handleCopyUserLink = useCallback(async () => {
+  const handleNavigateMyAnnotations = useCallback(async () => {
     if (!user?.handle || !targetUrl) return;
-    try {
-      const url = `${window.location.origin}/${user.handle}/url/${encodeURIComponent(targetUrl)}`;
-      await navigator.clipboard.writeText(url);
-      setUserLinkCopied(true);
-      setTimeout(() => setUserLinkCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy user link:", err);
-    }
-  }, [user?.handle, targetUrl]);
+    navigate(`/${user.handle}/url/${encodeURIComponent(targetUrl)}`);
+  }, [user?.handle, targetUrl, navigate]);
 
   const totalItems = annotations.length + highlights.length;
 
@@ -120,7 +111,7 @@ export default function SitePage() {
             />
           </div>
           <h1 className="text-3xl font-display font-bold text-surface-900 dark:text-white mb-3">
-            Site Annotations
+            URL Annotations
           </h1>
           <p className="text-surface-500 dark:text-surface-400 max-w-md mx-auto mb-8">
             Enter a URL to see all public annotations and highlights from the
@@ -134,7 +125,7 @@ export default function SitePage() {
               const q = (formData.get("q") as string)?.trim();
               if (q) {
                 const encoded = encodeURIComponent(q);
-                navigate(`/site/${encoded}`);
+                navigate(`/url/${encoded}`);
               }
             }}
             className="max-w-md mx-auto flex gap-2"
@@ -152,6 +143,19 @@ export default function SitePage() {
         </div>
       </div>
     );
+  }
+
+  const items = [
+    ...(activeTab === "all" || activeTab === "annotations" ? annotations : []),
+    ...(activeTab === "all" || activeTab === "highlights" ? highlights : []),
+  ];
+
+  if (activeTab === "all") {
+    items.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
+    });
   }
 
   return (
@@ -185,12 +189,11 @@ export default function SitePage() {
           <div className="flex items-center gap-2 shrink-0">
             {user && (
               <button
-                onClick={handleCopyUserLink}
+                onClick={handleNavigateMyAnnotations}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-100 dark:bg-surface-700 hover:bg-surface-200 dark:hover:bg-surface-600 text-surface-700 dark:text-surface-200 text-sm font-medium rounded-lg transition-colors"
-                title="Copy link to your annotations on this page"
+                title="See your annotations for this page"
               >
-                {userLinkCopied ? <Check size={14} /> : <User size={14} />}
-                {userLinkCopied ? "Copied!" : "My Link"}
+                <User size={14} /> My Annotations
               </button>
             )}
             <button
@@ -257,7 +260,10 @@ export default function SitePage() {
             <Tabs
               tabs={[
                 { id: "all", label: `All (${totalItems})` },
-                { id: "annotations", label: `Notes (${annotations.length})` },
+                {
+                  id: "annotations",
+                  label: `Annotations (${annotations.length})`,
+                },
                 {
                   id: "highlights",
                   label: `Highlights (${highlights.length})`,
@@ -286,10 +292,9 @@ export default function SitePage() {
               />
             )}
 
-            {(activeTab === "all" || activeTab === "annotations") &&
-              annotations.map((a) => <Card key={a.uri} item={a} />)}
-            {(activeTab === "all" || activeTab === "highlights") &&
-              highlights.map((h) => <Card key={h.uri} item={h} />)}
+            {items.map((item) => (
+              <Card key={item.uri} item={item} />
+            ))}
           </div>
         </div>
       )}

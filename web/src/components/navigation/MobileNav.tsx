@@ -205,9 +205,9 @@ export default function MobileNav() {
         </Link>
 
         <Link
-          to="/site"
+          to="/url"
           className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-colors ${
-            isActive("/site")
+            isActive("/url")
               ? "text-primary-600"
               : "text-surface-500 hover:text-surface-700"
           }`}

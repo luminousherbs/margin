@@ -18,7 +18,7 @@ export default function RightSidebar() {
 
   const handleSearch = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && searchQuery.trim()) {
-      navigate(`/site/${encodeURIComponent(searchQuery.trim())}`);
+      navigate(`/url/${encodeURIComponent(searchQuery.trim())}`);
     }
   };
 

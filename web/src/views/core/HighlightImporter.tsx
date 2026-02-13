@@ -1,11 +1,12 @@
-import React, { useState, useRef } from "react";
 import {
-  Upload,
-  Loader2,
-  CheckCircle2,
   AlertCircle,
+  CheckCircle2,
   Download,
+  Loader2,
+  Upload,
 } from "lucide-react";
+import type React from "react";
+import { useRef, useState } from "react";
 import { createHighlight } from "../../api/client";
 import type { Selector } from "../../types";
 

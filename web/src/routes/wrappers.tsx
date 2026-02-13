@@ -1,12 +1,12 @@
+import { useStore } from "@nanostores/react";
 import React from "react";
 import { Navigate, useParams } from "react-router-dom";
-import { useStore } from "@nanostores/react";
 import { $user } from "../store/auth";
-import Profile from "../views/profile/Profile";
 import CollectionDetail from "../views/collections/CollectionDetail";
 import AnnotationDetail from "../views/content/AnnotationDetail";
-import UserUrlPage from "../views/content/UserUrl";
-import SitePage from "../views/content/SitePage";
+import UrlPage from "../views/content/UrlPage";
+import UserUrlPage from "../views/content/UserUrlPage";
+import Profile from "../views/profile/Profile";
 
 export function ProfileWrapper() {
   const { did } = useParams();
@@ -33,6 +33,6 @@ export function UserUrlWrapper() {
   return <UserUrlPage />;
 }
 
-export function SiteWrapper() {
-  return <SitePage />;
+export function UrlWrapper() {
+  return <UrlPage />;
 }

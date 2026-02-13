@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-  useSearchParams,
-} from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { initAuth } from "./store/auth";
 import { loadPreferences } from "./store/preferences";
 
@@ -23,20 +17,11 @@ import {
   CollectionDetailWrapper,
   AnnotationDetailWrapper,
   UserUrlWrapper,
-  SiteWrapper,
+  UrlWrapper,
 } from "./routes/wrappers";
 import About from "./views/About";
 import AdminModeration from "./views/core/AdminModeration";
 import NotFound from "./views/NotFound";
-
-function UrlRedirect() {
-  const [searchParams] = useSearchParams();
-  const q = searchParams.get("q");
-  if (q) {
-    return <Navigate to={`/site/${encodeURIComponent(q)}`} replace />;
-  }
-  return <Navigate to="/site" replace />;
-}
 
 export default function App() {
   React.useEffect(() => {
@@ -145,14 +130,6 @@ export default function App() {
         />
 
         <Route
-          path="/url"
-          element={
-            <AppLayout>
-              <UrlRedirect />
-            </AppLayout>
-          }
-        />
-        <Route
           path="/new"
           element={
             <AppLayout>
@@ -209,10 +186,10 @@ export default function App() {
           }
         />
         <Route
-          path="/site/*"
+          path="/url/*"
           element={
             <AppLayout>
-              <SiteWrapper />
+              <UrlWrapper />
             </AppLayout>
           }
         />
