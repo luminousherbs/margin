@@ -79,7 +79,7 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
         : "";
       const selectorText =
         item.target?.selector?.exact || item.selector?.exact || "";
-      const bodyText = item.body || item.bodyValue || item.text || "";
+      const bodyText = extractBody(item.body) || item.bodyValue || item.text || "";
       const motivation = item.motivation || "";
       const targetTitle = item.target?.title || item.title || "";
 
@@ -164,6 +164,15 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
 function truncate(str: string, max: number): string {
   if (str.length <= max) return str;
   return str.slice(0, max - 3) + "...";
+}
+
+function extractBody(body: unknown): string {
+  if (!body) return "";
+  if (typeof body === "string") return body;
+  if (typeof body === "object" && body !== null && "value" in body) {
+    return String((body as { value: unknown }).value || "");
+  }
+  return "";
 }
 
 function avatarElement(url: string, author: string, size: number): unknown {

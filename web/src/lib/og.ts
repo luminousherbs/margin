@@ -99,6 +99,15 @@ function truncate(str: string, max: number): string {
   return str.slice(0, max - 3) + "...";
 }
 
+function extractBody(body: unknown): string {
+  if (!body) return "";
+  if (typeof body === "string") return body;
+  if (typeof body === "object" && body !== null && "value" in body) {
+    return String((body as { value: unknown }).value || "");
+  }
+  return "";
+}
+
 const BASE_URL = process.env.BASE_URL || "https://margin.at";
 
 export async function fetchAnnotationOG(uri: string): Promise<OGData | null> {
@@ -118,7 +127,7 @@ export async function fetchAnnotationOG(uri: string): Promise<OGData | null> {
   const targetTitle = item.target?.title || item.title;
   if (targetTitle) title = truncate(`Comment on: ${targetTitle}`, 60);
 
-  let description = item.body || item.bodyValue || item.text || "";
+  let description = extractBody(item.body) || item.bodyValue || item.text || "";
   if (selectorText && description) {
     description = `"${truncate(selectorText, 100)}"\n\n${description}`;
   } else if (selectorText) {
@@ -186,7 +195,7 @@ export async function fetchBookmarkOG(uri: string): Promise<OGData | null> {
   const domain = extractDomain(source);
 
   const title = item.title || item.target?.title || "Bookmark on Margin";
-  let description = item.description || item.body || item.bodyValue || "";
+  let description = item.description || extractBody(item.body) || item.bodyValue || "";
   if (!description) description = "A saved bookmark on Margin";
   if (domain) description += ` from ${domain}`;
   description = truncate(description, 200);
