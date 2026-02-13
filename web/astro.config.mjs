@@ -9,33 +9,12 @@ export default defineConfig({
   adapter: node({ mode: "standalone" }),
   integrations: [react(), tailwind()],
   vite: {
+    ssr: {
+      noExternal: true,
+      external: ["@resvg/resvg-js"],
+    },
     build: {
       chunkSizeWarningLimit: 1000,
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (id.includes("node_modules")) {
-              if (
-                id.includes("react") ||
-                id.includes("react-dom") ||
-                id.includes("react-router-dom")
-              ) {
-                return "vendor-react";
-              }
-              if (id.includes("lucide-react")) {
-                return "vendor-lucide";
-              }
-              if (id.includes("emoji-picker-react")) {
-                return "vendor-emoji-picker";
-              }
-              if (id.includes("date-fns")) {
-                return "vendor-date-fns";
-              }
-              return "vendor";
-            }
-          },
-        },
-      },
     },
     server: {
       proxy: {
