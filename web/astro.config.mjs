@@ -16,7 +16,7 @@ export default defineConfig({
   vite: {
     ssr: {
       noExternal: true,
-      external: ["@resvg/resvg-js"],
+      external: ["@resvg/resvg-js", "react", "react-dom", "react-router-dom"],
     },
     build: {
       chunkSizeWarningLimit: 1000,

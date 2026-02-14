@@ -20,7 +20,12 @@ export async function onRequest(
   const target = new URL(url.pathname + url.search, API_URL);
 
   const headers = new Headers(request.headers);
+  const host = headers.get("host");
   headers.delete("host");
+  if (host) {
+    headers.set("X-Forwarded-Host", host);
+    headers.set("X-Forwarded-Proto", url.protocol.replace(":", ""));
+  }
 
   const init: RequestInit = {
     method: request.method,

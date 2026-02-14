@@ -141,9 +141,6 @@ export default function Login() {
       if (result.authorizationUrl) {
         window.location.href = result.authorizationUrl;
       }
-      if (result.authorizationUrl) {
-        window.location.href = result.authorizationUrl;
-      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       setError(message || "Failed to initiate login. Please try again.");

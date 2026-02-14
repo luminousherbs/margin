@@ -94,7 +94,11 @@ func (h *Handler) getDynamicClient(r *http.Request) *Client {
 		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
 			scheme = "https"
 		}
-		baseURL = fmt.Sprintf("%s://%s", scheme, r.Host)
+		host := r.Header.Get("X-Forwarded-Host")
+		if host == "" {
+			host = r.Host
+		}
+		baseURL = fmt.Sprintf("%s://%s", scheme, host)
 	}
 
 	if len(baseURL) > 0 && baseURL[len(baseURL)-1] == '/' {
@@ -458,7 +462,7 @@ func (h *Handler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		Value:    sessionID,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https",
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   86400 * 7,
 	})
@@ -557,7 +561,7 @@ func (h *Handler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https",
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})
