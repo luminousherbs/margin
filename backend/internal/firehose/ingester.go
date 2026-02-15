@@ -794,6 +794,7 @@ func (i *Ingester) handlePreferences(event *FirehoseEvent) {
 		ExternalLinkSkippedHostnames []string        `json:"externalLinkSkippedHostnames"`
 		SubscribedLabelers           json.RawMessage `json:"subscribedLabelers"`
 		LabelPreferences             json.RawMessage `json:"labelPreferences"`
+		DisableExternalLinkWarning   *bool           `json:"disableExternalLinkWarning,omitempty"`
 		CreatedAt                    string          `json:"createdAt"`
 	}
 
@@ -837,6 +838,7 @@ func (i *Ingester) handlePreferences(event *FirehoseEvent) {
 		AuthorDID:                    event.Repo,
 		ExternalLinkSkippedHostnames: skippedHostnamesPtr,
 		SubscribedLabelers:           subscribedLabelersPtr,
+		DisableExternalLinkWarning:   record.DisableExternalLinkWarning,
 		LabelPreferences:             labelPrefsPtr,
 		CreatedAt:                    createdAt,
 		IndexedAt:                    time.Now(),
