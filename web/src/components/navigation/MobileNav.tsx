@@ -1,22 +1,23 @@
-import React, { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
 import { useStore } from "@nanostores/react";
-import { $user, logout } from "../../store/auth";
-import { getUnreadNotificationCount } from "../../api/client";
 import {
-  Home,
-  Search,
-  Folder,
-  User,
-  PenSquare,
-  Bookmark,
-  Settings,
-  MoreHorizontal,
-  LogOut,
   Bell,
+  Bookmark,
+  Folder,
   Highlighter,
+  Home,
+  LogOut,
+  MessageSquareText,
+  MoreHorizontal,
+  PenSquare,
+  Search,
+  Settings,
+  User,
   X,
 } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { getUnreadNotificationCount } from "../../api/client";
+import { $user, logout } from "../../store/auth";
 import { AppleIcon } from "../common/Icons";
 
 export default function MobileNav() {
@@ -83,6 +84,15 @@ export default function MobileNav() {
                 </Link>
 
                 <div className="h-px bg-surface-200 dark:bg-surface-700 my-2" />
+
+                <Link
+                  to="/annotations"
+                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
+                  onClick={closeMenu}
+                >
+                  <MessageSquareText size={20} />
+                  <span>Annotations</span>
+                </Link>
 
                 <Link
                   to="/highlights"
