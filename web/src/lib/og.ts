@@ -195,7 +195,8 @@ export async function fetchBookmarkOG(uri: string): Promise<OGData | null> {
   const domain = extractDomain(source);
 
   const title = item.title || item.target?.title || "Bookmark on Margin";
-  let description = item.description || extractBody(item.body) || item.bodyValue || "";
+  let description =
+    item.description || extractBody(item.body) || item.bodyValue || "";
   if (!description) description = "A saved bookmark on Margin";
   if (domain) description += ` from ${domain}`;
   description = truncate(description, 200);

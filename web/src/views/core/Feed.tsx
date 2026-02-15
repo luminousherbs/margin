@@ -82,11 +82,7 @@ function FeedContent({
       });
       const fetched = data?.items || [];
       setItems((prev) => [...prev, ...fetched]);
-      if (data?.hasMore !== undefined) {
-        setHasMore(data.hasMore);
-      } else {
-        setHasMore(fetched.length >= LIMIT);
-      }
+      setHasMore(data.hasMore);
       setOffset((prev) => prev + data.fetchedCount);
     } catch (e) {
       console.error(e);
