@@ -1,21 +1,21 @@
-import React, { useEffect, useState, useCallback } from "react";
+import { useStore } from "@nanostores/react";
+import { clsx } from "clsx";
+import {
+  Bookmark,
+  Clock,
+  Highlighter,
+  Loader2,
+  MessageSquareText,
+} from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { getFeed } from "../../api/client";
 import Card from "../../components/common/Card";
-import {
-  Loader2,
-  Clock,
-  Bookmark,
-  Highlighter,
-  MessageSquareText,
-} from "lucide-react";
-import { useStore } from "@nanostores/react";
-import { $user } from "../../store/auth";
-import type { AnnotationItem } from "../../types";
-import { Tabs, EmptyState, Button } from "../../components/ui";
+import { Button, EmptyState, Tabs } from "../../components/ui";
 import LayoutToggle from "../../components/ui/LayoutToggle";
+import { $user } from "../../store/auth";
 import { $feedLayout } from "../../store/feedLayout";
-import { clsx } from "clsx";
+import type { AnnotationItem } from "../../types";
 
 interface FeedProps {
   initialType?: string;
@@ -51,14 +51,10 @@ function FeedContent({
     getFeed({ type, motivation, tag, limit: LIMIT, offset: 0 })
       .then((data) => {
         if (cancelled) return;
-        const fetched = data?.items || [];
+        const fetched = data.items;
         setItems(fetched);
-        if (data?.hasMore !== undefined) {
-          setHasMore(data.hasMore);
-        } else {
-          setHasMore(fetched.length >= LIMIT);
-        }
-        setOffset(data?.fetchedCount ?? fetched.length);
+        setHasMore(data.hasMore);
+        setOffset(data.fetchedCount);
         setLoading(false);
       })
       .catch((e) => {
@@ -91,7 +87,7 @@ function FeedContent({
       } else {
         setHasMore(fetched.length >= LIMIT);
       }
-      setOffset((prev) => prev + (data?.fetchedCount ?? fetched.length));
+      setOffset((prev) => prev + data.fetchedCount);
     } catch (e) {
       console.error(e);
     } finally {

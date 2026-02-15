@@ -1,67 +1,75 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  getProfile,
-  getFeed,
-  getCollections,
-  blockUser,
-  unblockUser,
-  muteUser,
-  unmuteUser,
-  getModerationRelationship,
-} from "../../api/client";
-import Card from "../../components/common/Card";
-import RichText from "../../components/common/RichText";
-import MoreMenu from "../../components/common/MoreMenu";
-import { BlueskyIcon } from "../../components/common/Icons";
-import type { MoreMenuItem } from "../../components/common/MoreMenu";
-import ReportModal from "../../components/modals/ReportModal";
-import {
-  Edit2,
-  Github,
-  Linkedin,
-  Loader2,
-  Folder,
-  MessageSquare,
-  PenTool,
-  Bookmark,
-  Link2,
-  ShieldBan,
-  VolumeX,
-  Flag,
-  ShieldOff,
-  Volume2,
-  EyeOff,
-  Eye,
-} from "lucide-react";
-import { TangledIcon } from "../../components/common/Icons";
-import type {
-  UserProfile,
-  AnnotationItem,
-  Collection,
-  ModerationRelationship,
-  ContentLabel,
-} from "../../types";
 import { useStore } from "@nanostores/react";
-import { $user } from "../../store/auth";
-import EditProfileModal from "../../components/modals/EditProfileModal";
-import ExternalLinkModal from "../../components/modals/ExternalLinkModal";
-import CollectionIcon from "../../components/common/CollectionIcon";
-import { $preferences, loadPreferences } from "../../store/preferences";
-import { Link } from "react-router-dom";
 import { clsx } from "clsx";
 import {
+  Bookmark,
+  Edit2,
+  Eye,
+  EyeOff,
+  Flag,
+  Folder,
+  Github,
+  Link2,
+  Linkedin,
+  Loader2,
+  MessageSquare,
+  PenTool,
+  ShieldBan,
+  ShieldOff,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
+import type React from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  blockUser,
+  getCollections,
+  getFeed,
+  getModerationRelationship,
+  getProfile,
+  muteUser,
+  unblockUser,
+  unmuteUser,
+} from "../../api/client";
+import Card from "../../components/common/Card";
+import CollectionIcon from "../../components/common/CollectionIcon";
+import { BlueskyIcon, TangledIcon } from "../../components/common/Icons";
+import type { MoreMenuItem } from "../../components/common/MoreMenu";
+import MoreMenu from "../../components/common/MoreMenu";
+import RichText from "../../components/common/RichText";
+import EditProfileModal from "../../components/modals/EditProfileModal";
+import ExternalLinkModal from "../../components/modals/ExternalLinkModal";
+import ReportModal from "../../components/modals/ReportModal";
+import {
   Avatar,
-  Tabs,
-  EmptyState,
   Button,
+  EmptyState,
   Skeleton,
+  Tabs,
 } from "../../components/ui";
+import { $user } from "../../store/auth";
+import { $preferences, loadPreferences } from "../../store/preferences";
+import type {
+  AnnotationItem,
+  Collection,
+  ContentLabel,
+  ModerationRelationship,
+  UserProfile,
+} from "../../types";
 
 interface ProfileProps {
   did: string;
 }
 
 type Tab = "all" | "annotations" | "highlights" | "bookmarks" | "collections";
+
+const motivationMap: Record<Tab, string | undefined> = {
+  all: undefined,
+  annotations: "commenting",
+  highlights: "highlighting",
+  bookmarks: "bookmarking",
+  collections: undefined,
+};
 
 const LIMIT = 50;
 
@@ -70,12 +78,20 @@ export default function Profile({ did }: ProfileProps) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("all");
 
-  const [all, setAll] = useState<AnnotationItem[]>([]);
-  const [annotations, setAnnotations] = useState<AnnotationItem[]>([]);
-  const [highlights, setHighlights] = useState<AnnotationItem[]>([]);
-  const [bookmarks, setBookmarks] = useState<AnnotationItem[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+
+  const [items, setItems] = useState<{
+    all: AnnotationItem[];
+    annotations: AnnotationItem[];
+    highlights: AnnotationItem[];
+    bookmarks: AnnotationItem[];
+  }>({
+    all: [],
+    annotations: [],
+    highlights: [],
+    bookmarks: [],
+  });
 
   const user = useStore($user);
   const isOwner = user?.did === did;
@@ -130,10 +146,12 @@ export default function Profile({ did }: ProfileProps) {
 
   useEffect(() => {
     setProfile(null);
-    setAll([]);
-    setAnnotations([]);
-    setHighlights([]);
-    setBookmarks([]);
+    setItems({
+      all: [],
+      annotations: [],
+      highlights: [],
+      bookmarks: [],
+    });
     setCollections([]);
     setActiveTab("all");
     setLoading(true);
@@ -213,63 +231,23 @@ export default function Profile({ did }: ProfileProps) {
         [activeTab]: { hasMore: false, offset: 0 },
       }));
       try {
-        if (activeTab === "all") {
+        if (
+          ["all", "annotations", "highlights", "bookmarks"].includes(activeTab)
+        ) {
           const res = await getFeed({
             creator: resolvedDid,
             limit: LIMIT,
+            motivation: motivationMap[activeTab],
           });
-          const items = res.items || [];
-          setAll(items);
-          setPagination((prev) => ({
+          setItems((prev) => ({
             ...prev,
-            all: {
-              hasMore: res.hasMore ?? items.length >= LIMIT,
-              offset: res.fetchedCount ?? items.length,
-            },
+            [activeTab]: res.items,
           }));
-        } else if (activeTab === "annotations") {
-          const res = await getFeed({
-            creator: resolvedDid,
-            motivation: "commenting",
-            limit: LIMIT,
-          });
-          const items = res.items || [];
-          setAnnotations(items);
           setPagination((prev) => ({
             ...prev,
-            annotations: {
-              hasMore: res.hasMore ?? items.length >= LIMIT,
-              offset: res.fetchedCount ?? items.length,
-            },
-          }));
-        } else if (activeTab === "highlights") {
-          const res = await getFeed({
-            creator: resolvedDid,
-            motivation: "highlighting",
-            limit: LIMIT,
-          });
-          const items = res.items || [];
-          setHighlights(items);
-          setPagination((prev) => ({
-            ...prev,
-            highlights: {
-              hasMore: res.hasMore ?? items.length >= LIMIT,
-              offset: res.fetchedCount ?? items.length,
-            },
-          }));
-        } else if (activeTab === "bookmarks") {
-          const res = await getFeed({
-            creator: resolvedDid,
-            motivation: "bookmarking",
-            limit: LIMIT,
-          });
-          const items = res.items || [];
-          setBookmarks(items);
-          setPagination((prev) => ({
-            ...prev,
-            bookmarks: {
-              hasMore: res.hasMore ?? items.length >= LIMIT,
-              offset: res.fetchedCount ?? items.length,
+            [activeTab]: {
+              hasMore: res.hasMore,
+              offset: res.fetchedCount,
             },
           }));
         } else if (activeTab === "collections") {
@@ -296,13 +274,10 @@ export default function Profile({ did }: ProfileProps) {
     const capturedTab = activeTab;
     setLoadingMore(true);
     setLoadMoreError(null);
+
+    if (capturedTab === "collections") return;
+
     try {
-      const motivationMap: Record<string, string | undefined> = {
-        all: undefined,
-        annotations: "commenting",
-        highlights: "highlighting",
-        bookmarks: "bookmarking",
-      };
       const res = await getFeed({
         creator: resolvedDid,
         motivation: motivationMap[capturedTab],
@@ -310,16 +285,10 @@ export default function Profile({ did }: ProfileProps) {
         offset: tabPagination.offset,
       });
       const fetched = res.items || [];
-      const setters: Record<
-        string,
-        React.Dispatch<React.SetStateAction<AnnotationItem[]>>
-      > = {
-        annotations: setAnnotations,
-        highlights: setHighlights,
-        bookmarks: setBookmarks,
-      };
-      const setter = setters[capturedTab] ?? setAll;
-      setter((prev) => [...prev, ...fetched]);
+      setItems((prev) => ({
+        ...prev,
+        [capturedTab]: [...prev[capturedTab], ...(res.items || [])],
+      }));
       setPagination((prev) => ({
         ...prev,
         [capturedTab]: {
@@ -379,13 +348,7 @@ export default function Profile({ did }: ProfileProps) {
   ];
 
   const currentItems =
-    activeTab === "annotations"
-      ? annotations
-      : activeTab === "highlights"
-        ? highlights
-        : activeTab === "all"
-          ? all
-          : bookmarks;
+    activeTab !== "collections" ? items[activeTab] : collections;
 
   const LABEL_DESCRIPTIONS: Record<string, string> = {
     sexual: "Sexual Content",

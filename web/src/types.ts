@@ -93,10 +93,9 @@ export interface AnnotationItem {
 export type ActorSearchItem = UserProfile;
 
 export interface FeedResponse {
-  cursor?: string;
   items: AnnotationItem[];
-  hasMore?: boolean;
-  fetchedCount?: number;
+  hasMore: boolean;
+  fetchedCount: number;
 }
 
 export interface NotificationItem {
