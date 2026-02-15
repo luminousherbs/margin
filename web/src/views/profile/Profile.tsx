@@ -284,17 +284,15 @@ export default function Profile({ did }: ProfileProps) {
         limit: LIMIT,
         offset: tabPagination.offset,
       });
-      const fetched = res.items || [];
       setItems((prev) => ({
         ...prev,
-        [capturedTab]: [...prev[capturedTab], ...(res.items || [])],
+        [capturedTab]: [...prev[capturedTab], ...res.items],
       }));
       setPagination((prev) => ({
         ...prev,
         [capturedTab]: {
-          hasMore: res.hasMore ?? fetched.length >= LIMIT,
-          offset:
-            prev[capturedTab].offset + (res.fetchedCount ?? fetched.length),
+          hasMore: res.hasMore,
+          offset: prev[capturedTab].offset + res.fetchedCount,
         },
       }));
     } catch (e) {
@@ -347,8 +345,7 @@ export default function Profile({ did }: ProfileProps) {
     { id: "collections", label: "Collections" },
   ];
 
-  const currentItems =
-    activeTab !== "collections" ? items[activeTab] : collections;
+  const currentItems = activeTab !== "collections" ? items[activeTab] : [];
 
   const LABEL_DESCRIPTIONS: Record<string, string> = {
     sexual: "Sexual Content",
