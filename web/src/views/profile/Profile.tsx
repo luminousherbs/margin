@@ -264,6 +264,8 @@ export default function Profile({ did }: ProfileProps) {
   }, [profile?.did, did, activeTab]);
 
   const loadMore = useCallback(async () => {
+    if (activeTab === "collections") return;
+
     const isHandle = !did.startsWith("did:");
     const resolvedDid = isHandle ? profile?.did : did;
     if (!resolvedDid) return;
@@ -274,8 +276,6 @@ export default function Profile({ did }: ProfileProps) {
     const capturedTab = activeTab;
     setLoadingMore(true);
     setLoadMoreError(null);
-
-    if (capturedTab === "collections") return;
 
     try {
       const res = await getFeed({
