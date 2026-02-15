@@ -1,7 +1,6 @@
 import { useStore } from "@nanostores/react";
 import { clsx } from "clsx";
 import {
-  Bookmark,
   Edit2,
   Eye,
   EyeOff,
@@ -11,32 +10,28 @@ import {
   Link2,
   Linkedin,
   Loader2,
-  MessageSquare,
-  PenTool,
   ShieldBan,
   ShieldOff,
   Volume2,
   VolumeX,
 } from "lucide-react";
-import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   blockUser,
   getCollections,
-  getFeed,
   getModerationRelationship,
   getProfile,
   muteUser,
   unblockUser,
   unmuteUser,
 } from "../../api/client";
-import Card from "../../components/common/Card";
 import CollectionIcon from "../../components/common/CollectionIcon";
 import { BlueskyIcon, TangledIcon } from "../../components/common/Icons";
 import type { MoreMenuItem } from "../../components/common/MoreMenu";
 import MoreMenu from "../../components/common/MoreMenu";
 import RichText from "../../components/common/RichText";
+import FeedItems from "../../components/feed/FeedItems";
 import EditProfileModal from "../../components/modals/EditProfileModal";
 import ExternalLinkModal from "../../components/modals/ExternalLinkModal";
 import ReportModal from "../../components/modals/ReportModal";
@@ -50,7 +45,6 @@ import {
 import { $user } from "../../store/auth";
 import { $preferences, loadPreferences } from "../../store/preferences";
 import type {
-  AnnotationItem,
   Collection,
   ContentLabel,
   ModerationRelationship,
@@ -71,8 +65,6 @@ const motivationMap: Record<Tab, string | undefined> = {
   collections: undefined,
 };
 
-const LIMIT = 50;
-
 export default function Profile({ did }: ProfileProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,33 +73,11 @@ export default function Profile({ did }: ProfileProps) {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
 
-  const [items, setItems] = useState<{
-    all: AnnotationItem[];
-    annotations: AnnotationItem[];
-    highlights: AnnotationItem[];
-    bookmarks: AnnotationItem[];
-  }>({
-    all: [],
-    annotations: [],
-    highlights: [],
-    bookmarks: [],
-  });
-
   const user = useStore($user);
   const isOwner = user?.did === did;
   const [showEdit, setShowEdit] = useState(false);
   const [externalLink, setExternalLink] = useState<string | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState<
-    Record<string, { hasMore: boolean; offset: number }>
-  >({
-    all: { hasMore: false, offset: 0 },
-    annotations: { hasMore: false, offset: 0 },
-    highlights: { hasMore: false, offset: 0 },
-    bookmarks: { hasMore: false, offset: 0 },
-  });
   const loadMoreTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [modRelation, setModRelation] = useState<ModerationRelationship>({
     blocking: false,
@@ -146,12 +116,6 @@ export default function Profile({ did }: ProfileProps) {
 
   useEffect(() => {
     setProfile(null);
-    setItems({
-      all: [],
-      annotations: [],
-      highlights: [],
-      bookmarks: [],
-    });
     setCollections([]);
     setActiveTab("all");
     setLoading(true);
@@ -218,6 +182,9 @@ export default function Profile({ did }: ProfileProps) {
     };
   }, []);
 
+  const isHandle = !did.startsWith("did:");
+  const resolvedDid = isHandle ? profile?.did : did;
+
   useEffect(() => {
     const loadTabContent = async () => {
       const isHandle = !did.startsWith("did:");
@@ -226,31 +193,8 @@ export default function Profile({ did }: ProfileProps) {
       if (!resolvedDid) return;
 
       setDataLoading(true);
-      setPagination((prev) => ({
-        ...prev,
-        [activeTab]: { hasMore: false, offset: 0 },
-      }));
       try {
-        if (
-          ["all", "annotations", "highlights", "bookmarks"].includes(activeTab)
-        ) {
-          const res = await getFeed({
-            creator: resolvedDid,
-            limit: LIMIT,
-            motivation: motivationMap[activeTab],
-          });
-          setItems((prev) => ({
-            ...prev,
-            [activeTab]: res.items,
-          }));
-          setPagination((prev) => ({
-            ...prev,
-            [activeTab]: {
-              hasMore: res.hasMore,
-              offset: res.fetchedCount,
-            },
-          }));
-        } else if (activeTab === "collections") {
+        if (activeTab === "collections") {
           const res = await getCollections(resolvedDid);
           setCollections(res);
         }
@@ -262,49 +206,6 @@ export default function Profile({ did }: ProfileProps) {
     };
     loadTabContent();
   }, [profile?.did, did, activeTab]);
-
-  const loadMore = useCallback(async () => {
-    if (activeTab === "collections") return;
-
-    const isHandle = !did.startsWith("did:");
-    const resolvedDid = isHandle ? profile?.did : did;
-    if (!resolvedDid) return;
-
-    const tabPagination = pagination[activeTab];
-    if (!tabPagination) return;
-
-    const capturedTab = activeTab;
-    setLoadingMore(true);
-    setLoadMoreError(null);
-
-    try {
-      const res = await getFeed({
-        creator: resolvedDid,
-        motivation: motivationMap[capturedTab],
-        limit: LIMIT,
-        offset: tabPagination.offset,
-      });
-      setItems((prev) => ({
-        ...prev,
-        [capturedTab]: [...prev[capturedTab], ...res.items],
-      }));
-      setPagination((prev) => ({
-        ...prev,
-        [capturedTab]: {
-          hasMore: res.hasMore,
-          offset: prev[capturedTab].offset + res.fetchedCount,
-        },
-      }));
-    } catch (e) {
-      console.error(e);
-      const msg = e instanceof Error ? e.message : "Something went wrong";
-      setLoadMoreError(msg);
-      if (loadMoreTimerRef.current) clearTimeout(loadMoreTimerRef.current);
-      loadMoreTimerRef.current = setTimeout(() => setLoadMoreError(null), 5000);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [did, profile?.did, activeTab, pagination]);
 
   if (loading) {
     return (
@@ -344,8 +245,6 @@ export default function Profile({ did }: ProfileProps) {
     { id: "bookmarks", label: "Bookmarks" },
     { id: "collections", label: "Collections" },
   ];
-
-  const currentItems = activeTab !== "collections" ? items[activeTab] : [];
 
   const LABEL_DESCRIPTIONS: Record<string, string> = {
     sexual: "Sexual Content",
@@ -728,49 +627,19 @@ export default function Profile({ did }: ProfileProps) {
               ))}
             </div>
           )
-        ) : currentItems.length > 0 ? (
-          <div className="space-y-3">
-            {currentItems.map((item) => (
-              <Card key={item.uri || item.cid} item={item} />
-            ))}
-          </div>
         ) : (
-          <EmptyState
-            icon={
-              activeTab === "annotations" ? (
-                <MessageSquare size={40} />
-              ) : activeTab === "highlights" ? (
-                <PenTool size={40} />
-              ) : (
-                <Bookmark size={40} />
-              )
-            }
-            message={
+          <FeedItems
+            key={activeTab}
+            type="all"
+            motivation={motivationMap[activeTab]}
+            creator={resolvedDid}
+            layout="list"
+            emptyMessage={
               isOwner
                 ? `You haven't added any ${activeTab} yet.`
                 : `No ${activeTab}`
             }
           />
-        )}
-
-        {activeTab !== "collections" && pagination[activeTab]?.hasMore && (
-          <div className="flex flex-col items-center gap-2 py-6">
-            {loadMoreError && (
-              <p className="text-sm text-red-500 dark:text-red-400">
-                Failed to load more: {loadMoreError}
-              </p>
-            )}
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={loadMore}
-              loading={loadingMore}
-              disabled={loadingMore}
-              className="rounded-xl"
-            >
-              Load more
-            </Button>
-          </div>
         )}
       </div>
 

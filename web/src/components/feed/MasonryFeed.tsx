@@ -1,119 +1,16 @@
 import { useStore as useNanoStore, useStore } from "@nanostores/react";
-import { Loader2 } from "lucide-react";
-import React, { useEffect, useState } from "react";
-import { getFeed } from "../../api/client";
+import { useState } from "react";
 import { $user } from "../../store/auth";
 import { $feedLayout } from "../../store/feedLayout";
-import type { AnnotationItem } from "../../types";
-import Card from "../common/Card";
-import { EmptyState, Tabs } from "../ui";
+import { Tabs } from "../ui";
 import LayoutToggle from "../ui/LayoutToggle";
+import FeedItems from "./FeedItems";
 
 interface MasonryFeedProps {
   motivation?: string;
   emptyMessage?: string;
   showTabs?: boolean;
   title?: string;
-}
-
-function MasonryContent({
-  tab,
-  motivation,
-  emptyMessage,
-  userDid,
-  layout,
-}: {
-  tab: string;
-  motivation?: string;
-  emptyMessage: string;
-  userDid?: string;
-  layout: "list" | "mosaic";
-}) {
-  const [items, setItems] = useState<AnnotationItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const params: { type?: string; motivation?: string; creator?: string } = {
-      motivation,
-    };
-
-    if (tab === "my" && userDid) {
-      params.creator = userDid;
-      params.type = "my-feed";
-    } else {
-      params.type = "all";
-    }
-
-    getFeed(params)
-      .then((data) => {
-        if (cancelled) return;
-        setItems(data.items);
-        setLoading(false);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        console.error(e);
-        setItems([]);
-        setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tab, motivation, userDid]);
-
-  const handleDelete = (uri: string) => {
-    setItems((prev) => prev.filter((i) => i.uri !== uri));
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center py-20">
-        <Loader2
-          className="animate-spin text-primary-600 dark:text-primary-400"
-          size={32}
-        />
-      </div>
-    );
-  }
-
-  if (items.length === 0) {
-    return (
-      <EmptyState
-        message={
-          tab === "my"
-            ? emptyMessage
-            : `No ${motivation === "bookmarking" ? "bookmarks" : "highlights"} from the community yet.`
-        }
-      />
-    );
-  }
-
-  if (layout === "list") {
-    return (
-      <div className="space-y-3 animate-fade-in">
-        {items.map((item) => (
-          <Card
-            key={item.uri || item.cid}
-            item={item}
-            onDelete={handleDelete}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div className="columns-1 sm:columns-2 md:columns-3 xl:columns-4 gap-4 animate-fade-in">
-      {items.map((item) => (
-        <div key={item.uri || item.cid} className="break-inside-avoid mb-4">
-          <Card item={item} onDelete={handleDelete} layout="mosaic" />
-        </div>
-      ))}
-    </div>
-  );
 }
 
 export default function MasonryFeed({
@@ -138,6 +35,9 @@ export default function MasonryFeed({
         { id: "global", label: "Global" },
       ]
     : [{ id: "global", label: "Global" }];
+
+  const creator = activeTab === "my" ? user?.did : undefined;
+  const type = activeTab === "my" ? "my-feed" : "all";
 
   return (
     <div className="mx-auto max-w-2xl xl:max-w-none">
@@ -168,12 +68,16 @@ export default function MasonryFeed({
         </div>
       )}
 
-      <MasonryContent
+      <FeedItems
         key={activeTab}
-        tab={activeTab}
+        type={type}
         motivation={motivation}
-        emptyMessage={emptyMessage}
-        userDid={user?.did}
+        emptyMessage={
+          activeTab === "my"
+            ? emptyMessage
+            : `No ${motivation === "bookmarking" ? "bookmarks" : "highlights"} from the community yet.`
+        }
+        creator={creator}
         layout={layout}
       />
     </div>
