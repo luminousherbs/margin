@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -172,11 +171,6 @@ func (h *Handler) GetFeed(w http.ResponseWriter, r *http.Request) {
 	feedType := r.URL.Query().Get("type")
 
 	viewerDID := h.getViewerDID(r)
-
-	if viewerDID != "" && (feedType == "my-feed" || creator == viewerDID) {
-		h.serveUserFeedFromPDS(w, r, viewerDID, tag, r.URL.Query().Get("motivation"), limit, offset)
-		return
-	}
 
 	var annotations []db.Annotation
 	var highlights []db.Highlight
@@ -482,154 +476,6 @@ func (h *Handler) GetFeed(w http.ResponseWriter, r *http.Request) {
 		"items":      feed,
 		"totalItems": len(feed),
 	})
-}
-
-func (h *Handler) serveUserFeedFromPDS(w http.ResponseWriter, r *http.Request, did, tag, motivation string, limit, offset int) {
-	var wg sync.WaitGroup
-	var rawAnnos, rawHighs, rawBooks []interface{}
-	var errAnnos, errHighs, errBooks error
-
-	fetchLimit := limit + offset
-	if fetchLimit < 50 {
-		fetchLimit = 50
-	}
-
-	if motivation == "" || motivation == "commenting" {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			rawAnnos, errAnnos = h.FetchLatestUserRecords(r, did, xrpc.CollectionAnnotation, fetchLimit)
-		}()
-	}
-	if motivation == "" || motivation == "highlighting" {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			rawHighs, errHighs = h.FetchLatestUserRecords(r, did, xrpc.CollectionHighlight, fetchLimit)
-		}()
-	}
-	if motivation == "" || motivation == "bookmarking" {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			rawBooks, errBooks = h.FetchLatestUserRecords(r, did, xrpc.CollectionBookmark, fetchLimit)
-		}()
-	}
-	wg.Wait()
-
-	if errAnnos != nil {
-		log.Printf("PDS Fetch Error (Annos): %v", errAnnos)
-	}
-	if errHighs != nil {
-		log.Printf("PDS Fetch Error (Highs): %v", errHighs)
-	}
-	if errBooks != nil {
-		log.Printf("PDS Fetch Error (Books): %v", errBooks)
-	}
-
-	var annotations []db.Annotation
-	var highlights []db.Highlight
-	var bookmarks []db.Bookmark
-
-	for _, r := range rawAnnos {
-		if a, ok := r.(*db.Annotation); ok {
-			if tag == "" || containsTag(a.TagsJSON, tag) {
-				annotations = append(annotations, *a)
-			}
-		}
-	}
-	for _, r := range rawHighs {
-		if h, ok := r.(*db.Highlight); ok {
-			if tag == "" || containsTag(h.TagsJSON, tag) {
-				highlights = append(highlights, *h)
-			}
-		}
-	}
-	for _, r := range rawBooks {
-		if b, ok := r.(*db.Bookmark); ok {
-			if tag == "" || containsTag(b.TagsJSON, tag) {
-				bookmarks = append(bookmarks, *b)
-			}
-		}
-	}
-
-	go func() {
-		for _, a := range annotations {
-			h.db.CreateAnnotation(&a)
-		}
-		for _, hi := range highlights {
-			h.db.CreateHighlight(&hi)
-		}
-		for _, b := range bookmarks {
-			h.db.CreateBookmark(&b)
-		}
-	}()
-
-	collectionItems := []db.CollectionItem{}
-	if tag == "" && motivation == "" {
-		items, err := h.db.GetCollectionItemsByAuthor(did)
-		if err != nil {
-			log.Printf("Error fetching collection items for user feed: %v", err)
-		} else {
-			collectionItems = items
-		}
-	}
-
-	if len(collectionItems) > 0 {
-		var sembleURIs []string
-		for _, item := range collectionItems {
-			if strings.Contains(item.AnnotationURI, "network.cosmik.card") {
-				sembleURIs = append(sembleURIs, item.AnnotationURI)
-			}
-		}
-		if len(sembleURIs) > 0 {
-			ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-			defer cancel()
-			ensureSembleCardsIndexed(ctx, h.db, sembleURIs)
-		}
-	}
-
-	authAnnos, _ := hydrateAnnotations(h.db, annotations, did)
-	authHighs, _ := hydrateHighlights(h.db, highlights, did)
-	authBooks, _ := hydrateBookmarks(h.db, bookmarks, did)
-	authCollectionItems, _ := hydrateCollectionItems(h.db, collectionItems, did)
-
-	var feed []interface{}
-	for _, a := range authAnnos {
-		feed = append(feed, a)
-	}
-	for _, h := range authHighs {
-		feed = append(feed, h)
-	}
-	for _, b := range authBooks {
-		feed = append(feed, b)
-	}
-	if motivation == "" {
-		for _, ci := range authCollectionItems {
-			feed = append(feed, ci)
-		}
-	}
-
-	sortFeed(feed)
-
-	if offset < len(feed) {
-		feed = feed[offset:]
-	} else {
-		feed = []interface{}{}
-	}
-
-	if len(feed) > limit {
-		feed = feed[:limit]
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"@context":   "http://www.w3.org/ns/anno.jsonld",
-		"type":       "Collection",
-		"items":      feed,
-		"totalItems": len(feed),
-	})
-
 }
 
 func containsTag(tagsJSON *string, tag string) bool {
