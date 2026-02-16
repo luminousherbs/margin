@@ -58,8 +58,8 @@ API server runs on http://localhost:8081
 
 ```bash
 cd web
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 Dev server runs on http://localhost:4321 and proxies API requests to the backend.
@@ -70,9 +70,9 @@ Built with [WXT](https://wxt.dev):
 
 ```bash
 cd extension
-npm install
-npm run dev          # Chrome dev mode
-npm run dev:firefox  # Firefox dev mode
+bun install
+bun run dev          # Chrome dev mode
+bun run dev:firefox  # Firefox dev mode
 ```
 
 ## Architecture

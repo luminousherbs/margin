@@ -1,5 +1,5 @@
-import React from "react";
 import { clsx } from "clsx";
+import React from "react";
 
 interface Tab {
   id: string;
@@ -23,7 +23,7 @@ export default function Tabs({
   return (
     <div
       className={clsx(
-        "flex gap-1 bg-surface-100 dark:bg-surface-800 p-1 rounded-lg w-fit",
+        "flex max-w-full overflow-x-auto gap-1 bg-surface-100 dark:bg-surface-800 p-1 rounded-lg w-fit",
         className,
       )}
     >

@@ -1,14 +1,15 @@
 import { atom } from "nanostores";
 import type {
-  UserProfile,
-  FeedResponse,
   AnnotationItem,
   Collection,
-  NotificationItem,
-  Target,
-  Selector,
+  FeedResponse,
   HydratedLabel,
+  NotificationItem,
+  Selector,
+  Target,
+  UserProfile,
 } from "../types";
+
 export type { Collection } from "../types";
 
 export const sessionAtom = atom<UserProfile | null>(null);
@@ -264,7 +265,9 @@ export async function getFeed({
     });
     if (!res.ok) throw new Error("Failed to fetch feed");
     const data = await res.json();
-    const normalizedItems = (data.items || []).map(normalizeItem);
+    const normalizedItems: AnnotationItem[] = (data.items || []).map(
+      normalizeItem,
+    );
 
     const groupedItems: AnnotationItem[] = [];
     if (normalizedItems.length > 0) {
@@ -292,7 +295,6 @@ export async function getFeed({
     }
 
     return {
-      cursor: data.cursor,
       items: groupedItems,
       hasMore: normalizedItems.length >= limit,
       fetchedCount: normalizedItems.length,
@@ -1046,10 +1048,11 @@ export async function getUserTargetItems(
     return { annotations: [], highlights: [] };
   }
 }
+
 import type {
+  LabelerInfo,
   LabelerSubscription,
   LabelPreference,
-  LabelerInfo,
 } from "../types";
 
 export interface PreferencesResponse {
@@ -1104,10 +1107,10 @@ export async function getLabelerInfo(): Promise<LabelerInfo | null> {
 }
 
 import type {
-  ModerationRelationship,
   BlockedUser,
-  MutedUser,
+  ModerationRelationship,
   ModerationReport,
+  MutedUser,
   ReportReasonType,
 } from "../types";
 

@@ -1,14 +1,13 @@
+import { useStore as useNanoStore, useStore } from "@nanostores/react";
+import { Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { getFeed } from "../../api/client";
-import Card from "../common/Card";
-import { Loader2 } from "lucide-react";
-import { useStore } from "@nanostores/react";
 import { $user } from "../../store/auth";
-import type { AnnotationItem } from "../../types";
-import { Tabs, EmptyState } from "../ui";
-import LayoutToggle from "../ui/LayoutToggle";
-import { useStore as useNanoStore } from "@nanostores/react";
 import { $feedLayout } from "../../store/feedLayout";
+import type { AnnotationItem } from "../../types";
+import Card from "../common/Card";
+import { EmptyState, Tabs } from "../ui";
+import LayoutToggle from "../ui/LayoutToggle";
 
 interface MasonryFeedProps {
   motivation?: string;
@@ -50,7 +49,7 @@ function MasonryContent({
     getFeed(params)
       .then((data) => {
         if (cancelled) return;
-        setItems(data?.items || []);
+        setItems(data.items);
         setLoading(false);
       })
       .catch((e) => {

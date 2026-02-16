@@ -79,7 +79,8 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
         : "";
       const selectorText =
         item.target?.selector?.exact || item.selector?.exact || "";
-      const bodyText = extractBody(item.body) || item.bodyValue || item.text || "";
+      const bodyText =
+        extractBody(item.body) || item.bodyValue || item.text || "";
       const motivation = item.motivation || "";
       const targetTitle = item.target?.title || item.title || "";
 
