@@ -114,7 +114,7 @@ async function apiRequest(
   return response;
 }
 
-interface GetFeedParams {
+export interface GetFeedParams {
   source?: string;
   type?: string;
   limit?: number;
