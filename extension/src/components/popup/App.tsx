@@ -623,7 +623,7 @@ export function App() {
                   <button
                     onClick={() => {
                       if (currentUrl) {
-                        const shareUrl = `${apiUrl}/site/${encodeURIComponent(currentUrl)}`;
+                        const shareUrl = `${apiUrl}/url/${encodeURIComponent(currentUrl)}`;
                         browser.tabs.create({ url: shareUrl });
                       }
                     }}
