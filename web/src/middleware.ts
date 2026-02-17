@@ -35,7 +35,7 @@ export async function onRequest(
 
   if (request.method !== "GET" && request.method !== "HEAD" && request.body) {
     init.body = request.body;
-    // @ts-expect-error
+    // @ts-expect-error duplex is generic on RequestInit
     init.duplex = "half";
   }
 

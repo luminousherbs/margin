@@ -649,6 +649,7 @@ export async function searchActors(
 }
 
 export async function resolveHandle(handle: string): Promise<string | null> {
+  if (handle.startsWith("did:")) return handle;
   try {
     const res = await fetch(
       `https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`,

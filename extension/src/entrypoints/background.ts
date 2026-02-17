@@ -54,7 +54,7 @@ export default defineBackground(() => {
   });
 
   onMessage('getAnnotations', async ({ data }) => {
-    return await getAnnotations(data.url);
+    return await getAnnotations(data.url, [], data.cacheBust);
   });
 
   onMessage('activateOnPdf', async ({ data }) => {

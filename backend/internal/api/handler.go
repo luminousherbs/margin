@@ -478,22 +478,6 @@ func (h *Handler) GetFeed(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func containsTag(tagsJSON *string, tag string) bool {
-	if tagsJSON == nil || *tagsJSON == "" {
-		return false
-	}
-	var tags []string
-	if err := json.Unmarshal([]byte(*tagsJSON), &tags); err != nil {
-		return false
-	}
-	for _, t := range tags {
-		if t == tag {
-			return true
-		}
-	}
-	return false
-}
-
 func sortFeed(feed []interface{}) {
 	sort.Slice(feed, func(i, j int) bool {
 		t1 := getCreatedAt(feed[i])
@@ -763,6 +747,14 @@ func (h *Handler) GetByTarget(w http.ResponseWriter, r *http.Request) {
 	enrichedAnnotations, _ := hydrateAnnotations(h.db, annotations, h.getViewerDID(r))
 	enrichedHighlights, _ := hydrateHighlights(h.db, highlights, h.getViewerDID(r))
 	enrichedBookmarks, _ := hydrateBookmarks(h.db, bookmarks, h.getViewerDID(r))
+
+	totalItems := len(enrichedAnnotations) + len(enrichedHighlights) + len(enrichedBookmarks)
+
+	if totalItems == 0 {
+		w.Header().Set("Cache-Control", "public, max-age=60, s-maxage=300")
+	} else {
+		w.Header().Set("Cache-Control", "private, max-age=0, no-store")
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{

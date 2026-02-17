@@ -81,14 +81,22 @@ async function apiRequest(path: string, options: RequestInit = {}): Promise<Resp
   return response;
 }
 
-export async function getAnnotations(url: string, citedUrls: string[] = []) {
+export async function getAnnotations(
+  url: string,
+  citedUrls: string[] = [],
+  cacheBust: boolean = false
+) {
   try {
     const apiUrl = await getApiUrl();
     const uniqueUrls = [...new Set([url, ...citedUrls])];
 
     const fetchPromises = uniqueUrls.map(async (u) => {
       try {
-        const res = await fetch(`${apiUrl}/api/targets?source=${encodeURIComponent(u)}`);
+        let requestUrl = `${apiUrl}/api/targets?source=${encodeURIComponent(u)}`;
+        if (cacheBust) {
+          requestUrl += `&t=${Date.now()}`;
+        }
+        const res = await fetch(requestUrl);
         if (!res.ok) return { annotations: [], highlights: [], bookmarks: [] };
         return await res.json();
       } catch {

@@ -398,7 +398,7 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
         composeModal?.remove();
         composeModal = null;
 
-        setTimeout(() => fetchAnnotations(), 500);
+        setTimeout(() => fetchAnnotations(0, true), 500);
       } catch (error) {
         console.error('Failed to create annotation:', error);
         showToast('Failed to create annotation', 'error');
@@ -415,7 +415,7 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
       showComposeModal(message.data.selector.exact);
     }
     if (message.type === 'REFRESH_ANNOTATIONS') {
-      fetchAnnotations();
+      fetchAnnotations(0, true);
     }
     if (message.type === 'SCROLL_TO_TEXT' && message.text) {
       scrollToText(message.text);
@@ -512,14 +512,17 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
     }, 2500);
   }
 
-  async function fetchAnnotations(retryCount = 0) {
+  async function fetchAnnotations(retryCount = 0, cacheBust = false) {
     if (!overlayEnabled) {
       sendMessage('updateBadge', { count: 0 });
       return;
     }
 
     try {
-      const annotations = await sendMessage('getAnnotations', { url: getPageUrl() });
+      const annotations = await sendMessage('getAnnotations', {
+        url: getPageUrl(),
+        cacheBust,
+      });
 
       sendMessage('updateBadge', { count: annotations?.length || 0 });
 
@@ -530,12 +533,12 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
       if (annotations && annotations.length > 0) {
         renderBadges(annotations);
       } else if (retryCount < 3) {
-        setTimeout(() => fetchAnnotations(retryCount + 1), 1000 * (retryCount + 1));
+        setTimeout(() => fetchAnnotations(retryCount + 1, cacheBust), 1000 * (retryCount + 1));
       }
     } catch (error) {
       console.error('Failed to fetch annotations:', error);
       if (retryCount < 3) {
-        setTimeout(() => fetchAnnotations(retryCount + 1), 1000 * (retryCount + 1));
+        setTimeout(() => fetchAnnotations(retryCount + 1, cacheBust), 1000 * (retryCount + 1));
       }
     }
   }

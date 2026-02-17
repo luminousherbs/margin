@@ -61,6 +61,7 @@ interface APICollection {
 }
 
 export async function resolveHandle(handle: string): Promise<string | null> {
+  if (handle.startsWith("did:")) return handle;
   try {
     const res = await fetch(
       `https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`,
@@ -221,7 +222,7 @@ export async function fetchCollectionOG(uri: string): Promise<OGData | null> {
   const icon = item.icon || "📁";
   const title = `${icon} ${item.name}`;
 
-  let description = "";
+  let description;
   if (item.description) {
     description = `By ${author} · ${truncate(item.description, 170)}`;
   } else {

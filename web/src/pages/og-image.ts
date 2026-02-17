@@ -389,8 +389,7 @@ function buildAnnotationImage(data: RecordData, logo: string) {
     },
   });
 
-  (children as any).__accent = tc.accent;
-  return wrapCard(children);
+  return wrapCard(children, tc.accent);
 }
 
 function buildBookmarkImage(data: RecordData, logo: string) {
@@ -516,8 +515,7 @@ function buildBookmarkImage(data: RecordData, logo: string) {
     },
   });
 
-  (children as any).__accent = tc.accent;
-  return wrapCard(children);
+  return wrapCard(children, tc.accent);
 }
 
 function buildCollectionImage(data: RecordData, logo: string) {
@@ -599,8 +597,7 @@ function buildCollectionImage(data: RecordData, logo: string) {
   return wrapCard(children);
 }
 
-function wrapCard(children: unknown[]) {
-  const accent = (children as any).__accent || "#3b82f6";
+function wrapCard(children: unknown[], accent: string = "#3b82f6") {
   return {
     type: "div",
     props: {
@@ -674,7 +671,9 @@ export const GET: APIRoute = async ({ url }) => {
           const res = await fetch(url);
           if (res.ok)
             return `data:image/svg+xml,${encodeURIComponent(await res.text())}`;
-        } catch {}
+        } catch {
+          // ignore
+        }
       }
       return "";
     },
