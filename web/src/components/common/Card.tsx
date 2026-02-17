@@ -302,9 +302,19 @@ export default function Card({
       })()
     : null;
 
-  const displayTitle =
-    item.title || ogData?.title || pageTitle || "Untitled Bookmark";
-  const displayDescription = item.description || ogData?.description;
+  const decodeHTMLEntities = (text: string) => {
+    const textarea = document.createElement("textarea");
+    textarea.innerHTML = text;
+    return textarea.value;
+  };
+
+  const displayTitle = decodeHTMLEntities(
+    item.title || ogData?.title || pageTitle || "Untitled Bookmark",
+  );
+  const displayDescription =
+    item.description || ogData?.description
+      ? decodeHTMLEntities(item.description || ogData?.description || "")
+      : undefined;
   const displayImage = ogData?.image;
 
   return (

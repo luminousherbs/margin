@@ -177,8 +177,9 @@ export default function Profile({ did }: ProfileProps) {
   }, []);
 
   useEffect(() => {
+    const timer = loadMoreTimerRef.current;
     return () => {
-      if (loadMoreTimerRef.current) clearTimeout(loadMoreTimerRef.current);
+      if (timer) clearTimeout(timer);
     };
   }, []);
 

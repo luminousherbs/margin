@@ -1,45 +1,47 @@
 export const overlayStyles = /* css */ `
 :host { 
   all: initial; 
-  --bg-primary: #0c0c0c;
-  --bg-secondary: #141414;
-  --bg-tertiary: #1c1c1c;
-  --bg-card: #161616;
-  --bg-elevated: #1e1e1e;
-  --bg-hover: #262626;
+  --bg-primary: #18181b;
+  --bg-secondary: #1e1e22;
+  --bg-tertiary: #27272a;
+  --bg-card: #1e1e22;
+  --bg-elevated: #27272a;
+  --bg-hover: #2e2e33;
   
-  --text-primary: #e8e8e3;
-  --text-secondary: #a1a09a;
-  --text-tertiary: #6b6a65;
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #71717a;
   --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
   
-  --accent: #7aa2f7;
-  --accent-hover: #9bbcff;
-  --accent-subtle: rgba(122, 162, 247, 0.14);
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-subtle: rgba(59, 130, 246, 0.12);
   
   --highlight-yellow: #fbbf24;
   --highlight-green: #34d399;
   --highlight-blue: #60a5fa;
   --highlight-pink: #f472b6;
-  --highlight-purple: #9bbcff;
+  --highlight-purple: #a78bfa;
 }
 
 :host(.light) {
-  --bg-primary: #fafaf8;
+  --bg-primary: #fafafa;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #f2f2ef;
+  --bg-tertiary: #f4f4f5;
   --bg-card: #ffffff;
   --bg-elevated: #ffffff;
-  --bg-hover: #eaeae6;
+  --bg-hover: #f4f4f5;
   
-  --text-primary: #1a1a18;
-  --text-secondary: #6b6a65;
-  --text-tertiary: #a1a09a;
+  --text-primary: #18181b;
+  --text-secondary: #71717a;
+  --text-tertiary: #a1a1aa;
   --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
   
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --accent-subtle: rgba(59, 130, 246, 0.08);
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-subtle: rgba(37, 99, 235, 0.08);
 }
 
 .margin-overlay {
@@ -85,10 +87,10 @@ export const overlayStyles = /* css */ `
   position: absolute;
   width: 320px;
   background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
   padding: 0;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255,255,255,0.05);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35), 0 0 80px rgba(59, 130, 246, 0.04);
   display: flex;
   flex-direction: column;
   pointer-events: auto;
@@ -107,13 +109,13 @@ export const overlayStyles = /* css */ `
 }
 
 .popover-header {
-  padding: 12px 16px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
   align-items: center;
   background: var(--bg-primary);
-  border-radius: 14px 14px 0 0;
+  border-radius: 16px 16px 0 0;
 }
 
 .popover-title {
@@ -204,8 +206,8 @@ export const overlayStyles = /* css */ `
 }
 
 .comment-avatar {
-  width: 28px; 
-  height: 28px; 
+  width: 30px; 
+  height: 30px; 
   border-radius: 50%; 
   background: linear-gradient(135deg, var(--accent), var(--accent-hover));
   display: flex; 
@@ -215,6 +217,7 @@ export const overlayStyles = /* css */ `
   font-weight: 600;
   color: white;
   flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
 .comment-meta {
@@ -324,7 +327,8 @@ export const overlayStyles = /* css */ `
 }
 
 .add-note-textarea:focus {
-  border-color: var(--primary);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
 }
 
 .add-note-textarea::placeholder {
@@ -378,11 +382,11 @@ export const overlayStyles = /* css */ `
   width: 380px;
   max-width: calc(100vw - 32px);
   background: var(--bg-card);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: 16px;
   padding: 0;
   box-sizing: border-box;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.05);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 80px rgba(59, 130, 246, 0.04);
   z-index: 2147483647;
   pointer-events: auto;
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -473,6 +477,7 @@ export const overlayStyles = /* css */ `
 .inline-compose-textarea:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
 }
 
 .compose-footer {
@@ -550,6 +555,7 @@ export const overlayStyles = /* css */ `
 
 .compose-tags-container:focus-within {
   border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
 }
 
 .compose-tag-pill {
@@ -660,8 +666,8 @@ export const overlayStyles = /* css */ `
   transform: translateX(-50%) translateY(20px);
   padding: 12px 20px;
   background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 13px;

@@ -2,6 +2,7 @@ import React from "react";
 import { useStore } from "@nanostores/react";
 import { Link } from "react-router-dom";
 import { $theme } from "../store/theme";
+import { $user } from "../store/auth";
 import {
   MessageSquareText,
   Highlighter,
@@ -12,7 +13,6 @@ import {
   MousePointerClick,
   Shield,
   Users,
-  Sparkles,
   Chrome,
   ArrowRight,
   Github,
@@ -37,17 +37,17 @@ function FeatureCard({
 }) {
   return (
     <div
-      className={`group p-6 rounded-2xl border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+      className={`group p-6 rounded-2xl border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm ${
         accent
           ? "bg-primary-50 dark:bg-primary-950/30 border-primary-200/50 dark:border-primary-800/40"
-          : "bg-white dark:bg-surface-900 border-surface-200/80 dark:border-surface-800"
+          : "bg-white dark:bg-surface-800 border-surface-200/60 dark:border-surface-700/60"
       }`}
     >
       <div
         className={`w-11 h-11 rounded-xl flex items-center justify-center mb-4 transition-colors ${
           accent
             ? "bg-primary-600 text-white"
-            : "bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 group-hover:bg-primary-600 group-hover:text-white dark:group-hover:bg-primary-500"
+            : "bg-surface-100 dark:bg-surface-700/50 text-surface-500 dark:text-surface-400 group-hover:bg-primary-600 group-hover:text-white dark:group-hover:bg-primary-500"
         }`}
       >
         <Icon size={20} />
@@ -90,6 +90,7 @@ function ExtensionFeature({
 
 export default function About() {
   useStore($theme); // ensure theme is applied on this page
+  const user = useStore($user);
 
   const [browser] = React.useState<
     "chrome" | "firefox" | "edge" | "safari" | "other"
@@ -116,27 +117,56 @@ export default function About() {
     browser === "firefox" ? "Firefox" : browser === "edge" ? "Edge" : "Chrome";
 
   return (
-    <div className="min-h-screen bg-surface-50 dark:bg-surface-950">
-      <nav className="sticky top-0 z-50 bg-surface-50/80 dark:bg-surface-950/80 backdrop-blur-xl border-b border-surface-200/60 dark:border-surface-800/60">
+    <div className="min-h-screen bg-surface-100 dark:bg-surface-900">
+      <nav className="sticky top-0 z-50 bg-white/80 dark:bg-surface-900/80 backdrop-blur-xl border-b border-surface-200/50 dark:border-surface-800/50">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link to="/home" className="flex items-center gap-2.5 group">
+          <div className="flex items-center gap-2.5">
             <img src="/logo.svg" alt="Margin" className="w-7 h-7" />
             <span className="font-display font-bold text-lg tracking-tight text-surface-900 dark:text-white">
               Margin
             </span>
-          </Link>
-          <div className="flex items-center gap-3">
-            <Link
-              to="/home"
-              className="text-sm text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors px-3 py-1.5"
+          </div>
+          <div className="flex items-center gap-1">
+            {user && (
+              <Link
+                to="/home"
+                className="text-[13px] font-medium text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800"
+              >
+                Feed
+              </Link>
+            )}
+            <a
+              href="https://github.com/margin-at"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[13px] font-medium text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800"
             >
-              Feed
-            </Link>
+              GitHub
+            </a>
+            <a
+              href="https://tangled.org/margin.at/margin"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[13px] font-medium text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800"
+            >
+              Tangled
+            </a>
+            {!user && (
+              <>
+                <div className="w-px h-5 bg-surface-200 dark:bg-surface-700 mx-1.5" />
+                <Link
+                  to="/login"
+                  className="text-[13px] font-medium text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800"
+                >
+                  Sign in
+                </Link>
+              </>
+            )}
             <a
               href={extensionLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm font-medium px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-400 text-white rounded-lg transition-colors"
+              className="text-[13px] font-semibold px-4 py-1.5 bg-surface-900 dark:bg-white text-white dark:text-surface-900 rounded-lg hover:bg-surface-800 dark:hover:bg-surface-100 transition-colors ml-0.5"
             >
               Get Extension
             </a>
@@ -145,21 +175,16 @@ export default function About() {
       </nav>
 
       <section>
-        <div className="max-w-5xl mx-auto px-6 pt-24 pb-20 md:pt-32 md:pb-28 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400 text-xs font-medium mb-6">
-            <Sparkles size={13} />
-            Built on the AT Protocol
-          </div>
+        <div className="max-w-3xl mx-auto px-6 pt-24 pb-20 md:pt-32 md:pb-28 text-center">
+          <p className="text-[13px] font-medium text-surface-400 dark:text-surface-500 tracking-wide uppercase mb-5">
+            Open-source web annotations
+          </p>
 
-          <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-surface-900 dark:text-white leading-[1.1] mb-6">
-            Write on the margins
-            <br />
-            <span className="text-primary-600 dark:text-primary-400">
-              of the internet
-            </span>
+          <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-surface-900 dark:text-white leading-[1.08] mb-6">
+            Write on the margins of the internet.
           </h1>
 
-          <p className="text-lg md:text-xl text-surface-500 dark:text-surface-400 max-w-2xl mx-auto leading-relaxed mb-10">
+          <p className="text-base md:text-lg text-surface-500 dark:text-surface-400 max-w-xl mx-auto leading-relaxed mb-10">
             Margin is an open annotation layer for the internet. Highlight text,
             leave notes, and bookmark pages, all stored on your decentralized
             identity with the{" "}
@@ -167,26 +192,26 @@ export default function About() {
               href="https://atproto.com"
               target="_blank"
               rel="noreferrer"
-              className="text-primary-600 dark:text-primary-400 hover:underline"
+              className="text-surface-700 dark:text-surface-300 hover:underline"
             >
               AT Protocol
             </a>
-            .
+            . Not locked in a silo.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
-              to="/login"
-              className="inline-flex items-center gap-2 px-7 py-3 bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-400 text-white rounded-xl font-semibold transition-colors"
+              to={user ? "/home" : "/login"}
+              className="inline-flex items-center gap-2 px-7 py-3 bg-surface-900 dark:bg-white text-white dark:text-surface-900 rounded-xl font-semibold hover:bg-surface-800 dark:hover:bg-surface-100 transition-colors"
             >
-              Get Started
+              {user ? "Open App" : "Get Started"}
               <ArrowRight size={16} />
             </Link>
             <a
               href={extensionLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-7 py-3 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-200 hover:text-surface-900 dark:hover:text-white rounded-xl font-semibold transition-colors"
+              className="inline-flex items-center gap-2 px-7 py-3 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-200 hover:text-surface-900 dark:hover:text-white rounded-xl font-semibold transition-colors"
             >
               <ExtensionIcon size={16} />
               Install for {extensionLabel}
@@ -197,10 +222,10 @@ export default function About() {
 
       <section className="max-w-5xl mx-auto px-6 py-20 md:py-24">
         <div className="text-center mb-12">
-          <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-surface-900 dark:text-white mb-3">
+          <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-surface-900 dark:text-white mb-4">
             Everything you need to engage with the web
           </h2>
-          <p className="text-surface-500 dark:text-surface-400 max-w-xl mx-auto">
+          <p className="text-surface-500 dark:text-surface-400 max-w-xl mx-auto leading-relaxed">
             More than bookmarks. A full toolkit for reading, thinking, and
             sharing on the open web.
           </p>
@@ -241,11 +266,11 @@ export default function About() {
         </div>
       </section>
 
-      <section className="bg-surface-100/50 dark:bg-surface-900/50 border-y border-surface-200/60 dark:border-surface-800/60">
+      <section className="bg-white/50 dark:bg-surface-800/50 border-y border-surface-200/60 dark:border-surface-800/60">
         <div className="max-w-5xl mx-auto px-6 py-20 md:py-24">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-200/60 dark:bg-surface-800 text-surface-600 dark:text-surface-400 text-xs font-medium mb-5">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400 text-xs font-medium mb-5 border border-surface-200/60 dark:border-surface-700/60">
                 <ExtensionIcon size={13} />
                 Browser Extension
               </div>
@@ -285,35 +310,51 @@ export default function About() {
 
               <div className="flex flex-col sm:flex-row gap-3 mt-8 flex-wrap">
                 <a
-                  href="https://chromewebstore.google.com/detail/margin/cgpmbiiagnehkikhcbnhiagfomajncpa"
+                  href={extensionLink}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-surface-900 dark:bg-white text-white dark:text-surface-900 rounded-lg font-medium text-sm transition-all hover:opacity-90"
                 >
-                  <Chrome size={15} />
-                  Chrome Web Store
+                  <ExtensionIcon size={15} />
+                  Install for {extensionLabel}
                   <ExternalLink size={12} />
                 </a>
-                <a
-                  href="https://addons.mozilla.org/en-US/firefox/addon/margin/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-200 rounded-lg font-medium text-sm transition-all hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200/80 dark:border-surface-700/80"
-                >
-                  <FaFirefox size={15} />
-                  Firefox Add-ons
-                  <ExternalLink size={12} />
-                </a>
-                <a
-                  href="https://microsoftedge.microsoft.com/addons/detail/margin/nfjnmllpdgcdnhmmggjihjbidmeadddn"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-200 rounded-lg font-medium text-sm transition-all hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200/80 dark:border-surface-700/80"
-                >
-                  <FaEdge size={15} />
-                  Edge Add-ons
-                  <ExternalLink size={12} />
-                </a>
+                {browser !== "chrome" && (
+                  <a
+                    href="https://chromewebstore.google.com/detail/margin/cgpmbiiagnehkikhcbnhiagfomajncpa"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-200 rounded-lg font-medium text-sm transition-all hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200/80 dark:border-surface-700/80"
+                  >
+                    <Chrome size={15} />
+                    Chrome
+                    <ExternalLink size={12} />
+                  </a>
+                )}
+                {browser !== "firefox" && (
+                  <a
+                    href="https://addons.mozilla.org/en-US/firefox/addon/margin/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-200 rounded-lg font-medium text-sm transition-all hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200/80 dark:border-surface-700/80"
+                  >
+                    <FaFirefox size={15} />
+                    Firefox
+                    <ExternalLink size={12} />
+                  </a>
+                )}
+                {browser !== "edge" && (
+                  <a
+                    href="https://microsoftedge.microsoft.com/addons/detail/margin/nfjnmllpdgcdnhmmggjihjbidmeadddn"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-200 rounded-lg font-medium text-sm transition-all hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200/80 dark:border-surface-700/80"
+                  >
+                    <FaEdge size={15} />
+                    Edge
+                    <ExternalLink size={12} />
+                  </a>
+                )}
                 <a
                   href="https://www.icloud.com/shortcuts/21c87edf29b046db892c9e57dac6d1fd"
                   target="_blank"
@@ -328,14 +369,14 @@ export default function About() {
             </div>
 
             <div className="relative hidden lg:block">
-              <div className="relative rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 p-6 shadow-xl">
+              <div className="relative rounded-2xl border border-surface-200/60 dark:border-surface-700/60 bg-white dark:bg-surface-800 p-6 shadow-xl">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="flex gap-1.5">
                     <div className="w-3 h-3 rounded-full bg-red-400/60" />
                     <div className="w-3 h-3 rounded-full bg-yellow-400/60" />
                     <div className="w-3 h-3 rounded-full bg-green-400/60" />
                   </div>
-                  <div className="flex-1 mx-3 bg-surface-200 dark:bg-surface-800 rounded-md h-6 flex items-center px-3">
+                  <div className="flex-1 mx-3 bg-surface-200 dark:bg-surface-700 rounded-md h-6 flex items-center px-3">
                     <span className="text-[10px] text-surface-400 truncate">
                       example.com/article/how-to-think-clearly
                     </span>
@@ -343,27 +384,27 @@ export default function About() {
                 </div>
 
                 <div className="space-y-3 text-sm text-surface-600 dark:text-surface-300 leading-relaxed">
-                  <div className="h-3 bg-surface-200 dark:bg-surface-800 rounded w-3/4" />
-                  <div className="h-3 bg-surface-200 dark:bg-surface-800 rounded w-full" />
-                  <div className="flex gap-0.5 flex-wrap">
-                    <div className="h-3 bg-surface-200 dark:bg-surface-800 rounded w-1/4" />
+                  <div className="h-3 bg-surface-200 dark:bg-surface-700 rounded w-3/4" />
+                  <div className="h-3 bg-surface-200 dark:bg-surface-700 rounded w-full" />
+                  <div className="flex gap-0.5 flex-wrap items-center">
+                    <div className="h-3 bg-surface-200 dark:bg-surface-700 rounded w-1/4" />
                     <span className="px-1 py-0.5 bg-yellow-200/70 dark:bg-yellow-500/30 rounded text-xs text-surface-700 dark:text-yellow-200 font-medium leading-none">
                       The point here is that Margin is indeed
                     </span>
-                    <div className="h-3 bg-surface-200 dark:bg-surface-800 rounded w-1/5" />
+                    <div className="h-3 bg-surface-200 dark:bg-surface-700 rounded w-1/5" />
                   </div>
-                  <div className="h-3 bg-surface-200 dark:bg-surface-800 rounded w-5/6" />
-                  <div className="flex gap-0.5 flex-wrap">
-                    <div className="h-3 bg-surface-200 dark:bg-surface-800 rounded w-2/5" />
+                  <div className="h-3 bg-surface-200 dark:bg-surface-700 rounded w-5/6" />
+                  <div className="flex gap-0.5 flex-wrap items-center">
+                    <div className="h-3 bg-surface-200 dark:bg-surface-700 rounded w-2/5" />
                     <span className="px-1 py-0.5 bg-primary-200/70 dark:bg-primary-500/30 rounded text-xs text-primary-700 dark:text-primary-200 font-medium leading-none">
                       the best thing ever
                     </span>
-                    <div className="h-3 bg-surface-200 dark:bg-surface-800 rounded w-1/4" />
+                    <div className="h-3 bg-surface-200 dark:bg-surface-700 rounded w-1/4" />
                   </div>
-                  <div className="h-3 bg-surface-200 dark:bg-surface-800 rounded w-2/3" />
+                  <div className="h-3 bg-surface-200 dark:bg-surface-700 rounded w-2/3" />
                 </div>
 
-                <div className="absolute -right-4 top-1/3 w-56 bg-white dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700 shadow-lg p-3.5">
+                <div className="absolute -right-4 top-1/3 w-56 bg-white dark:bg-surface-900 rounded-xl border border-surface-200/60 dark:border-surface-700/60 shadow-lg p-3.5">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-[10px] font-bold">
                       S
@@ -394,7 +435,7 @@ export default function About() {
       <section className="max-w-5xl mx-auto px-6 py-20 md:py-24">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400 text-xs font-medium mb-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-surface-800 text-surface-600 dark:text-surface-400 text-xs font-medium mb-5 border border-surface-200/60 dark:border-surface-700/60">
               <Shield size={13} />
               Decentralized
             </div>
@@ -444,7 +485,7 @@ export default function About() {
             </ul>
           </div>
 
-          <div className="rounded-2xl bg-surface-900 dark:bg-surface-800 p-5 text-sm font-mono shadow-xl border border-surface-800 dark:border-surface-700">
+          <div className="rounded-2xl bg-surface-900 dark:bg-surface-950 p-5 text-sm font-mono shadow-xl border border-surface-800 dark:border-surface-800">
             <div className="flex items-center gap-2 mb-4">
               <div className="text-xs text-surface-500">lexicon</div>
               <div className="text-xs text-primary-400 px-2 py-0.5 rounded bg-primary-400/10">
@@ -514,10 +555,10 @@ export default function About() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
-              to="/login"
+              to={user ? "/home" : "/login"}
               className="inline-flex items-center gap-2 px-7 py-3 bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-400 text-white rounded-xl font-semibold transition-colors"
             >
-              Sign in
+              {user ? "Open App" : "Sign in"}
               <ArrowRight size={16} />
             </Link>
             <a
@@ -547,12 +588,14 @@ export default function About() {
               </span>
             </div>
             <div className="flex items-center gap-5 text-sm text-surface-400 dark:text-surface-500">
-              <Link
-                to="/home"
-                className="hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
-              >
-                Feed
-              </Link>
+              {user && (
+                <Link
+                  to="/home"
+                  className="hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
+                >
+                  Feed
+                </Link>
+              )}
               <a
                 href="/privacy"
                 className="hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
@@ -572,6 +615,14 @@ export default function About() {
                 className="hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
               >
                 GitHub
+              </a>
+              <a
+                href="https://tangled.org/margin.at/margin"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
+              >
+                Tangled
               </a>
               <a
                 href="mailto:hello@margin.at"

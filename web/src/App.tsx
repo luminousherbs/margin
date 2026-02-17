@@ -1,7 +1,8 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { initAuth } from "./store/auth";
+import { initAuth, $user } from "./store/auth";
 import { loadPreferences } from "./store/preferences";
+import { useStore } from "@nanostores/react";
 
 import AppLayout from "./layouts/AppLayout";
 import Feed from "./views/core/Feed";
@@ -22,6 +23,16 @@ import {
 import About from "./views/About";
 import AdminModeration from "./views/core/AdminModeration";
 
+function RootRoute() {
+  const user = useStore($user);
+
+  if (user) {
+    return <Navigate to="/home" replace />;
+  }
+
+  return <About />;
+}
+
 export default function App() {
   React.useEffect(() => {
     initAuth();
@@ -31,7 +42,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/home" replace />} />
+        <Route path="/" element={<RootRoute />} />
         <Route path="/login" element={<Login />} />
         <Route path="/about" element={<About />} />
         <Route path="/auth/*" element={<div>Redirecting...</div>} />

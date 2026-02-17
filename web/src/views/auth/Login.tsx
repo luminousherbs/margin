@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link, useSearchParams, Navigate } from "react-router-dom";
+import { useSearchParams, Navigate } from "react-router-dom";
 import { AtSign } from "lucide-react";
 import SignUpModal from "../../components/modals/SignUpModal";
 import {
@@ -255,19 +255,19 @@ export default function Login() {
 
           <p className="text-center text-sm text-surface-400 dark:text-surface-500 mt-2 leading-relaxed">
             By signing in, you agree to our{" "}
-            <Link
-              to="/terms"
+            <a
+              href="/terms"
               className="text-surface-900 dark:text-white hover:underline font-medium hover:text-[#027bff] dark:hover:text-[#027bff] transition-colors"
             >
               Terms of Service
-            </Link>{" "}
+            </a>{" "}
             and{" "}
-            <Link
-              to="/privacy"
+            <a
+              href="/privacy"
               className="text-surface-900 dark:text-white hover:underline font-medium hover:text-[#027bff] dark:hover:text-[#027bff] transition-colors"
             >
               Privacy Policy
-            </Link>
+            </a>
           </p>
 
           <div className="flex items-center gap-4 py-2 opacity-50">

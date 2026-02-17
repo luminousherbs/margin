@@ -403,7 +403,7 @@ export function App() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[var(--accent)] border-t-transparent" />
+        <div className="w-5 h-5 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -411,14 +411,16 @@ export function App() {
   if (!session?.authenticated) {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-8 text-center">
-        <img src="/icons/logo.svg" alt="Margin" className="w-16 h-16 mb-6" />
-        <h2 className="text-xl font-bold mb-3">Welcome to Margin</h2>
-        <p className="text-[var(--text-secondary)] mb-8 max-w-xs leading-relaxed">
-          Sign in to annotate, bookmark, and highlight web pages using the AT Protocol.
+        <div className="w-14 h-14 rounded-2xl bg-[var(--accent-subtle)] flex items-center justify-center mb-5">
+          <img src="/icons/logo.svg" alt="Margin" className="w-8 h-8" />
+        </div>
+        <h2 className="font-display text-xl font-bold tracking-tight mb-2">Welcome to Margin</h2>
+        <p className="text-[var(--text-secondary)] text-sm mb-8 max-w-xs leading-relaxed">
+          Annotate, highlight, and bookmark the web with your AT Protocol identity.
         </p>
         <button
           onClick={() => browser.tabs.create({ url: `${APP_URL}/login` })}
-          className="px-8 py-3 bg-[var(--accent)] text-white rounded-xl font-semibold hover:bg-[var(--accent-hover)] transition-all hover:-translate-y-0.5 active:translate-y-0"
+          className="px-8 py-2.5 bg-[var(--accent)] text-white rounded-xl text-sm font-semibold hover:bg-[var(--accent-hover)] transition-colors"
         >
           Sign In
         </button>
@@ -428,18 +430,21 @@ export function App() {
 
   return (
     <div className="flex flex-col h-screen">
-      <header className="flex items-center justify-between px-3 py-2.5 border-b border-[var(--border)] bg-[var(--bg-secondary)] gap-2">
-        <div className="flex items-center gap-2 flex-shrink-0">
+      <header className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--border)]">
+        <div className="flex items-center gap-2">
           <img src="/icons/logo.svg" alt="Margin" className="w-5 h-5" />
-          <span className="font-bold text-sm hidden sm:inline">Margin</span>
+          <span className="font-display font-bold text-sm tracking-tight">Margin</span>
         </div>
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="text-xs text-[var(--text-secondary)] bg-[var(--bg-card)] px-2 py-1 rounded-full border border-[var(--border)] truncate max-w-[120px]">
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => browser.tabs.create({ url: APP_URL })}
+            className="text-[11px] text-[var(--text-tertiary)] hover:text-[var(--accent)] px-2 py-1 rounded-md hover:bg-[var(--bg-hover)] transition-colors"
+          >
             @{session.handle}
-          </div>
+          </button>
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="p-1.5 hover:bg-[var(--bg-hover)] rounded-lg transition-colors text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex-shrink-0"
+            className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-lg transition-colors"
             title="Settings"
           >
             {Icons.settings}
@@ -448,25 +453,20 @@ export function App() {
       </header>
 
       {showSettings && (
-        <div className="p-4 border-b border-[var(--border)] bg-[var(--bg-card)] animate-slideDown">
-          <h3 className="text-sm font-bold mb-4 flex items-center gap-2">
-            {Icons.settings}
-            Settings
-          </h3>
-
-          <div className="mb-5">
-            <label className="text-xs font-medium text-[var(--text-secondary)] mb-2 block">
+        <div className="p-4 border-b border-[var(--border)] space-y-4 animate-slideDown">
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
               Theme
             </label>
-            <div className="flex gap-2">
-              {(['system', 'light', 'dark'] as const).map((t) => (
+            <div className="flex gap-1.5">
+              {(['light', 'dark', 'system'] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => handleThemeChange(t)}
-                  className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-all ${
+                  className={`flex-1 py-2 px-3 text-xs font-medium rounded-lg transition-colors ${
                     theme === t
                       ? 'bg-[var(--accent)] text-white'
-                      : 'bg-[var(--bg-elevated)] border border-[var(--border)] hover:bg-[var(--bg-hover)]'
+                      : 'bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-hover)]'
                   }`}
                 >
                   {t.charAt(0).toUpperCase() + t.slice(1)}
@@ -475,39 +475,39 @@ export function App() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between py-2">
+          <div className="flex items-center justify-between p-3 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg">
             <div>
-              <span className="text-sm font-medium">Page Overlay</span>
-              <p className="text-xs text-[var(--text-tertiary)]">Show highlights on pages</p>
+              <div className="text-sm font-medium">Page Overlay</div>
+              <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
+                Show highlights and annotations on pages
+              </p>
             </div>
             <button
               onClick={handleOverlayToggle}
-              className={`w-11 h-6 rounded-full transition-colors relative ${
+              className={`relative w-10 h-[22px] rounded-full transition-colors ${
                 overlayEnabled
                   ? 'bg-[var(--accent)]'
                   : 'bg-[var(--bg-hover)] border border-[var(--border)]'
               }`}
             >
               <div
-                className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                  overlayEnabled ? 'left-6' : 'left-1'
+                className={`absolute top-[3px] w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
+                  overlayEnabled ? 'left-[22px]' : 'left-[3px]'
                 }`}
               />
             </button>
           </div>
 
-          <div className="mt-4 pt-4 border-t border-[var(--border)]">
-            <button
-              onClick={() => browser.tabs.create({ url: APP_URL })}
-              className="w-full py-2.5 text-sm font-medium text-[var(--accent)] bg-[var(--accent)]/10 rounded-lg hover:bg-[var(--accent)]/20 transition-colors flex items-center justify-center gap-2"
-            >
-              Open Margin App {Icons.externalLink}
-            </button>
-          </div>
+          <button
+            onClick={() => browser.tabs.create({ url: APP_URL })}
+            className="w-full py-2 text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--accent)] rounded-lg hover:bg-[var(--bg-hover)] transition-colors flex items-center justify-center gap-1.5"
+          >
+            Open Margin {Icons.externalLink}
+          </button>
         </div>
       )}
 
-      <div className="flex border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+      <div className="flex border-b border-[var(--border)]">
         {(['page', 'bookmarks', 'highlights', 'collections'] as Tab[]).map((tab) => {
           const icons = {
             page: Icons.globe,
@@ -541,14 +541,14 @@ export function App() {
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'page' && (
           <div className="p-4">
-            <div className="mb-4 p-4 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg bg-[var(--bg-hover)] flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <div className="mb-4 p-3 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-[var(--bg-hover)] flex items-center justify-center flex-shrink-0 overflow-hidden">
                   {currentUrl ? (
                     <img
                       src={`https://www.google.com/s2/favicons?domain=${new URL(currentUrl).hostname}&sz=64`}
                       alt=""
-                      className="w-6 h-6"
+                      className="w-5 h-5"
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none';
                         (e.target as HTMLImageElement).nextElementSibling?.classList.remove(
@@ -562,19 +562,20 @@ export function App() {
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold truncate">{currentTitle || 'Untitled'}</div>
-                  <div className="text-xs text-[var(--text-tertiary)] truncate">
+                  <div className="text-sm font-medium truncate">{currentTitle || 'Untitled'}</div>
+                  <div className="text-[11px] text-[var(--text-tertiary)] truncate">
                     {currentUrl ? new URL(currentUrl).hostname : ''}
                   </div>
                 </div>
                 <button
                   onClick={handleBookmark}
                   disabled={bookmarking || bookmarked}
-                  className={`p-2 rounded-lg transition-all ${
+                  className={`p-1.5 rounded-md transition-colors ${
                     bookmarked
-                      ? 'bg-emerald-400/15 text-emerald-400'
-                      : 'bg-[var(--bg-hover)] hover:bg-[var(--accent)]/15 text-[var(--text-secondary)] hover:text-[var(--accent)]'
+                      ? 'text-emerald-400'
+                      : 'text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--bg-hover)]'
                   }`}
+                  title={bookmarked ? 'Bookmarked' : 'Bookmark page'}
                 >
                   {bookmarked ? Icons.check : Icons.bookmark}
                 </button>
@@ -586,30 +587,30 @@ export function App() {
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder="Share your thoughts on this page..."
-                className="w-full p-4 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm resize-none focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 min-h-[100px]"
+                className="w-full px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm resize-none focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-subtle)] min-h-[80px] transition-all"
               />
               <div className="mt-2">
                 <TagInput tags={tags} onChange={setTags} suggestions={tagSuggestions} />
               </div>
-              <div className="flex gap-2 mt-3">
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-[11px] text-[var(--text-tertiary)]">
+                  {text.length > 0 ? `${text.length} chars` : ''}
+                </span>
                 <button
                   onClick={handlePost}
                   disabled={posting || !text.trim()}
-                  className="flex-1 px-4 py-2.5 bg-[var(--accent)] text-white text-sm rounded-xl font-semibold hover:bg-[var(--accent-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:-translate-y-0.5 active:translate-y-0"
+                  className="px-5 py-1.5 bg-[var(--accent)] text-white text-xs rounded-lg font-medium hover:bg-[var(--accent-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
-                  {posting ? 'Posting...' : 'Post Annotation'}
+                  {posting ? 'Posting...' : 'Post'}
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-xs text-[var(--text-tertiary)] mb-3">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <span className="font-semibold">
-                  {annotations.length + pageHighlights.length} item
-                  {annotations.length + pageHighlights.length !== 1 ? 's' : ''}
-                </span>
-                <span className="text-[var(--accent)] bg-[var(--accent)]/10 px-2 py-0.5 rounded-full text-[10px] font-semibold">
-                  {annotations.length} notes · {pageHighlights.length} highlights
+                <span className="text-xs font-semibold text-[var(--text-secondary)]">Activity</span>
+                <span className="text-xs font-semibold bg-[var(--accent-subtle)] text-[var(--accent)] px-2 py-0.5 rounded-full">
+                  {annotations.length + pageHighlights.length}
                 </span>
               </div>
               <div className="flex items-center bg-[var(--bg-card)] border border-[var(--border)] rounded-lg p-0.5">
@@ -635,7 +636,7 @@ export function App() {
               </div>
             ) : annotations.length + pageHighlights.length === 0 ? (
               <div className="text-center py-16 text-[var(--text-tertiary)]">
-                <div className="w-14 h-14 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center mx-auto mb-4">
+                <div className="w-12 h-12 rounded-xl bg-[var(--accent-subtle)] flex items-center justify-center mx-auto mb-4">
                   {Icons.sparkles}
                 </div>
                 <p className="font-medium mb-1">No activity yet</p>
@@ -686,7 +687,7 @@ export function App() {
               </div>
             ) : bookmarks.length === 0 ? (
               <div className="text-center py-16 text-[var(--text-tertiary)]">
-                <div className="w-14 h-14 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center mx-auto mb-4">
+                <div className="w-12 h-12 rounded-xl bg-[var(--accent-subtle)] flex items-center justify-center mx-auto mb-4 text-[var(--accent)]">
                   {Icons.bookmark}
                 </div>
                 <p className="font-medium mb-1">No bookmarks yet</p>
@@ -748,7 +749,7 @@ export function App() {
               </div>
             ) : highlights.length === 0 ? (
               <div className="text-center py-16 text-[var(--text-tertiary)]">
-                <div className="w-14 h-14 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center mx-auto mb-4">
+                <div className="w-12 h-12 rounded-xl bg-[var(--accent-subtle)] flex items-center justify-center mx-auto mb-4 text-[var(--accent)]">
                   {Icons.highlighter}
                 </div>
                 <p className="font-medium mb-1">No highlights yet</p>
@@ -777,7 +778,7 @@ export function App() {
               </div>
             ) : collections.length === 0 ? (
               <div className="text-center py-16 text-[var(--text-tertiary)]">
-                <div className="w-14 h-14 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center mx-auto mb-4">
+                <div className="w-12 h-12 rounded-xl bg-[var(--accent-subtle)] flex items-center justify-center mx-auto mb-4 text-[var(--accent)]">
                   {Icons.folder}
                 </div>
                 <p className="font-medium mb-1">No collections yet</p>

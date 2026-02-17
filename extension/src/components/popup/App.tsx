@@ -369,7 +369,7 @@ export function App() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[var(--accent)] border-t-transparent" />
+        <div className="w-5 h-5 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -380,38 +380,42 @@ export function App() {
         {showSettings && (
           <div className="absolute inset-0 bg-[var(--bg-primary)] z-10 flex flex-col">
             <header className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
-              <span className="font-medium">Settings</span>
+              <span className="text-sm font-semibold">Settings</span>
               <button
                 onClick={() => setShowSettings(false)}
-                className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-lg transition-colors"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </header>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            <div className="flex-1 overflow-y-auto p-4 space-y-5">
               <div>
-                <label className="block text-sm font-medium mb-2">API URL</label>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                  API URL
+                </label>
                 <input
                   type="text"
                   value={apiUrl}
                   onChange={(e) => setApiUrl(e.target.value)}
-                  className="w-full p-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)]"
+                  className="w-full px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-subtle)] transition-all"
                   placeholder="https://margin.at"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Theme</label>
-                <div className="flex gap-2">
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                  Theme
+                </label>
+                <div className="flex gap-1.5">
                   {(['light', 'dark', 'system'] as const).map((t) => (
                     <button
                       key={t}
                       onClick={() => handleThemeChange(t)}
-                      className={`flex-1 py-2 px-3 text-xs rounded-lg border transition-colors flex items-center justify-center gap-1 ${
+                      className={`flex-1 py-2 px-3 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
                         theme === t
-                          ? 'bg-[var(--accent)] text-white border-[var(--accent)]'
-                          : 'bg-[var(--bg-card)] border-[var(--border)] hover:bg-[var(--bg-hover)]'
+                          ? 'bg-[var(--accent)] text-white'
+                          : 'bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-hover)]'
                       }`}
                     >
                       {t === 'light' ? (
@@ -431,7 +435,7 @@ export function App() {
             <div className="p-4 border-t border-[var(--border)]">
               <button
                 onClick={saveSettings}
-                className="w-full py-2.5 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[var(--accent-hover)] transition-colors"
+                className="w-full py-2.5 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors"
               >
                 Save Settings
               </button>
@@ -439,21 +443,23 @@ export function App() {
           </div>
         )}
 
-        <div className="flex flex-col items-center justify-center flex-1 p-6 text-center">
-          <img src="/icons/logo.svg" alt="Margin" className="w-12 h-12 mb-4" />
-          <h2 className="text-lg font-semibold mb-2">Sign in with AT Protocol</h2>
-          <p className="text-[var(--text-secondary)] text-sm mb-6">
-            Connect your Bluesky account to annotate, highlight, and bookmark the web.
+        <div className="flex flex-col items-center justify-center flex-1 p-8 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-[var(--accent-subtle)] flex items-center justify-center mb-5">
+            <img src="/icons/logo.svg" alt="Margin" className="w-8 h-8" />
+          </div>
+          <h2 className="font-display text-xl font-bold tracking-tight mb-2">Welcome to Margin</h2>
+          <p className="text-[var(--text-secondary)] text-sm leading-relaxed mb-8 max-w-[280px]">
+            Annotate, highlight, and bookmark the web with your AT Protocol identity.
           </p>
           <button
             onClick={() => browser.tabs.create({ url: `${apiUrl}/login` })}
-            className="px-6 py-2.5 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[var(--accent-hover)] transition-colors"
+            className="w-full max-w-[240px] px-6 py-2.5 bg-[var(--accent)] text-white rounded-xl text-sm font-semibold hover:bg-[var(--accent-hover)] transition-colors"
           >
-            Continue
+            Sign In
           </button>
           <button
             onClick={() => setShowSettings(true)}
-            className="mt-4 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center gap-1"
+            className="mt-4 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors"
           >
             <Settings size={12} /> Settings
           </button>
@@ -467,56 +473,68 @@ export function App() {
       {showSettings && (
         <div className="absolute inset-0 bg-[var(--bg-primary)] z-10 flex flex-col">
           <header className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
-            <span className="font-medium">Settings</span>
+            <span className="text-sm font-semibold">Settings</span>
             <button
               onClick={() => setShowSettings(false)}
-              className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+              className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-lg transition-colors"
             >
-              <X size={18} />
+              <X size={16} />
             </button>
           </header>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          <div className="flex-1 overflow-y-auto p-4 space-y-5">
             <div>
-              <label className="block text-sm font-medium mb-2">API URL</label>
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                API URL
+              </label>
               <input
                 type="text"
                 value={apiUrl}
                 onChange={(e) => setApiUrl(e.target.value)}
-                className="w-full p-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)]"
+                className="w-full px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-subtle)] transition-all"
                 placeholder="https://margin.at"
               />
-              <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                Change this for development or self-hosted instances
+              <p className="text-[11px] text-[var(--text-tertiary)] mt-1">
+                For development or self-hosted instances
               </p>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between p-3 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg">
               <div>
-                <label className="text-sm font-medium">Show page overlays</label>
-                <p className="text-xs text-[var(--text-tertiary)]">
-                  Highlights, badges, and tooltips on pages
+                <div className="text-sm font-medium">Page Overlay</div>
+                <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
+                  Show highlights and annotations on pages
                 </p>
               </div>
-              <input
-                type="checkbox"
-                checked={overlayEnabled}
-                onChange={(e) => setOverlayEnabled(e.target.checked)}
-                className="w-5 h-5 rounded accent-[var(--accent)]"
-              />
+              <button
+                onClick={() => setOverlayEnabled(!overlayEnabled)}
+                className={`relative w-10 h-[22px] rounded-full transition-colors ${
+                  overlayEnabled
+                    ? 'bg-[var(--accent)]'
+                    : 'bg-[var(--bg-hover)] border border-[var(--border)]'
+                }`}
+              >
+                <div
+                  className={`absolute top-[3px] w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
+                    overlayEnabled ? 'left-[22px]' : 'left-[3px]'
+                  }`}
+                />
+              </button>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Theme</label>
-              <div className="flex gap-2">
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                Theme
+              </label>
+              <div className="flex gap-1.5">
                 {(['light', 'dark', 'system'] as const).map((t) => (
                   <button
                     key={t}
                     onClick={() => handleThemeChange(t)}
-                    className={`flex-1 py-2 px-3 text-xs rounded-lg border transition-colors flex items-center justify-center gap-1 ${
+                    className={`flex-1 py-2 px-3 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
                       theme === t
-                        ? 'bg-[var(--accent)] text-white border-[var(--accent)]'
-                        : 'bg-[var(--bg-card)] border-[var(--border)] hover:bg-[var(--bg-hover)]'
+                        ? 'bg-[var(--accent)] text-white'
+                        : 'bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-hover)]'
                     }`}
                   >
                     {t === 'light' ? (
@@ -536,7 +554,7 @@ export function App() {
           <div className="p-4 border-t border-[var(--border)]">
             <button
               onClick={saveSettings}
-              className="w-full py-2.5 bg-[var(--accent)] text-white rounded-lg font-medium hover:bg-[var(--accent-hover)] transition-colors"
+              className="w-full py-2.5 bg-[var(--accent)] text-white rounded-lg text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors"
             >
               Save
             </button>
@@ -544,19 +562,29 @@ export function App() {
         </div>
       )}
 
-      <header className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
-        <div className="flex items-center gap-2.5">
-          <img src="/icons/logo.svg" alt="Margin" className="w-6 h-6" />
-          <span className="font-bold text-sm tracking-tight">Margin</span>
-        </div>
+      <header className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--border)]">
         <div className="flex items-center gap-2">
-          <div className="text-xs text-[var(--text-secondary)] bg-[var(--bg-card)] px-2.5 py-1.5 rounded-full border border-[var(--border)]">
+          <img src="/icons/logo.svg" alt="Margin" className="w-5 h-5" />
+          <span className="font-display font-bold text-sm tracking-tight">Margin</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => browser.tabs.create({ url: apiUrl })}
+            className="text-[11px] text-[var(--text-tertiary)] hover:text-[var(--accent)] px-2 py-1 rounded-md hover:bg-[var(--bg-hover)] transition-colors"
+          >
             @{session.handle}
-          </div>
+          </button>
+          <button
+            onClick={() => setShowSettings(true)}
+            className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-lg transition-colors"
+            title="Settings"
+          >
+            <Settings size={15} />
+          </button>
         </div>
       </header>
 
-      <div className="flex border-b border-[var(--border)] px-2 gap-0.5 bg-[var(--bg-secondary)]">
+      <div className="flex border-b border-[var(--border)] px-2 gap-0.5">
         {(['page', 'bookmarks', 'highlights', 'collections'] as Tab[]).map((tab) => {
           const icons: Record<Tab, JSX.Element> = {
             page: <Globe size={13} />,
@@ -591,13 +619,13 @@ export function App() {
         {activeTab === 'page' && (
           <div>
             <div className="p-4 border-b border-[var(--border)]">
-              <div className="flex items-start gap-3 p-3 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl">
-                <div className="w-10 h-10 rounded-lg bg-[var(--bg-hover)] flex items-center justify-center flex-shrink-0 overflow-hidden">
+              <div className="flex items-center gap-3 p-3 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl">
+                <div className="w-9 h-9 rounded-lg bg-[var(--bg-hover)] flex items-center justify-center flex-shrink-0 overflow-hidden">
                   {currentUrl ? (
                     <img
                       src={`https://www.google.com/s2/favicons?domain=${new URL(currentUrl).hostname}&sz=64`}
                       alt=""
-                      className="w-6 h-6"
+                      className="w-5 h-5"
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none';
                         (e.target as HTMLImageElement).nextElementSibling?.classList.remove(
@@ -607,19 +635,17 @@ export function App() {
                     />
                   ) : null}
                   <Globe
-                    size={18}
+                    size={16}
                     className={`text-[var(--text-tertiary)] ${currentUrl ? 'hidden' : ''}`}
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold truncate mb-0.5">
-                    {currentTitle || 'Untitled'}
-                  </div>
-                  <div className="text-xs text-[var(--text-tertiary)] truncate">
+                  <div className="text-sm font-medium truncate">{currentTitle || 'Untitled'}</div>
+                  <div className="text-[11px] text-[var(--text-tertiary)] truncate">
                     {currentUrl ? new URL(currentUrl).hostname : ''}
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
+                <div className="flex items-center gap-1 flex-shrink-0">
                   <button
                     onClick={() => {
                       if (currentUrl) {
@@ -627,47 +653,48 @@ export function App() {
                         browser.tabs.create({ url: shareUrl });
                       }
                     }}
-                    className="p-2 rounded-lg bg-[var(--bg-hover)] hover:bg-[var(--accent-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-all"
-                    title="View all annotations on margin.at"
+                    className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--bg-hover)] transition-colors"
+                    title="View on Margin"
                   >
-                    <Eye size={16} />
+                    <Eye size={15} />
                   </button>
                   <button
                     onClick={handleBookmark}
                     disabled={bookmarking || bookmarked}
-                    className={`p-2 rounded-lg transition-all flex-shrink-0 ${
+                    className={`p-1.5 rounded-md transition-colors ${
                       bookmarked
-                        ? 'bg-[var(--success)]/15 text-[var(--success)]'
-                        : 'bg-[var(--bg-hover)] hover:bg-[var(--accent-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent)]'
+                        ? 'text-emerald-400'
+                        : 'text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--bg-hover)]'
                     }`}
                     title={bookmarked ? 'Bookmarked' : 'Bookmark page'}
                   >
-                    {bookmarked ? <Check size={16} /> : <BookmarkIcon size={16} />}
+                    {bookmarked ? <Check size={15} /> : <BookmarkIcon size={15} />}
                   </button>
                 </div>
               </div>
             </div>
 
             <div className="p-4 border-b border-[var(--border)]">
-              <div>
-                <textarea
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="Share your thoughts on this page..."
-                  className="w-full p-3 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm resize-none focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-subtle)] min-h-[90px]"
-                />
-                <div className="mt-2">
-                  <TagInput tags={tags} onChange={setTags} suggestions={tagSuggestions} />
-                </div>
-                <div className="flex justify-end mt-2">
-                  <button
-                    onClick={handlePost}
-                    disabled={posting || !text.trim()}
-                    className="px-4 py-1.5 bg-[var(--accent)] text-white text-xs rounded-lg font-semibold hover:bg-[var(--accent-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:-translate-y-0.5 active:translate-y-0"
-                  >
-                    {posting ? 'Posting...' : 'Post'}
-                  </button>
-                </div>
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Share your thoughts on this page..."
+                className="w-full px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm resize-none focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-subtle)] min-h-[80px] transition-all"
+              />
+              <div className="mt-2">
+                <TagInput tags={tags} onChange={setTags} suggestions={tagSuggestions} />
+              </div>
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-[11px] text-[var(--text-tertiary)]">
+                  {text.length > 0 ? `${text.length} chars` : ''}
+                </span>
+                <button
+                  onClick={handlePost}
+                  disabled={posting || !text.trim()}
+                  className="px-4 py-1.5 bg-[var(--accent)] text-white text-xs rounded-lg font-medium hover:bg-[var(--accent-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  {posting ? 'Posting...' : 'Post'}
+                </button>
               </div>
             </div>
 
@@ -719,8 +746,8 @@ export function App() {
                 </div>
               ) : annotations.length + pageHighlights.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-[var(--text-tertiary)]">
-                  <div className="w-14 h-14 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center mb-4">
-                    <Sparkles size={24} className="opacity-40" />
+                  <div className="w-12 h-12 rounded-xl bg-[var(--accent-subtle)] flex items-center justify-center mb-4">
+                    <Sparkles size={22} className="text-[var(--accent)] opacity-60" />
                   </div>
                   <p className="text-sm font-medium mb-1">No activity yet</p>
                   <p className="text-xs text-[var(--text-tertiary)]">
@@ -774,8 +801,8 @@ export function App() {
               </div>
             ) : bookmarks.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-[var(--text-tertiary)]">
-                <div className="w-14 h-14 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center mb-4">
-                  <BookmarkIcon size={24} className="opacity-40" />
+                <div className="w-12 h-12 rounded-xl bg-[var(--accent-subtle)] flex items-center justify-center mb-4">
+                  <BookmarkIcon size={22} className="text-[var(--accent)] opacity-60" />
                 </div>
                 <p className="text-sm font-medium mb-1">No bookmarks yet</p>
                 <p className="text-xs text-[var(--text-tertiary)]">Save pages to read later</p>
@@ -825,8 +852,8 @@ export function App() {
               </div>
             ) : highlights.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-[var(--text-tertiary)]">
-                <div className="w-14 h-14 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center mb-4">
-                  <Highlighter size={24} className="opacity-40" />
+                <div className="w-12 h-12 rounded-xl bg-[var(--accent-subtle)] flex items-center justify-center mb-4">
+                  <Highlighter size={22} className="text-[var(--accent)] opacity-60" />
                 </div>
                 <p className="text-sm font-medium mb-1">No highlights yet</p>
                 <p className="text-xs text-[var(--text-tertiary)]">
@@ -856,8 +883,8 @@ export function App() {
               </div>
             ) : collections.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-[var(--text-tertiary)]">
-                <div className="w-14 h-14 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center mb-4">
-                  <Folder size={24} className="opacity-40" />
+                <div className="w-12 h-12 rounded-xl bg-[var(--accent-subtle)] flex items-center justify-center mb-4">
+                  <Folder size={22} className="text-[var(--accent)] opacity-60" />
                 </div>
                 <p className="text-sm font-medium mb-1">No collections yet</p>
                 <p className="text-xs text-[var(--text-tertiary)]">
@@ -976,19 +1003,12 @@ export function App() {
         </div>
       )}
 
-      <footer className="flex items-center justify-between px-4 py-2.5 border-t border-[var(--border)] bg-[var(--bg-secondary)]">
+      <footer className="flex items-center justify-center px-4 py-2 border-t border-[var(--border)]">
         <button
           onClick={() => browser.tabs.create({ url: apiUrl })}
-          className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg hover:bg-[var(--accent-subtle)] transition-all"
+          className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] flex items-center gap-1.5 py-1.5 px-3 rounded-lg hover:bg-[var(--bg-hover)] transition-colors"
         >
-          Open Margin <ExternalLink size={12} />
-        </button>
-        <button
-          onClick={() => setShowSettings(true)}
-          className="p-2 text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--accent-subtle)] rounded-lg transition-all"
-          title="Settings"
-        >
-          <Settings size={16} />
+          Open Margin <ExternalLink size={11} />
         </button>
       </footer>
     </div>

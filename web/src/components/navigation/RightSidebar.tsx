@@ -295,6 +295,30 @@ export default function RightSidebar() {
             >
               Tangled
             </a>
+            <a
+              href="https://discord.gg/ZQbkGqwzBH"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:underline hover:text-surface-600 dark:hover:text-surface-300"
+            >
+              Discord
+            </a>
+            <a
+              href="https://matrix.to/#/#margin:blep.cat"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:underline hover:text-surface-600 dark:hover:text-surface-300"
+            >
+              Matrix
+            </a>
+            <a
+              href="https://stt.gg/wHnM6e3h"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:underline hover:text-surface-600 dark:hover:text-surface-300"
+            >
+              Stoat
+            </a>
             <span>© 2026 Margin</span>
           </div>
         </div>
