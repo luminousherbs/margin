@@ -681,6 +681,7 @@ func (s *Service) upsertRecord(did, collection, uri, cid string, value json.RawM
 			ExternalLinkSkippedHostnames: skippedHostnamesPtr,
 			SubscribedLabelers:           subscribedLabelersPtr,
 			LabelPreferences:             labelPrefsPtr,
+			DisableExternalLinkWarning:   record.DisableExternalLinkWarning,
 			CreatedAt:                    createdAt,
 			IndexedAt:                    time.Now(),
 			CID:                          cidPtr,
