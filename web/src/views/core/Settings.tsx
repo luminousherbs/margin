@@ -61,6 +61,7 @@ import {
 import { AppleIcon } from "../../components/common/Icons";
 import { Link } from "react-router-dom";
 import { HighlightImporter } from "./HighlightImporter";
+import IOSShortcutModal from "../../components/modals/IOSShortcutModal";
 
 export default function Settings() {
   const user = useStore($user);
@@ -77,6 +78,7 @@ export default function Settings() {
   const [labelerInfo, setLabelerInfo] = useState<LabelerInfo | null>(null);
   const [newLabelerDid, setNewLabelerDid] = useState("");
   const [addingLabeler, setAddingLabeler] = useState(false);
+  const [isShortcutModalOpen, setIsShortcutModalOpen] = useState(false);
   const preferences = useStore($preferences);
 
   useEffect(() => {
@@ -647,15 +649,13 @@ export default function Settings() {
           <p className="text-sm text-surface-400 dark:text-surface-500 mb-4">
             Save pages to Margin from Safari on iPhone and iPad
           </p>
-          <a
-            href="https://www.icloud.com/shortcuts/21c87edf29b046db892c9e57dac6d1fd"
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={() => setIsShortcutModalOpen(true)}
             className="inline-flex items-center gap-2.5 px-4 py-2.5 bg-surface-900 dark:bg-white text-white dark:text-surface-900 rounded-xl font-medium text-sm transition-all hover:opacity-90"
           >
             <AppleIcon size={16} />
-            Get iOS Shortcut
-          </a>
+            Setup iOS Shortcut
+          </button>
         </section>
 
         <section className="card p-5">
@@ -668,6 +668,11 @@ export default function Settings() {
           </button>
         </section>
       </div>
+
+      <IOSShortcutModal
+        isOpen={isShortcutModalOpen}
+        onClose={() => setIsShortcutModalOpen(false)}
+      />
     </div>
   );
 }
