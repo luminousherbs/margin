@@ -1,7 +1,7 @@
 import React from "react";
 import { useStore } from "@nanostores/react";
 import { Link } from "react-router-dom";
-import { $theme } from "../store/theme";
+import { $theme, cycleTheme } from "../store/theme";
 import { $user } from "../store/auth";
 import {
   MessageSquareText,
@@ -20,8 +20,11 @@ import {
   Hash,
   Heart,
   Eye,
+  Sun,
+  Moon,
+  Monitor,
 } from "lucide-react";
-import { AppleIcon } from "../components/common/Icons";
+import { AppleIcon, TangledIcon } from "../components/common/Icons";
 import { FaFirefox, FaEdge } from "react-icons/fa";
 
 function FeatureCard({
@@ -89,7 +92,7 @@ function ExtensionFeature({
 }
 
 export default function About() {
-  useStore($theme); // ensure theme is applied on this page
+  const theme = useStore($theme); // ensure theme is applied on this page
   const user = useStore($user);
 
   const [browser] = React.useState<
@@ -116,75 +119,114 @@ export default function About() {
   const extensionLabel =
     browser === "firefox" ? "Firefox" : browser === "edge" ? "Edge" : "Chrome";
 
+  const [isScrolled, setIsScrolled] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
     <div className="min-h-screen bg-surface-100 dark:bg-surface-900">
-      <nav className="sticky top-0 z-50 bg-white/80 dark:bg-surface-900/80 backdrop-blur-xl border-b border-surface-200/50 dark:border-surface-800/50">
-        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+      <nav
+        className={`sticky top-0 z-50 transition-all duration-300 ${
+          isScrolled
+            ? "bg-white/80 dark:bg-surface-900/80 backdrop-blur-xl border-b border-surface-200/50 dark:border-surface-800/50 shadow-sm"
+            : "bg-transparent border-b border-transparent"
+        }`}
+      >
+        <div
+          className={`max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between transition-all duration-300 ${
+            isScrolled ? "h-14" : "h-24"
+          }`}
+        >
           <div className="flex items-center gap-2.5">
             <img src="/logo.svg" alt="Margin" className="w-7 h-7" />
             <span className="font-display font-bold text-lg tracking-tight text-surface-900 dark:text-white">
               Margin
             </span>
           </div>
-          <div className="flex items-center gap-1">
-            {user && (
+          <div className="flex items-center gap-1 sm:gap-2">
+            <div className="hidden md:flex items-center gap-1 mr-2">
+              {user && (
+                <Link
+                  to="/home"
+                  className="text-[13px] font-medium text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800"
+                >
+                  Feed
+                </Link>
+              )}
+            </div>
+
+            {!user && (
               <Link
-                to="/home"
-                className="text-[13px] font-medium text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800"
+                to="/login"
+                className="text-[13px] font-medium text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800"
               >
-                Feed
+                Sign in
               </Link>
             )}
-            <a
-              href="https://github.com/margin-at"
-              target="_blank"
-              rel="noreferrer"
-              className="text-[13px] font-medium text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800"
-            >
-              GitHub
-            </a>
-            <a
-              href="https://tangled.org/margin.at/margin"
-              target="_blank"
-              rel="noreferrer"
-              className="text-[13px] font-medium text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800"
-            >
-              Tangled
-            </a>
-            {!user && (
-              <>
-                <div className="w-px h-5 bg-surface-200 dark:bg-surface-700 mx-1.5" />
-                <Link
-                  to="/login"
-                  className="text-[13px] font-medium text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800"
-                >
-                  Sign in
-                </Link>
-              </>
-            )}
+
             <a
               href={extensionLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[13px] font-semibold px-4 py-1.5 bg-surface-900 dark:bg-white text-white dark:text-surface-900 rounded-lg hover:bg-surface-800 dark:hover:bg-surface-100 transition-colors ml-0.5"
+              className="text-[13px] font-semibold px-3 sm:px-4 py-1.5 bg-surface-900 dark:bg-white text-white dark:text-surface-900 rounded-lg hover:bg-surface-800 dark:hover:bg-surface-100 transition-colors"
             >
-              Get Extension
+              <span className="hidden sm:inline">Get Extension</span>
+              <span className="sm:hidden">Install</span>
             </a>
           </div>
         </div>
       </nav>
 
-      <section>
-        <div className="max-w-3xl mx-auto px-6 pt-24 pb-20 md:pt-32 md:pb-28 text-center">
-          <p className="text-[13px] font-medium text-surface-400 dark:text-surface-500 tracking-wide uppercase mb-5">
-            Open-source web annotations
-          </p>
+      <section className="relative overflow-hidden">
+        <div className="absolute top-0 inset-x-0 h-[500px] bg-gradient-to-b from-primary-50/50 via-transparent to-transparent dark:from-primary-900/10 dark:to-transparent -z-10 pointer-events-none" />
 
-          <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-surface-900 dark:text-white leading-[1.08] mb-6">
-            Write on the margins of the internet.
+        <div className="max-w-4xl mx-auto px-6 pt-8 pb-20 md:pt-16 md:pb-28 text-center relative z-10">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
+            <div className="group relative inline-flex items-center gap-2 px-1 py-1 rounded-full bg-surface-50/50 dark:bg-surface-800/30 border border-surface-200 dark:border-surface-700/50 hover:bg-surface-100/50 dark:hover:bg-surface-800/50 transition-colors cursor-pointer">
+              <div className="flex items-center -space-x-2">
+                <a
+                  href="https://github.com/margin-at"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="relative z-10 flex items-center justify-center w-8 h-8 rounded-full bg-white dark:bg-surface-900 text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-white border-2 border-surface-50 dark:border-surface-800 shadow-sm transition-transform hover:z-20 hover:scale-110"
+                  title="GitHub"
+                >
+                  <Github size={15} />
+                </a>
+                <a
+                  href="https://tangled.org/margin.at/margin"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="relative z-0 flex items-center justify-center w-8 h-8 rounded-full bg-white dark:bg-surface-900 border-2 border-surface-50 dark:border-surface-800 shadow-sm transition-transform hover:z-20 hover:scale-110"
+                  title="Tangled"
+                >
+                  <TangledIcon
+                    size={16}
+                    className="text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-white transition-colors"
+                  />
+                </a>
+              </div>
+              <span className="pr-4 pl-0.5 text-[13px] font-semibold text-surface-600 dark:text-surface-300">
+                Fully open source{" "}
+                <span className="text-primary-500 font-normal">✨</span>
+              </span>
+            </div>
+          </div>
+
+          <h1 className="font-display text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-surface-900 dark:text-white leading-[1.05] mb-6">
+            Write on the margins <br className="hidden sm:block" />
+            <span className="text-primary-600 dark:text-primary-400">
+              of the internet.
+            </span>
           </h1>
 
-          <p className="text-base md:text-lg text-surface-500 dark:text-surface-400 max-w-xl mx-auto leading-relaxed mb-10">
+          <p className="text-lg md:text-xl text-surface-500 dark:text-surface-400 max-w-2xl mx-auto leading-relaxed mb-10">
             Margin is an open annotation layer for the internet. Highlight text,
             leave notes, and bookmark pages, all stored on your decentralized
             identity with the{" "}
@@ -192,28 +234,31 @@ export default function About() {
               href="https://atproto.com"
               target="_blank"
               rel="noreferrer"
-              className="text-surface-700 dark:text-surface-300 hover:underline"
+              className="text-surface-800 dark:text-surface-200 hover:text-primary-600 dark:hover:text-primary-400 border-b border-surface-300 dark:border-surface-600 hover:border-primary-400 transition-colors font-medium"
             >
               AT Protocol
             </a>
             . Not locked in a silo.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-4">
             <Link
               to={user ? "/home" : "/login"}
-              className="inline-flex items-center gap-2 px-7 py-3 bg-surface-900 dark:bg-white text-white dark:text-surface-900 rounded-xl font-semibold hover:bg-surface-800 dark:hover:bg-surface-100 transition-colors"
+              className="group inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-surface-900 dark:bg-white text-white dark:text-surface-900 rounded-[14px] font-semibold hover:bg-surface-800 dark:hover:bg-surface-200 hover:scale-[1.02] shadow-sm transition-all duration-200 w-full sm:w-auto"
             >
               {user ? "Open App" : "Get Started"}
-              <ArrowRight size={16} />
+              <ArrowRight
+                size={18}
+                className="transition-transform group-hover:translate-x-1"
+              />
             </Link>
             <a
               href={extensionLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-7 py-3 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-200 hover:text-surface-900 dark:hover:text-white rounded-xl font-semibold transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-surface-50 dark:bg-surface-800/50 text-surface-700 dark:text-surface-200 hover:text-surface-900 dark:hover:text-white rounded-[14px] font-semibold hover:bg-surface-100 dark:hover:bg-surface-800 hover:scale-[1.02] transition-all duration-200 w-full sm:w-auto"
             >
-              <ExtensionIcon size={16} />
+              <ExtensionIcon size={18} />
               Install for {extensionLabel}
             </a>
           </div>
@@ -570,6 +615,15 @@ export default function About() {
               <Github size={16} />
               View on GitHub
             </a>
+            <a
+              href="https://tangled.org/margin.at/margin"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 px-7 py-3 text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors font-medium"
+            >
+              <TangledIcon size={16} />
+              View on Tangled
+            </a>
           </div>
         </div>
       </section>
@@ -630,6 +684,27 @@ export default function About() {
               >
                 Contact
               </a>
+              <div className="w-px h-4 bg-surface-200 dark:bg-surface-700 ml-1" />
+              <button
+                onClick={cycleTheme}
+                title={
+                  theme === "light"
+                    ? "Light mode"
+                    : theme === "dark"
+                      ? "Dark mode"
+                      : "System theme"
+                }
+                className="flex items-center gap-1.5 hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
+              >
+                {theme === "light" ? (
+                  <Sun size={15} />
+                ) : theme === "dark" ? (
+                  <Moon size={15} />
+                ) : (
+                  <Monitor size={15} />
+                )}
+                <span className="hidden sm:inline capitalize">{theme}</span>
+              </button>
             </div>
           </div>
         </div>
