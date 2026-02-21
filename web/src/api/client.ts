@@ -244,6 +244,34 @@ function normalizeItem(raw: RawItem): AnnotationItem {
   };
 }
 
+export async function searchItems(
+  query: string,
+  options: { creator?: string; limit?: number; offset?: number } = {},
+): Promise<FeedResponse> {
+  const params = new URLSearchParams();
+  params.append("q", query);
+  if (options.creator) params.append("creator", options.creator);
+  if (options.limit) params.append("limit", options.limit.toString());
+  if (options.offset) params.append("offset", options.offset.toString());
+
+  try {
+    const res = await apiRequest(`/api/search?${params.toString()}`, {
+      skipAuthRedirect: true,
+    });
+    if (!res.ok) throw new Error("Search failed");
+    const data = await res.json();
+    const items: AnnotationItem[] = (data.items || []).map(normalizeItem);
+    return {
+      items,
+      hasMore: items.length >= (options.limit || 50),
+      fetchedCount: items.length,
+    };
+  } catch (e) {
+    console.error("Search error:", e);
+    return { items: [], hasMore: false, fetchedCount: 0 };
+  }
+}
+
 export async function getFeed({
   source,
   type = "all",

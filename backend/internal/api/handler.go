@@ -79,6 +79,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/users/{did}/tags", h.HandleGetUserTags)
 
 		r.Get("/trending-tags", h.HandleGetTrendingTags)
+		r.Get("/search", h.Search)
 
 		r.Get("/replies", h.GetReplies)
 		r.Get("/likes", h.GetLikeCount)
@@ -1474,4 +1475,44 @@ func mergeBookmarks(a, b []db.Bookmark) []db.Bookmark {
 		}
 	}
 	return result
+}
+
+func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		http.Error(w, "q parameter required", http.StatusBadRequest)
+		return
+	}
+
+	creator := r.URL.Query().Get("creator")
+	limit := parseIntParam(r, "limit", 50)
+	offset := parseIntParam(r, "offset", 0)
+	viewerDID := h.getViewerDID(r)
+
+	annotations, _ := h.db.SearchAnnotations(query, creator, limit, offset)
+	highlights, _ := h.db.SearchHighlights(query, creator, limit, offset)
+	bookmarks, _ := h.db.SearchBookmarks(query, creator, limit, offset)
+
+	hydratedAnnotations, _ := hydrateAnnotations(h.db, annotations, viewerDID)
+	hydratedHighlights, _ := hydrateHighlights(h.db, highlights, viewerDID)
+	hydratedBookmarks, _ := hydrateBookmarks(h.db, bookmarks, viewerDID)
+
+	var feed []interface{}
+	for _, a := range hydratedAnnotations {
+		feed = append(feed, a)
+	}
+	for _, hl := range hydratedHighlights {
+		feed = append(feed, hl)
+	}
+	for _, b := range hydratedBookmarks {
+		feed = append(feed, b)
+	}
+
+	sortFeed(feed)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"items":        feed,
+		"fetchedCount": len(feed),
+	})
 }

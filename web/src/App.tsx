@@ -22,6 +22,7 @@ import {
 } from "./routes/wrappers";
 import About from "./views/About";
 import AdminModeration from "./views/core/AdminModeration";
+import Search from "./views/core/Search";
 
 function RootRoute() {
   const user = useStore($user);
@@ -56,6 +57,15 @@ export default function App() {
           }
         />
         <Route path="/my-feed" element={<Navigate to="/home" replace />} />
+
+        <Route
+          path="/search"
+          element={
+            <AppLayout>
+              <Search />
+            </AppLayout>
+          }
+        />
 
         <Route
           path="/annotations"

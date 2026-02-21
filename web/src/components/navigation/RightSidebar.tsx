@@ -120,8 +120,10 @@ export default function RightSidebar() {
         const q = searchQuery.trim();
         if (looksLikeUrl(q)) {
           navigate(`/url/${encodeURIComponent(q)}`);
-        } else {
+        } else if (q.includes(".")) {
           navigate(`/profile/${encodeURIComponent(q)}`);
+        } else {
+          navigate(`/search?q=${encodeURIComponent(q)}`);
         }
         setSearchQuery("");
         setSuggestions([]);
@@ -176,7 +178,7 @@ export default function RightSidebar() {
               suggestions.length > 0 &&
               setShowSuggestions(true)
             }
-            placeholder="Search users or URLs..."
+            placeholder="Search..."
             className="w-full bg-surface-100 dark:bg-surface-800/80 rounded-lg pl-9 pr-4 py-2 text-sm text-surface-900 dark:text-white placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:bg-white dark:focus:bg-surface-800 transition-all border border-surface-200/60 dark:border-surface-700/60"
           />
 
