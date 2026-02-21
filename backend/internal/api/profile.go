@@ -60,7 +60,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		http.Error(w, "Failed to update profile: "+err.Error(), http.StatusInternalServerError)
+		HandleAPIError(w, r, err, "Failed to update profile: ", http.StatusInternalServerError)
 		return
 	}
 

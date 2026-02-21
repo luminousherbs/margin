@@ -106,6 +106,11 @@ async function apiRequest(
 
   if (response.status === 401 && !skipAuthRedirect) {
     sessionAtom.set(null);
+    try {
+      await fetch("/auth/logout", { method: "POST" });
+    } catch {
+      // Ignore
+    }
     if (window.location.pathname !== "/login") {
       window.location.href = "/login";
     }
@@ -166,7 +171,7 @@ function normalizeItem(raw: RawItem): AnnotationItem {
     return {
       ...normalizedInner,
       uri: normalizedInner.uri || raw.uri || "",
-      cid: raw.cid || "",
+      cid: normalizedInner.cid || raw.cid || "",
       author: (normalizedInner.author ||
         raw.author ||
         raw.creator) as UserProfile,
@@ -459,12 +464,16 @@ export async function unlikeItem(uri: string): Promise<boolean> {
 
 export async function deleteItem(
   uri: string,
-  _type: string = "annotation",
+  type: string = "annotation",
 ): Promise<boolean> {
   const rkey = (uri || "").split("/").pop();
+
   let endpoint = "/api/annotations";
-  if (uri.includes("highlight")) endpoint = "/api/highlights";
-  if (uri.includes("bookmark")) endpoint = "/api/bookmarks";
+  if (type === "highlight" || uri.includes("highlight")) {
+    endpoint = "/api/highlights";
+  } else if (type === "bookmark" || uri.includes("bookmark")) {
+    endpoint = "/api/bookmarks";
+  }
 
   try {
     const res = await apiRequest(`${endpoint}?rkey=${rkey}`, {

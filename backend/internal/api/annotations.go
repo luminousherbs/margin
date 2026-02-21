@@ -165,7 +165,7 @@ func (s *AnnotationService) CreateAnnotation(w http.ResponseWriter, r *http.Requ
 		return createErr
 	})
 	if err != nil {
-		http.Error(w, "Failed to create annotation: "+err.Error(), http.StatusInternalServerError)
+		HandleAPIError(w, r, err, "Failed to create annotation: ", http.StatusInternalServerError)
 		return
 	}
 
@@ -251,25 +251,35 @@ func (s *AnnotationService) DeleteAnnotation(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	did := session.DID
+
 	collection := xrpc.CollectionAnnotation
 	if collectionType == "reply" {
 		collection = xrpc.CollectionReply
+	} else {
+		candidateCollections := []string{xrpc.CollectionAnnotation, "network.cosmik.card"}
+		for _, col := range candidateCollections {
+			uri := "at://" + did + "/" + col + "/" + rkey
+			if _, dbErr := s.db.GetAnnotationByURI(uri); dbErr == nil {
+				collection = col
+				break
+			}
+		}
 	}
 
-	err = s.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
+	pdsErr := s.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
 		return client.DeleteRecord(r.Context(), did, collection, rkey)
 	})
-	if err != nil {
-		http.Error(w, "Failed to delete record: "+err.Error(), http.StatusInternalServerError)
-		return
+	if pdsErr != nil {
+		log.Printf("PDS delete failed (will still clean local DB): %v", pdsErr)
 	}
 
-	did := session.DID
+	// Always clean up local DB regardless of PDS result
 	if collectionType == "reply" {
 		uri := "at://" + did + "/" + xrpc.CollectionReply + "/" + rkey
 		s.db.DeleteReply(uri)
 	} else {
-		uri := "at://" + did + "/" + xrpc.CollectionAnnotation + "/" + rkey
+		uri := "at://" + did + "/" + collection + "/" + rkey
 		s.db.DeleteAnnotation(uri)
 	}
 
@@ -385,7 +395,7 @@ func (s *AnnotationService) UpdateAnnotation(w http.ResponseWriter, r *http.Requ
 
 	if err != nil {
 		log.Printf("[UpdateAnnotation] Failed: %v", err)
-		http.Error(w, "Failed to update record: "+err.Error(), http.StatusInternalServerError)
+		HandleAPIError(w, r, err, "Failed to update record: ", http.StatusInternalServerError)
 		return
 	}
 
@@ -462,7 +472,7 @@ func (s *AnnotationService) LikeAnnotation(w http.ResponseWriter, r *http.Reques
 		return createErr
 	})
 	if err != nil {
-		http.Error(w, "Failed to create like: "+err.Error(), http.StatusInternalServerError)
+		HandleAPIError(w, r, err, "Failed to create like: ", http.StatusInternalServerError)
 		return
 	}
 
@@ -516,7 +526,7 @@ func (s *AnnotationService) UnlikeAnnotation(w http.ResponseWriter, r *http.Requ
 		return client.DeleteRecord(r.Context(), did, xrpc.CollectionLike, rkey)
 	})
 	if err != nil {
-		http.Error(w, "Failed to delete like: "+err.Error(), http.StatusInternalServerError)
+		HandleAPIError(w, r, err, "Failed to delete like: ", http.StatusInternalServerError)
 		return
 	}
 
@@ -574,7 +584,7 @@ func (s *AnnotationService) CreateReply(w http.ResponseWriter, r *http.Request) 
 		return createErr
 	})
 	if err != nil {
-		http.Error(w, "Failed to create reply: "+err.Error(), http.StatusInternalServerError)
+		HandleAPIError(w, r, err, "Failed to create reply: ", http.StatusInternalServerError)
 		return
 	}
 
@@ -700,7 +710,7 @@ func (s *AnnotationService) CreateHighlight(w http.ResponseWriter, r *http.Reque
 		return createErr
 	})
 	if err != nil {
-		http.Error(w, "Failed to create highlight: "+err.Error(), http.StatusInternalServerError)
+		HandleAPIError(w, r, err, "Failed to create highlight: ", http.StatusInternalServerError)
 		return
 	}
 
@@ -805,7 +815,7 @@ func (s *AnnotationService) CreateBookmark(w http.ResponseWriter, r *http.Reques
 		return createErr
 	})
 	if err != nil {
-		http.Error(w, "Failed to create bookmark: "+err.Error(), http.StatusInternalServerError)
+		HandleAPIError(w, r, err, "Failed to create bookmark: ", http.StatusInternalServerError)
 		return
 	}
 
@@ -857,12 +867,11 @@ func (s *AnnotationService) DeleteHighlight(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	err = s.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
+	pdsErr := s.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
 		return client.DeleteRecord(r.Context(), did, xrpc.CollectionHighlight, rkey)
 	})
-	if err != nil {
-		http.Error(w, "Failed to delete highlight: "+err.Error(), http.StatusInternalServerError)
-		return
+	if pdsErr != nil {
+		log.Printf("PDS delete highlight failed (will still clean local DB): %v", pdsErr)
 	}
 
 	uri := "at://" + session.DID + "/" + xrpc.CollectionHighlight + "/" + rkey
@@ -885,12 +894,11 @@ func (s *AnnotationService) DeleteBookmark(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = s.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
+	pdsErr := s.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
 		return client.DeleteRecord(r.Context(), did, xrpc.CollectionBookmark, rkey)
 	})
-	if err != nil {
-		http.Error(w, "Failed to delete bookmark: "+err.Error(), http.StatusInternalServerError)
-		return
+	if pdsErr != nil {
+		log.Printf("PDS delete bookmark failed (will still clean local DB): %v", pdsErr)
 	}
 
 	uri := "at://" + session.DID + "/" + xrpc.CollectionBookmark + "/" + rkey
@@ -978,7 +986,7 @@ func (s *AnnotationService) UpdateHighlight(w http.ResponseWriter, r *http.Reque
 	})
 
 	if err != nil {
-		http.Error(w, "Failed to update: "+err.Error(), http.StatusInternalServerError)
+		HandleAPIError(w, r, err, "Failed to update: ", http.StatusInternalServerError)
 		return
 	}
 
@@ -1086,7 +1094,7 @@ func (s *AnnotationService) UpdateBookmark(w http.ResponseWriter, r *http.Reques
 	})
 
 	if err != nil {
-		http.Error(w, "Failed to update: "+err.Error(), http.StatusInternalServerError)
+		HandleAPIError(w, r, err, "Failed to update: ", http.StatusInternalServerError)
 		return
 	}
 

@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,6 +17,8 @@ import (
 	"margin.at/internal/oauth"
 	"margin.at/internal/xrpc"
 )
+
+var ErrSessionInvalid = errors.New("session invalid")
 
 type TokenRefresher struct {
 	db         *db.DB
@@ -77,16 +80,19 @@ func (tr *TokenRefresher) GetSessionWithAutoRefresh(r *http.Request) (*SessionDa
 
 	did, handle, accessToken, refreshToken, dpopKeyStr, err := tr.db.GetSession(sessionID)
 	if err != nil {
-		return nil, fmt.Errorf("session expired")
+		tr.db.DeleteSession(sessionID)
+		return nil, fmt.Errorf("%w: session expired", ErrSessionInvalid)
 	}
 
 	block, _ := pem.Decode([]byte(dpopKeyStr))
 	if block == nil {
-		return nil, fmt.Errorf("invalid session DPoP key")
+		tr.db.DeleteSession(sessionID)
+		return nil, fmt.Errorf("%w: invalid DPoP key", ErrSessionInvalid)
 	}
 	dpopKey, err := x509.ParseECPrivateKey(block.Bytes)
 	if err != nil {
-		return nil, fmt.Errorf("invalid session DPoP key")
+		tr.db.DeleteSession(sessionID)
+		return nil, fmt.Errorf("%w: invalid DPoP key", ErrSessionInvalid)
 	}
 
 	pds, err := xrpc.ResolveDIDToPDS(did)
@@ -192,7 +198,9 @@ func (tr *TokenRefresher) ExecuteWithAutoRefresh(
 
 	newSession, refreshErr := tr.RefreshSessionToken(r, session)
 	if refreshErr != nil {
-		return fmt.Errorf("original error: %w; refresh failed: %v", err, refreshErr)
+		log.Printf("Token refresh failed for user %s, invalidating session: %v", session.Handle, refreshErr)
+		tr.db.DeleteSession(session.ID)
+		return fmt.Errorf("%w: %v", ErrSessionInvalid, refreshErr)
 	}
 
 	client = xrpc.NewClient(newSession.PDS, newSession.AccessToken, newSession.DPoPKey)
@@ -201,4 +209,21 @@ func (tr *TokenRefresher) ExecuteWithAutoRefresh(
 
 func (tr *TokenRefresher) CreateClientFromSession(session *SessionData) *xrpc.Client {
 	return xrpc.NewClient(session.PDS, session.AccessToken, session.DPoPKey)
+}
+
+func HandleAPIError(w http.ResponseWriter, r *http.Request, err error, fallbackMsg string, fallbackStatus int) {
+	if errors.Is(err, ErrSessionInvalid) {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "margin_session",
+			Value:    "",
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https",
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   -1,
+		})
+		http.Error(w, "session expired", http.StatusUnauthorized)
+		return
+	}
+	http.Error(w, fallbackMsg+err.Error(), fallbackStatus)
 }

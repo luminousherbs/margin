@@ -439,7 +439,7 @@ func (s *CollectionService) DeleteCollection(w http.ResponseWriter, r *http.Requ
 		return client.DeleteRecord(r.Context(), did, xrpc.CollectionCollection, rkey)
 	})
 	if err != nil {
-		http.Error(w, "Failed to delete collection: "+err.Error(), http.StatusInternalServerError)
+		HandleAPIError(w, r, err, "Failed to delete collection: ", http.StatusInternalServerError)
 		return
 	}
 
