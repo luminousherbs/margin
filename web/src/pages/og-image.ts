@@ -27,25 +27,12 @@ function loadFonts() {
   return fontsLoaded;
 }
 
-let logoDataURI: string | null = null;
-
-function getLogoDataURI(): string {
-  if (logoDataURI) return logoDataURI;
-  try {
-    const publicDir = getPublicDir();
-    const buf = readFileSync(join(publicDir, "logo.svg"));
-    logoDataURI = `data:image/svg+xml;base64,${buf.toString("base64")}`;
-  } catch {
-    logoDataURI = "";
-  }
-  return logoDataURI;
-}
-
 const API_URL = process.env.API_URL || "http://localhost:8081";
 
 interface RecordData {
   type: "annotation" | "highlight" | "bookmark" | "collection";
   author: string;
+  displayName: string;
   avatarURL: string;
   text: string;
   quote: string;
@@ -53,6 +40,7 @@ interface RecordData {
   title: string;
   icon: string;
   description: string;
+  color: string;
 }
 
 async function fetchRecordData(uri: string): Promise<RecordData | null> {
@@ -63,15 +51,14 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
     if (res.ok) {
       const item = await res.json();
       const author = item.author || item.creator || {};
-      const handle = author.handle
-        ? `@${author.handle}`
-        : author.did || "someone";
+      const handle = author.handle || "";
+      const displayName = author.displayName || handle || "someone";
       const avatarURL = author.avatar || "";
       const targetSource = item.target?.source || item.url || item.source || "";
       const domain = targetSource
         ? (() => {
             try {
-              return new URL(targetSource).host;
+              return new URL(targetSource).hostname.replace(/^www\./, "");
             } catch {
               return "";
             }
@@ -90,7 +77,8 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
       ) {
         return {
           type: "highlight",
-          author: handle,
+          author: handle ? `@${handle}` : "someone",
+          displayName,
           avatarURL,
           text: targetTitle,
           quote: selectorText,
@@ -98,13 +86,15 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
           title: "",
           icon: "",
           description: "",
+          color: item.color || "",
         };
       }
 
       if (uri.includes("/at.margin.bookmark/")) {
         return {
           type: "bookmark",
-          author: handle,
+          author: handle ? `@${handle}` : "someone",
+          displayName,
           avatarURL,
           text: item.title || targetTitle || "Bookmark",
           quote: item.description || bodyText || "",
@@ -112,12 +102,14 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
           title: "",
           icon: "",
           description: "",
+          color: "",
         };
       }
 
       return {
         type: "annotation",
-        author: handle,
+        author: handle ? `@${handle}` : "someone",
+        displayName,
         avatarURL,
         text: bodyText,
         quote: selectorText,
@@ -125,6 +117,7 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
         title: "",
         icon: "",
         description: "",
+        color: "",
       };
     }
   } catch {
@@ -138,14 +131,14 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
     if (res.ok) {
       const item = await res.json();
       const author = item.author || item.creator || {};
-      const handle = author.handle
-        ? `@${author.handle}`
-        : author.did || "someone";
+      const handle = author.handle || "";
+      const displayName = author.displayName || handle || "someone";
       const avatarURL = author.avatar || "";
 
       return {
         type: "collection",
-        author: handle,
+        author: handle ? `@${handle}` : "someone",
+        displayName,
         avatarURL,
         text: "",
         quote: "",
@@ -153,6 +146,7 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
         title: item.name || "Collection",
         icon: item.icon || "📁",
         description: item.description || "",
+        color: "",
       };
     }
   } catch {
@@ -176,7 +170,46 @@ function extractBody(body: unknown): string {
   return "";
 }
 
-function avatarElement(url: string, author: string, size: number): unknown {
+const C = {
+  bg: "#f4f4f5",
+  text: "#18181b",
+  textSecondary: "#52525b",
+  textMuted: "#a1a1aa",
+  textFaint: "#d4d4d8",
+  primary: "#3b82f6",
+  primaryDark: "#2563eb",
+  border: "#e4e4e7",
+};
+
+const namedColors: Record<string, string> = {
+  yellow: "#facc15",
+  green: "#4ade80",
+  red: "#f87171",
+  blue: "#60a5fa",
+};
+
+function resolveHighlightColor(color: string): string {
+  if (!color) return "#facc15";
+  if (color.startsWith("#")) return color;
+  return namedColors[color] || "#facc15";
+}
+
+const typeColors: Record<string, string> = {
+  annotation: "#3b82f6",
+  highlight: "#facc15",
+  bookmark: "#22c55e",
+  collection: "#3b82f6",
+};
+
+function lightTint(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const mix = (c: number) => Math.round(c * 0.12 + 255 * 0.88);
+  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+}
+
+function avatarElement(url: string, name: string, size: number): unknown {
   if (url) {
     return {
       type: "img",
@@ -184,14 +217,14 @@ function avatarElement(url: string, author: string, size: number): unknown {
         src: url,
         width: size,
         height: size,
-        style: { borderRadius: size / 2 },
+        style: { borderRadius: size / 2, flexShrink: 0 },
       },
     };
   }
   const letter =
-    author[0] === "@"
-      ? author[1]?.toUpperCase() || "?"
-      : author[0]?.toUpperCase() || "?";
+    name[0] === "@"
+      ? name[1]?.toUpperCase() || "?"
+      : name[0]?.toUpperCase() || "?";
   return {
     type: "div",
     props: {
@@ -199,130 +232,189 @@ function avatarElement(url: string, author: string, size: number): unknown {
         width: size,
         height: size,
         borderRadius: size / 2,
-        background: "#3b82f6",
+        background: "#e4e4e7",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        color: "white",
+        color: "#71717a",
         fontSize: Math.round(size * 0.45),
         fontWeight: 700,
+        flexShrink: 0,
       },
       children: letter,
     },
   };
 }
 
-const typeColors: Record<
-  string,
-  { accent: string; badge: string; badgeText: string; bar: string }
-> = {
-  annotation: {
-    accent: "#3b82f6",
-    badge: "#1e3a8a",
-    badgeText: "#60a5fa",
-    bar: "#60a5fa",
-  },
-  highlight: {
-    accent: "#eab308",
-    badge: "#422006",
-    badgeText: "#facc15",
-    bar: "#facc15",
-  },
-  bookmark: {
-    accent: "#22c55e",
-    badge: "#052e16",
-    badgeText: "#4ade80",
-    bar: "#4ade80",
-  },
-};
-
-function getTypeColor(type: string) {
-  return typeColors[type] || typeColors.annotation;
+function coloredLogoUri(color: string): string {
+  const publicDir = getPublicDir();
+  const svg = readFileSync(join(publicDir, "logo.svg"), "utf-8");
+  const recolored = svg.replace(/fill="[^"]*"/, `fill="${color}"`);
+  return `data:image/svg+xml,${encodeURIComponent(recolored)}`;
 }
 
-function typeBadge(type: string): unknown {
-  const labels: Record<string, string> = {
-    annotation: "Annotation",
-    highlight: "Highlight",
-    bookmark: "Bookmark",
-  };
-  const c = getTypeColor(type);
+function logoElement(size: number, color: string): unknown {
   return {
-    type: "div",
+    type: "img",
     props: {
-      style: {
-        padding: "6px 16px",
-        borderRadius: 99,
-        background: c.badge,
-        color: c.badgeText,
-        fontSize: 16,
-        fontWeight: 600,
-      },
-      children: labels[type] || type,
+      src: coloredLogoUri(color),
+      width: size,
+      height: size,
+      style: { flexShrink: 0 },
     },
   };
 }
 
-function marginBrand(logo: string): unknown {
-  if (!logo) return null;
+const typeLabels: Record<string, string> = {
+  annotation: "Annotation",
+  highlight: "Highlight",
+  bookmark: "Bookmark",
+  collection: "Collection",
+};
+
+function headerWithBadge(data: RecordData, accentColor: string): unknown {
+  return {
+    type: "div",
+    props: {
+      style: { display: "flex", alignItems: "center" },
+      children: [
+        avatarElement(data.avatarURL, data.displayName, 48),
+        {
+          type: "div",
+          props: {
+            style: {
+              display: "flex",
+              flexDirection: "column",
+              marginLeft: 14,
+              flex: 1,
+            },
+            children: [
+              {
+                type: "span",
+                props: {
+                  style: {
+                    color: C.text,
+                    fontSize: 22,
+                    fontWeight: 600,
+                  },
+                  children: data.displayName,
+                },
+              },
+              {
+                type: "span",
+                props: {
+                  style: {
+                    color: C.textMuted,
+                    fontSize: 17,
+                    marginTop: 1,
+                  },
+                  children: data.author,
+                },
+              },
+            ],
+          },
+        },
+        {
+          type: "div",
+          props: {
+            style: {
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            },
+            children: [
+              logoElement(24, accentColor),
+              {
+                type: "span",
+                props: {
+                  style: {
+                    color: C.textFaint,
+                    fontSize: 18,
+                  },
+                  children: "|",
+                },
+              },
+              {
+                type: "span",
+                props: {
+                  style: {
+                    color: accentColor,
+                    fontSize: 16,
+                    fontWeight: 600,
+                    textTransform: "uppercase" as const,
+                    letterSpacing: 1,
+                  },
+                  children: typeLabels[data.type] || data.type,
+                },
+              },
+            ],
+          },
+        },
+      ],
+    },
+  };
+}
+
+function footerSource(source?: string): unknown | null {
+  if (!source) return null;
   return {
     type: "div",
     props: {
       style: {
         display: "flex",
         alignItems: "center",
-        marginLeft: "auto",
+        marginTop: "auto",
+        paddingTop: 16,
       },
       children: [
         {
-          type: "img",
-          props: { src: logo, width: 28, height: 24 },
+          type: "span",
+          props: {
+            style: { color: C.textMuted, fontSize: 16 },
+            children: source,
+          },
         },
       ],
     },
   };
 }
 
-function buildAnnotationImage(data: RecordData, logo: string) {
-  const children: unknown[] = [];
-  const tc = getTypeColor(data.type);
-
-  children.push({
+function wrap(children: unknown[], bg?: string): unknown {
+  return {
     type: "div",
     props: {
-      style: { display: "flex", alignItems: "center", width: "100%" },
-      children: [
-        avatarElement(data.avatarURL, data.author, 48),
-        {
-          type: "span",
-          props: {
-            style: { color: "#a1a1aa", fontSize: 22, marginLeft: 14 },
-            children: data.author,
-          },
-        },
-        {
-          type: "div",
-          props: {
-            style: { marginLeft: "auto", display: "flex" },
-            children: [typeBadge(data.type)],
-          },
-        },
-      ],
+      style: {
+        display: "flex",
+        flexDirection: "column",
+        width: "100%",
+        height: "100%",
+        background: bg || C.bg,
+        padding: "48px 64px",
+        fontFamily: "Inter",
+      },
+      children,
     },
-  });
+  };
+}
+
+function buildAnnotationImage(data: RecordData) {
+  const accent = typeColors.annotation;
+  const children: unknown[] = [headerWithBadge(data, accent)];
 
   if (data.text) {
+    const len = data.text.length;
     children.push({
       type: "div",
       props: {
         style: {
-          color: "#fafafa",
-          fontSize: data.text.length > 200 ? 26 : 32,
+          color: C.text,
+          fontSize: len > 200 ? 26 : len > 100 ? 30 : 36,
+          fontWeight: 500,
           lineHeight: 1.45,
           marginTop: 32,
           overflow: "hidden",
         },
-        children: truncate(data.text, 300),
+        children: truncate(data.text, 280),
       },
     });
   }
@@ -339,7 +431,7 @@ function buildAnnotationImage(data: RecordData, logo: string) {
               style: {
                 width: 4,
                 borderRadius: 2,
-                background: tc.bar,
+                background: accent,
                 flexShrink: 0,
               },
             },
@@ -348,14 +440,14 @@ function buildAnnotationImage(data: RecordData, logo: string) {
             type: "div",
             props: {
               style: {
-                color: "#a1a1aa",
-                fontSize: data.quote.length > 150 ? 22 : 26,
-                lineHeight: 1.5,
-                paddingLeft: 18,
+                color: C.textSecondary,
+                fontSize: 20,
+                lineHeight: 1.6,
+                paddingLeft: 20,
                 fontStyle: "italic",
                 overflow: "hidden",
               },
-              children: `"${truncate(data.quote, 250)}"`,
+              children: truncate(data.quote, 200),
             },
           },
         ],
@@ -363,107 +455,129 @@ function buildAnnotationImage(data: RecordData, logo: string) {
     });
   }
 
-  const footerChildren: unknown[] = [];
-  if (data.source) {
-    footerChildren.push({
-      type: "span",
-      props: {
-        style: { color: "#71717a", fontSize: 20 },
-        children: data.source,
-      },
-    });
-  }
-  footerChildren.push(marginBrand(logo));
+  const footer = footerSource(data.source);
+  if (footer) children.push(footer);
 
-  children.push({
+  return wrap(children, lightTint(accent));
+}
+
+function buildHighlightImage(data: RecordData) {
+  const highlightColor = resolveHighlightColor(data.color);
+  const bgTint = lightTint(highlightColor);
+  const quoteText = data.quote || data.text || "Highlighted passage";
+  const len = quoteText.length;
+
+  return {
     type: "div",
     props: {
       style: {
         display: "flex",
-        alignItems: "center",
-        marginTop: "auto",
-        paddingTop: 28,
-        borderTop: "1px solid #27272a",
+        flexDirection: "column",
+        width: "100%",
+        height: "100%",
+        background: bgTint,
+        padding: "48px 64px",
+        fontFamily: "Inter",
       },
-      children: footerChildren,
+      children: [
+        headerWithBadge(data, highlightColor),
+        {
+          type: "div",
+          props: {
+            style: {
+              color: highlightColor,
+              fontSize: 120,
+              fontWeight: 700,
+              lineHeight: 1,
+              marginTop: 28,
+            },
+            children: "\u201C",
+          },
+        },
+        {
+          type: "div",
+          props: {
+            style: {
+              color: C.text,
+              fontSize: len > 150 ? 28 : len > 80 ? 34 : 42,
+              fontWeight: 600,
+              lineHeight: 1.4,
+              marginTop: -30,
+              overflow: "hidden",
+            },
+            children: truncate(quoteText, 240),
+          },
+        },
+        data.text && data.quote
+          ? {
+              type: "div",
+              props: {
+                style: {
+                  color: C.textSecondary,
+                  fontSize: 20,
+                  marginTop: 20,
+                },
+                children: truncate(data.text, 80),
+              },
+            }
+          : null,
+        {
+          type: "div",
+          props: {
+            style: {
+              display: "flex",
+              alignItems: "center",
+              marginTop: "auto",
+              paddingTop: 16,
+            },
+            children: [
+              data.source
+                ? {
+                    type: "span",
+                    props: {
+                      style: { color: C.textMuted, fontSize: 16 },
+                      children: data.source,
+                    },
+                  }
+                : null,
+            ].filter(Boolean),
+          },
+        },
+      ].filter(Boolean),
     },
-  });
-
-  return wrapCard(children, tc.accent);
+  };
 }
 
-function buildBookmarkImage(data: RecordData, logo: string) {
-  const children: unknown[] = [];
-  const tc = getTypeColor("bookmark");
+function buildBookmarkImage(data: RecordData) {
+  const children: unknown[] = [headerWithBadge(data, typeColors.bookmark)];
 
-  children.push({
-    type: "div",
-    props: {
-      style: { display: "flex", alignItems: "center", width: "100%" },
-      children: [
-        {
-          type: "div",
-          props: {
-            style: { display: "flex", alignItems: "center", gap: 10 },
-            children: [
-              {
-                type: "div",
-                props: {
-                  style: {
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    background: "#052e16",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  },
-                  children: {
-                    type: "div",
-                    props: {
-                      style: {
-                        fontSize: 18,
-                        color: "#4ade80",
-                        fontWeight: 700,
-                      },
-                      children: "🔗",
-                    },
-                  },
-                },
-              },
-              {
-                type: "span",
-                props: {
-                  style: { color: "#71717a", fontSize: 20 },
-                  children: data.source || "Saved page",
-                },
-              },
-            ],
-          },
+  if (data.source) {
+    children.push({
+      type: "div",
+      props: {
+        style: {
+          color: typeColors.bookmark,
+          fontSize: 18,
+          marginTop: 32,
         },
-        {
-          type: "div",
-          props: {
-            style: { marginLeft: "auto", display: "flex" },
-            children: [typeBadge("bookmark")],
-          },
-        },
-      ],
-    },
-  });
+        children: data.source,
+      },
+    });
+  }
 
+  const titleLen = (data.text || "").length;
   children.push({
     type: "div",
     props: {
       style: {
-        color: "#fafafa",
-        fontSize: (data.text?.length || 0) > 60 ? 36 : 44,
+        color: C.text,
+        fontSize: titleLen > 60 ? 34 : 42,
         fontWeight: 700,
-        lineHeight: 1.3,
-        marginTop: 36,
+        lineHeight: 1.25,
+        marginTop: data.source ? 10 : 32,
         overflow: "hidden",
       },
-      children: truncate(data.text || "Untitled Bookmark", 100),
+      children: truncate(data.text || "Untitled Bookmark", 90),
     },
   });
 
@@ -472,74 +586,47 @@ function buildBookmarkImage(data: RecordData, logo: string) {
       type: "div",
       props: {
         style: {
-          color: "#a1a1aa",
-          fontSize: 24,
+          color: C.textSecondary,
+          fontSize: 22,
           lineHeight: 1.5,
-          marginTop: 20,
+          marginTop: 16,
           overflow: "hidden",
         },
-        children: truncate(data.quote, 200),
+        children: truncate(data.quote, 180),
       },
     });
   }
 
+  return wrap(children, lightTint(typeColors.bookmark));
+}
+
+function buildCollectionImage(data: RecordData) {
+  const children: unknown[] = [headerWithBadge(data, typeColors.collection)];
+
   children.push({
     type: "div",
     props: {
       style: {
         display: "flex",
         alignItems: "center",
-        marginTop: "auto",
-        paddingTop: 28,
-        borderTop: "1px solid #27272a",
+        gap: 20,
+        marginTop: 36,
       },
       children: [
         {
-          type: "div",
-          props: {
-            style: { display: "flex", alignItems: "center" },
-            children: [
-              avatarElement(data.avatarURL, data.author, 36),
-              {
-                type: "span",
-                props: {
-                  style: { color: "#71717a", fontSize: 20, marginLeft: 12 },
-                  children: data.author,
-                },
-              },
-            ],
-          },
-        },
-        marginBrand(logo),
-      ],
-    },
-  });
-
-  return wrapCard(children, tc.accent);
-}
-
-function buildCollectionImage(data: RecordData, logo: string) {
-  const children: unknown[] = [];
-
-  children.push({
-    type: "div",
-    props: {
-      style: { display: "flex", alignItems: "center", gap: 18 },
-      children: [
-        {
           type: "span",
-          props: { style: { fontSize: 64 }, children: data.icon },
+          props: { style: { fontSize: 52 }, children: data.icon },
         },
         {
           type: "span",
           props: {
             style: {
-              color: "#fafafa",
-              fontSize: 48,
+              color: C.text,
+              fontSize: 44,
               fontWeight: 700,
               overflow: "hidden",
             },
-            children: truncate(data.title, 40),
+            children: truncate(data.title, 36),
           },
         },
       ],
@@ -550,87 +637,19 @@ function buildCollectionImage(data: RecordData, logo: string) {
     type: "div",
     props: {
       style: {
-        color: data.description ? "#a1a1aa" : "#71717a",
-        fontSize: 26,
+        color: data.description ? C.textSecondary : C.textMuted,
+        fontSize: 24,
         lineHeight: 1.5,
-        marginTop: 24,
+        marginTop: 20,
         overflow: "hidden",
       },
       children: data.description
-        ? truncate(data.description, 200)
+        ? truncate(data.description, 180)
         : "A collection on Margin",
     },
   });
 
-  children.push({
-    type: "div",
-    props: {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        marginTop: "auto",
-        paddingTop: 28,
-        borderTop: "1px solid #27272a",
-      },
-      children: [
-        {
-          type: "div",
-          props: {
-            style: { display: "flex", alignItems: "center" },
-            children: [
-              avatarElement(data.avatarURL, data.author, 36),
-              {
-                type: "span",
-                props: {
-                  style: { color: "#71717a", fontSize: 20, marginLeft: 12 },
-                  children: data.author,
-                },
-              },
-            ],
-          },
-        },
-        marginBrand(logo),
-      ],
-    },
-  });
-
-  return wrapCard(children);
-}
-
-function wrapCard(children: unknown[], accent: string = "#3b82f6") {
-  return {
-    type: "div",
-    props: {
-      style: {
-        display: "flex",
-        width: "100%",
-        height: "100%",
-        background: "#09090b",
-        padding: 40,
-        fontFamily: "Inter",
-      },
-      children: [
-        {
-          type: "div",
-          props: {
-            style: {
-              display: "flex",
-              flexDirection: "column",
-              width: "100%",
-              height: "100%",
-              padding: "52px 56px",
-              border: "1px solid #27272a",
-              borderRadius: 24,
-              borderTop: `3px solid ${accent}`,
-              background: "#18181b",
-              overflow: "hidden",
-            },
-            children,
-          },
-        },
-      ],
-    },
-  };
+  return wrap(children, lightTint(typeColors.collection));
 }
 
 export const GET: APIRoute = async ({ url }) => {
@@ -645,14 +664,23 @@ export const GET: APIRoute = async ({ url }) => {
   }
 
   const fonts = loadFonts();
-  const logo = getLogoDataURI();
 
-  const element =
-    data.type === "collection"
-      ? buildCollectionImage(data, logo)
-      : data.type === "bookmark"
-        ? buildBookmarkImage(data, logo)
-        : buildAnnotationImage(data, logo);
+  let element: unknown;
+  switch (data.type) {
+    case "collection":
+      element = buildCollectionImage(data);
+      break;
+    case "bookmark":
+      element = buildBookmarkImage(data);
+      break;
+    case "highlight":
+      element = buildHighlightImage(data);
+      break;
+    case "annotation":
+    default:
+      element = buildAnnotationImage(data);
+      break;
+  }
 
   const svg = await satori(element as React.ReactNode, {
     width: 1200,
@@ -666,9 +694,9 @@ export const GET: APIRoute = async ({ url }) => {
         const codepoints = [...segment]
           .map((c) => c.codePointAt(0)!.toString(16))
           .join("-");
-        const url = `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${codepoints}.svg`;
+        const emojiUrl = `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${codepoints}.svg`;
         try {
-          const res = await fetch(url);
+          const res = await fetch(emojiUrl);
           if (res.ok)
             return `data:image/svg+xml,${encodeURIComponent(await res.text())}`;
         } catch {
