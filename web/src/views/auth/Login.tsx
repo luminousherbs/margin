@@ -203,7 +203,7 @@ export default function Login() {
                 !handle.includes(".") &&
                 setShowSuggestions(true)
               }
-              placeholder="handle.bsky.social"
+              placeholder="handle.margin.cafe"
               className="w-full pl-12 pr-4 py-3.5 bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-700 rounded-xl focus:border-[#027bff] dark:focus:border-[#027bff] outline-none focus:ring-4 focus:ring-[#027bff]/10 transition-all font-medium text-lg text-surface-900 dark:text-white placeholder:text-surface-400 dark:placeholder:text-surface-500"
               autoCapitalize="none"
               autoCorrect="off"
