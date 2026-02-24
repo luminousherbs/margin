@@ -401,7 +401,7 @@ export default function About() {
                   </a>
                 )}
                 <a
-                  href="https://www.icloud.com/shortcuts/21c87edf29b046db892c9e57dac6d1fd"
+                  href="https://www.icloud.com/shortcuts/1e33ebf52f55431fae1e187cfe9738c3"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-200 rounded-lg font-medium text-sm transition-all hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200/80 dark:border-surface-700/80"

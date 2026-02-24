@@ -133,7 +133,7 @@ export default function MobileNav() {
                 <div className="h-px bg-surface-200 dark:bg-surface-700 my-2" />
 
                 <a
-                  href="https://www.icloud.com/shortcuts/21c87edf29b046db892c9e57dac6d1fd"
+                  href="https://www.icloud.com/shortcuts/1e33ebf52f55431fae1e187cfe9738c3"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
@@ -186,7 +186,7 @@ export default function MobileNav() {
                 <div className="h-px bg-surface-200 dark:bg-surface-700 my-2" />
 
                 <a
-                  href="https://www.icloud.com/shortcuts/21c87edf29b046db892c9e57dac6d1fd"
+                  href="https://www.icloud.com/shortcuts/1e33ebf52f55431fae1e187cfe9738c3"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"

@@ -76,7 +76,7 @@ export default function IOSShortcutModal({
                     Install the shortcut
                   </p>
                   <a
-                    href="https://www.icloud.com/shortcuts/21c87edf29b046db892c9e57dac6d1fd"
+                    href="https://www.icloud.com/shortcuts/1e33ebf52f55431fae1e187cfe9738c3"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 mt-1.5 px-3 py-1.5 bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-900 dark:text-white rounded-lg text-xs font-medium transition-colors"
