@@ -41,10 +41,29 @@ export async function onRequest(
 
   try {
     const res = await fetch(target.toString(), init);
+    const responseHeaders = new Headers(res.headers);
+
+    const origin = request.headers.get("origin");
+    if (origin && (
+      origin.startsWith("chrome-extension://") ||
+      origin.startsWith("moz-extension://") ||
+      origin.startsWith("safari-web-extension://")
+    )) {
+      responseHeaders.set("Access-Control-Allow-Origin", origin);
+      responseHeaders.set("Access-Control-Allow-Credentials", "true");
+      responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+      responseHeaders.set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token, X-Session-Token");
+      responseHeaders.set("Access-Control-Expose-Headers", "Link");
+    }
+
+    if (request.method === "OPTIONS" && origin) {
+      return new Response(null, { status: 204, headers: responseHeaders });
+    }
+
     return new Response(res.body, {
       status: res.status,
       statusText: res.statusText,
-      headers: res.headers,
+      headers: responseHeaders,
     });
   } catch {
     return new Response("Backend unavailable", { status: 502 });
