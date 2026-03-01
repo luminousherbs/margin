@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -63,25 +62,7 @@ func main() {
 	r.Use(middleware.Throttle(100))
 
 	r.Use(cors.Handler(cors.Options{
-		AllowOriginFunc: func(r *http.Request, origin string) bool {
-			if strings.HasPrefix(origin, "chrome-extension://") ||
-				strings.HasPrefix(origin, "moz-extension://") ||
-				strings.HasPrefix(origin, "safari-web-extension://") {
-				return true
-			}
-			allowedOrigins := []string{
-				"https://margin.at",
-				"https://www.margin.at",
-				"http://localhost:4321",
-				"http://localhost:8081",
-			}
-			for _, allowed := range allowedOrigins {
-				if origin == allowed {
-					return true
-				}
-			}
-			return false
-		},
+		AllowedOrigins:   []string{"https://*", "http://*", "chrome-extension://*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-Session-Token"},
 		ExposedHeaders:   []string{"Link"},
