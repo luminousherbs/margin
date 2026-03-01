@@ -5,6 +5,23 @@ const API_URL = process.env.API_URL || `http://localhost:${API_PORT}`;
 
 const PROXY_PATHS = ["/api/", "/auth/", "/client-metadata.json", "/jwks.json"];
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Accept, Authorization, Content-Type, X-CSRF-Token, X-Session-Token",
+  "Access-Control-Expose-Headers": "Link",
+  "Access-Control-Allow-Credentials": "true",
+  "Access-Control-Max-Age": "300",
+};
+
+function isExtensionOrigin(origin: string | null): origin is string {
+  if (!origin) return false;
+  return (
+    origin.startsWith("chrome-extension://") ||
+    origin.startsWith("moz-extension://") ||
+    origin.startsWith("safari-web-extension://")
+  );
+}
+
 export async function onRequest(
   { request, url }: APIContext,
   next: () => Promise<Response>,
@@ -15,6 +32,18 @@ export async function onRequest(
 
   if (!shouldProxy) {
     return next();
+  }
+
+  const origin = request.headers.get("origin");
+
+  if (request.method === "OPTIONS" && isExtensionOrigin(origin)) {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": origin,
+        ...CORS_HEADERS,
+      },
+    });
   }
 
   const target = new URL(url.pathname + url.search, API_URL);
@@ -43,21 +72,11 @@ export async function onRequest(
     const res = await fetch(target.toString(), init);
     const responseHeaders = new Headers(res.headers);
 
-    const origin = request.headers.get("origin");
-    if (origin && (
-      origin.startsWith("chrome-extension://") ||
-      origin.startsWith("moz-extension://") ||
-      origin.startsWith("safari-web-extension://")
-    )) {
+    if (isExtensionOrigin(origin)) {
       responseHeaders.set("Access-Control-Allow-Origin", origin);
-      responseHeaders.set("Access-Control-Allow-Credentials", "true");
-      responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-      responseHeaders.set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token, X-Session-Token");
-      responseHeaders.set("Access-Control-Expose-Headers", "Link");
-    }
-
-    if (request.method === "OPTIONS" && origin) {
-      return new Response(null, { status: 204, headers: responseHeaders });
+      for (const [key, value] of Object.entries(CORS_HEADERS)) {
+        responseHeaders.set(key, value);
+      }
     }
 
     return new Response(res.body, {
