@@ -95,6 +95,12 @@ In production, a single Docker container runs both services:
 - **Extension**: WXT + React + Tailwind CSS
 - **Protocol**: AT Protocol (Bluesky)
 
+## Sponsors
+
+Thank you for making Margin possible!
+
+<!-- sponsors --><!-- sponsors -->
+
 ## License
 
 MIT
