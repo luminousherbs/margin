@@ -69,6 +69,73 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
     return window.location.href;
   }
 
+  function getPageDOIUrl(): string | null {
+    try {
+      if (new URL(window.location.href).hostname === 'doi.org') return null;
+    } catch {
+      return null;
+    }
+
+    const metaDOI =
+      document.querySelector<HTMLMetaElement>('meta[name="citation_doi"]') ||
+      document.querySelector<HTMLMetaElement>('meta[name="dc.identifier"]') ||
+      document.querySelector<HTMLMetaElement>('meta[name="DC.identifier"]');
+    if (metaDOI?.content) {
+      const doi = metaDOI.content.replace(/^doi:/i, '').trim();
+      if (doi.startsWith('10.')) return `https://doi.org/${doi}`;
+    }
+
+    const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (canonical?.href) {
+      try {
+        if (new URL(canonical.href).hostname === 'doi.org') return canonical.href;
+      } catch {
+        /* ignore */
+      }
+    }
+
+    return null;
+  }
+
+  function getPageCiteUrls(): string[] {
+    const urls = new Set<string>();
+    document.querySelectorAll<Element>('q[cite], blockquote[cite]').forEach((el) => {
+      const cite = el.getAttribute('cite');
+      if (!cite) return;
+      try {
+        const abs = new URL(cite, window.location.href).href;
+        if (abs !== window.location.href) urls.add(abs);
+      } catch {
+        /* ignore */
+      }
+    });
+    return Array.from(urls);
+  }
+
+  function getCiteUrlForText(text: string): string | null {
+    if (!text) return null;
+    if (!cachedMatcher) cachedMatcher = new DOMTextMatcher();
+    const range = cachedMatcher.findRange(text);
+    if (!range) return null;
+
+    let node: Node | null = range.commonAncestorContainer;
+    while (node && node !== document.body) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as Element;
+        if ((el.tagName === 'Q' || el.tagName === 'BLOCKQUOTE') && el.hasAttribute('cite')) {
+          const cite = el.getAttribute('cite')!;
+          try {
+            return new URL(cite, window.location.href).href;
+          } catch {
+            return null;
+          }
+        }
+      }
+      node = node.parentNode;
+    }
+    return null;
+  }
+
   function isPdfContext(): boolean {
     return !!(
       document.querySelector('.pdfViewer') ||
@@ -382,8 +449,9 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
       submitBtn.textContent = 'Posting...';
 
       try {
+        const citeUrl = getCiteUrlForText(quoteText);
         const res = await sendMessage('createAnnotation', {
-          url: getPageUrl(),
+          url: citeUrl || getPageUrl(),
           title: document.title,
           text,
           selector: { type: 'TextQuoteSelector', exact: quoteText },
@@ -424,6 +492,12 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
       const selection = window.getSelection();
       const text = selection?.toString().trim() || '';
       return Promise.resolve({ text });
+    }
+    if (message.type === 'GET_DOI') {
+      return Promise.resolve({ doiUrl: getPageDOIUrl() });
+    }
+    if (message.type === 'GET_CITE_URL') {
+      return Promise.resolve({ citeUrl: getCiteUrlForText(message.text || '') });
     }
   });
 
@@ -519,15 +593,21 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
     }
 
     try {
+      const pageUrl = getPageUrl();
+      const doiUrl = getPageDOIUrl();
+      const citeUrls = getPageCiteUrls();
+      const citedUrls = [...(doiUrl ? [doiUrl] : []), ...citeUrls];
+
       const annotations = await sendMessage('getAnnotations', {
-        url: getPageUrl(),
+        url: pageUrl,
+        citedUrls,
         cacheBust,
       });
 
       sendMessage('updateBadge', { count: annotations?.length || 0 });
 
       if (annotations) {
-        sendMessage('cacheAnnotations', { url: getPageUrl(), annotations });
+        sendMessage('cacheAnnotations', { url: pageUrl, annotations });
       }
 
       if (annotations && annotations.length > 0) {

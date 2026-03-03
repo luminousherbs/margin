@@ -53,8 +53,26 @@ export default defineBackground(() => {
     return await checkSession();
   });
 
-  onMessage('getAnnotations', async ({ data }) => {
-    return await getAnnotations(data.url, [], data.cacheBust);
+  onMessage('getAnnotations', async ({ data, sender }) => {
+    let citedUrls: string[] = data.citedUrls ?? [];
+
+    if (data.citedUrls === undefined) {
+      try {
+        const tabId =
+          (sender as any)?.tab?.id ??
+          (await browser.tabs.query({ active: true, currentWindow: true }))[0]?.id;
+        if (tabId !== undefined) {
+          const res = (await browser.tabs.sendMessage(tabId, { type: 'GET_DOI' })) as
+            | { doiUrl: string | null }
+            | undefined;
+          if (res?.doiUrl) citedUrls = [res.doiUrl];
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    return await getAnnotations(data.url, citedUrls, data.cacheBust);
   });
 
   onMessage('activateOnPdf', async ({ data }) => {
@@ -307,8 +325,19 @@ export default defineBackground(() => {
         return;
       }
 
+      let highlightUrl = resolveTabUrl(tab.url);
+      try {
+        const res = (await browser.tabs.sendMessage(tab.id!, {
+          type: 'GET_CITE_URL',
+          text: info.selectionText,
+        })) as { citeUrl: string | null } | undefined;
+        if (res?.citeUrl) highlightUrl = res.citeUrl;
+      } catch {
+        /* ignore */
+      }
+
       const result = await createHighlight({
-        url: resolveTabUrl(tab.url),
+        url: highlightUrl,
         title: tab.title,
         selector: {
           type: 'TextQuoteSelector',

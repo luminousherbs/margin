@@ -11,7 +11,7 @@ import type {
 interface ProtocolMap {
   checkSession(): MarginSession;
 
-  getAnnotations(data: { url: string; cacheBust?: boolean }): Annotation[];
+  getAnnotations(data: { url: string; citedUrls?: string[]; cacheBust?: boolean }): Annotation[];
   activateOnPdf(data: { tabId: number; url: string }): { redirected: boolean };
   createAnnotation(data: {
     url: string;

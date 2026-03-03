@@ -571,14 +571,21 @@ func (h *Handler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandleSession(w http.ResponseWriter, r *http.Request) {
+	sessionID := ""
 	cookie, err := r.Cookie("margin_session")
-	if err != nil {
+	if err == nil {
+		sessionID = cookie.Value
+	} else {
+		sessionID = r.Header.Get("X-Session-Token")
+	}
+
+	if sessionID == "" {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{"authenticated": false})
 		return
 	}
 
-	did, handle, _, _, _, err := h.db.GetSession(cookie.Value)
+	did, handle, _, _, _, err := h.db.GetSession(sessionID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{"authenticated": false})
