@@ -183,7 +183,7 @@ export default function Search() {
                   }
                   title="Margin only"
                   className={clsx(
-                    "flex items-center justify-center w-7 h-7 rounded-md transition-all group",
+                    "relative flex items-center justify-center w-7 h-7 rounded-md transition-all group",
                     platform === "margin"
                       ? "bg-white dark:bg-surface-700 shadow-sm"
                       : "hover:bg-surface-100 dark:hover:bg-surface-700/50",
@@ -196,19 +196,26 @@ export default function Search() {
                       className="w-4 h-4 transition-all"
                     />
                   ) : (
-                    <div
-                      className="w-4 h-4 bg-surface-400 dark:bg-surface-500 group-hover:bg-surface-600 dark:group-hover:bg-surface-300 transition-colors"
-                      style={{
-                        maskImage: "url(/logo.svg)",
-                        WebkitMaskImage: "url(/logo.svg)",
-                        maskSize: "contain",
-                        WebkitMaskSize: "contain",
-                        maskRepeat: "no-repeat",
-                        WebkitMaskRepeat: "no-repeat",
-                        maskPosition: "center",
-                        WebkitMaskPosition: "center",
-                      }}
-                    />
+                    <>
+                      <img
+                        src="/logo.svg"
+                        alt="Margin"
+                        className="w-4 h-4 transition-all opacity-0 group-hover:opacity-100 absolute"
+                      />
+                      <div
+                        className="w-4 h-4 bg-surface-400 dark:bg-surface-500 group-hover:opacity-0 transition-all"
+                        style={{
+                          maskImage: "url(/logo.svg)",
+                          WebkitMaskImage: "url(/logo.svg)",
+                          maskSize: "contain",
+                          WebkitMaskSize: "contain",
+                          maskRepeat: "no-repeat",
+                          WebkitMaskRepeat: "no-repeat",
+                          maskPosition: "center",
+                          WebkitMaskPosition: "center",
+                        }}
+                      />
+                    </>
                   )}
                 </button>
                 <button
@@ -217,7 +224,7 @@ export default function Search() {
                   }
                   title="Semble only"
                   className={clsx(
-                    "flex items-center justify-center w-7 h-7 rounded-md transition-all group",
+                    "relative flex items-center justify-center w-7 h-7 rounded-md transition-all group",
                     platform === "semble"
                       ? "bg-white dark:bg-surface-700 shadow-sm"
                       : "hover:bg-surface-100 dark:hover:bg-surface-700/50",
@@ -230,19 +237,26 @@ export default function Search() {
                       className="w-4 h-4 transition-all"
                     />
                   ) : (
-                    <div
-                      className="w-4 h-4 bg-surface-400 dark:bg-surface-500 group-hover:bg-surface-600 dark:group-hover:bg-surface-300 transition-colors"
-                      style={{
-                        maskImage: "url(/semble-logo.svg)",
-                        WebkitMaskImage: "url(/semble-logo.svg)",
-                        maskSize: "contain",
-                        WebkitMaskSize: "contain",
-                        maskRepeat: "no-repeat",
-                        WebkitMaskRepeat: "no-repeat",
-                        maskPosition: "center",
-                        WebkitMaskPosition: "center",
-                      }}
-                    />
+                    <>
+                      <img
+                        src="/semble-logo.svg"
+                        alt="Semble"
+                        className="w-4 h-4 transition-all opacity-0 group-hover:opacity-100 absolute"
+                      />
+                      <div
+                        className="w-4 h-4 bg-surface-400 dark:bg-surface-500 group-hover:opacity-0 transition-all"
+                        style={{
+                          maskImage: "url(/semble-logo.svg)",
+                          WebkitMaskImage: "url(/semble-logo.svg)",
+                          maskSize: "contain",
+                          WebkitMaskSize: "contain",
+                          maskRepeat: "no-repeat",
+                          WebkitMaskRepeat: "no-repeat",
+                          maskPosition: "center",
+                          WebkitMaskPosition: "center",
+                        }}
+                      />
+                    </>
                   )}
                 </button>
               </div>
