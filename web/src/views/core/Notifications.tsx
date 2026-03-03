@@ -46,9 +46,13 @@ function getNotificationVerb(
           return "liked your post";
       }
     case "reply": {
-      const parentUri = (subject as any)?.inReplyTo as string | undefined;
-      const parentIsReply = parentUri ? getContentType(parentUri) === "reply" : false;
-      return parentIsReply ? "replied to your reply" : "replied to your annotation";
+      const parentUri = subject?.inReplyTo;
+      const parentIsReply = parentUri
+        ? getContentType(parentUri) === "reply"
+        : false;
+      return parentIsReply
+        ? "replied to your reply"
+        : "replied to your annotation";
     }
     case "mention":
       return "mentioned you in an annotation";
@@ -135,7 +139,9 @@ function SubjectPreview({
           </p>
         )}
         {body && (
-          <p className="text-surface-700 dark:text-surface-300 text-sm line-clamp-2">{body}</p>
+          <p className="text-surface-700 dark:text-surface-300 text-sm line-clamp-2">
+            {body}
+          </p>
         )}
       </>
     );
@@ -172,12 +178,16 @@ function SubjectPreview({
     );
   } else if (contentType === "reply") {
     const text = item?.text;
-    const parentUri = (item as any)?.inReplyTo as string | undefined;
-    const parentIsReply = parentUri ? getContentType(parentUri) === "reply" : false;
+    const parentUri = item?.inReplyTo;
+    const parentIsReply = parentUri
+      ? getContentType(parentUri) === "reply"
+      : false;
     preview = (
       <>
         {text && (
-          <p className="text-surface-700 dark:text-surface-300 text-sm line-clamp-2">{text}</p>
+          <p className="text-surface-700 dark:text-surface-300 text-sm line-clamp-2">
+            {text}
+          </p>
         )}
         {parentUri && (
           <p className="text-surface-400 dark:text-surface-500 text-xs mt-1">
@@ -266,7 +276,11 @@ export default function Notifications() {
       <div className="space-y-2">
         {notifications.map((n) => {
           const contentType = getContentType(n.subjectUri || "");
-          const verb = getNotificationVerb(n.type, contentType, n.subject as AnnotationItem);
+          const verb = getNotificationVerb(
+            n.type,
+            contentType,
+            n.subject as AnnotationItem,
+          );
           const timeAgo = formatDistanceToNow(new Date(n.createdAt), {
             addSuffix: false,
           });
@@ -286,10 +300,7 @@ export default function Notifications() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start gap-2 flex-wrap">
-                    <Link
-                      to={`/profile/${n.actor.did}`}
-                      className="shrink-0"
-                    >
+                    <Link to={`/profile/${n.actor.did}`} className="shrink-0">
                       <Avatar src={n.actor.avatar} size="xs" />
                     </Link>
                     <div className="flex-1 min-w-0">
@@ -299,8 +310,7 @@ export default function Notifications() {
                           className="font-semibold text-surface-900 dark:text-white hover:underline"
                         >
                           {n.actor.displayName || `@${n.actor.handle}`}
-                        </Link>
-                        {" "}
+                        </Link>{" "}
                         {n.type !== "follow" && n.subjectUri ? (
                           <Link
                             to={`/annotation/${encodeURIComponent(n.subjectUri)}`}

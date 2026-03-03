@@ -1,4 +1,6 @@
 import type { APIContext } from "astro";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 const API_PORT = process.env.API_PORT || 8081;
 const API_URL = process.env.API_URL || `http://localhost:${API_PORT}`;
@@ -7,7 +9,8 @@ const PROXY_PATHS = ["/api/", "/auth/", "/client-metadata.json", "/jwks.json"];
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Accept, Authorization, Content-Type, X-CSRF-Token, X-Session-Token",
+  "Access-Control-Allow-Headers":
+    "Accept, Authorization, Content-Type, X-CSRF-Token, X-Session-Token",
   "Access-Control-Expose-Headers": "Link",
   "Access-Control-Allow-Credentials": "true",
   "Access-Control-Max-Age": "300",
@@ -26,6 +29,22 @@ export async function onRequest(
   { request, url }: APIContext,
   next: () => Promise<Response>,
 ): Promise<Response> {
+  if (url.pathname === "/favicon.ico") {
+    try {
+      const file = await readFile(
+        join(process.cwd(), "dist", "client", "favicon.ico"),
+      );
+      return new Response(file, {
+        headers: {
+          "Content-Type": "image/x-icon",
+          "Cache-Control": "public, max-age=86400",
+        },
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+
   const shouldProxy = PROXY_PATHS.some(
     (p) => url.pathname.startsWith(p) || url.pathname === p.replace(/\/$/, ""),
   );

@@ -61,6 +61,7 @@ export interface AnnotationItem {
   replyCount?: number;
   repostCount?: number;
   children?: AnnotationItem[];
+  inReplyTo?: string;
   viewer?: {
     like?: string;
   };
