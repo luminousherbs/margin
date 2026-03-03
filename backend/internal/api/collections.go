@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"margin.at/internal/db"
+	"margin.at/internal/logger"
 	"margin.at/internal/xrpc"
 )
 
@@ -150,7 +150,7 @@ func (s *CollectionService) AddCollectionItem(w http.ResponseWriter, r *http.Req
 		IndexedAt:     time.Now(),
 	}
 	if err := s.db.AddToCollection(item); err != nil {
-		log.Printf("Failed to add to collection in DB: %v", err)
+		logger.Error("Failed to add to collection in DB: %v", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -174,7 +174,7 @@ func (s *CollectionService) RemoveCollectionItem(w http.ResponseWriter, r *http.
 		return client.DeleteRecordByURI(r.Context(), itemURI)
 	})
 	if err != nil {
-		log.Printf("Warning: PDS delete failed for %s: %v", itemURI, err)
+		logger.Error("Warning: PDS delete failed for %s: %v", itemURI, err)
 	}
 
 	s.db.RemoveFromCollection(itemURI)
@@ -316,7 +316,7 @@ func (s *CollectionService) GetCollectionItems(w http.ResponseWriter, r *http.Re
 
 	enrichedItems, err := hydrateCollectionItems(s.db, items, viewerDID)
 	if err != nil {
-		log.Printf("Hydration error: %v", err)
+		logger.Error("Hydration error: %v", err)
 		enrichedItems = []APICollectionItem{}
 	}
 
@@ -374,7 +374,7 @@ func (s *CollectionService) UpdateCollection(w http.ResponseWriter, r *http.Requ
 		var updateErr error
 		result, updateErr = client.PutRecord(r.Context(), did, xrpc.CollectionCollection, rkey, record)
 		if updateErr != nil {
-			log.Printf("DEBUG PutRecord failed: %v. Retrying with delete-then-create workaround for buggy PDS.", updateErr)
+			logger.Error("DEBUG PutRecord failed: %v. Retrying with delete-then-create workaround for buggy PDS.", updateErr)
 			_ = client.DeleteRecord(r.Context(), did, xrpc.CollectionCollection, rkey)
 			result, updateErr = client.PutRecord(r.Context(), did, xrpc.CollectionCollection, rkey, record)
 		}

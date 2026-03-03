@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"sort"
@@ -16,6 +15,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"margin.at/internal/db"
+	"margin.at/internal/logger"
 	internal_sync "margin.at/internal/sync"
 	"margin.at/internal/xrpc"
 )
@@ -334,7 +334,7 @@ func (h *Handler) GetFeed(w http.ResponseWriter, r *http.Request) {
 				collectionItems, err = h.db.GetRecentCollectionItems(fetchLimit, 0)
 			}
 			if err != nil {
-				log.Printf("Error fetching collection items: %v\n", err)
+				logger.Error("Error fetching collection items: %v", err)
 			}
 		}
 	}
@@ -449,14 +449,14 @@ func (h *Handler) GetFeed(w http.ResponseWriter, r *http.Request) {
 		sortFeed(feed)
 	}
 
-	log.Printf("[DEBUG] FeedType: %s, Total Items before slice: %d", feedType, len(feed))
+	logger.Info("[DEBUG] FeedType: %s, Total Items before slice: %d", feedType, len(feed))
 	if len(feed) > 0 {
 		first := feed[0]
 		switch v := first.(type) {
 		case APIAnnotation:
-			log.Printf("[DEBUG] First Item (Annotation): %s, Likes: %d, Replies: %d", v.ID, v.LikeCount, v.ReplyCount)
+			logger.Info("[DEBUG] First Item (Annotation): %s, Likes: %d, Replies: %d", v.ID, v.LikeCount, v.ReplyCount)
 		case APIHighlight:
-			log.Printf("[DEBUG] First Item (Highlight): %s, Likes: %d, Replies: %d", v.ID, v.LikeCount, v.ReplyCount)
+			logger.Info("[DEBUG] First Item (Highlight): %s, Likes: %d, Replies: %d", v.ID, v.LikeCount, v.ReplyCount)
 		}
 	}
 
@@ -783,7 +783,7 @@ func (h *Handler) DiscoverForURL(w http.ResponseWriter, r *http.Request) {
 
 	annotations, highlights, bookmarks, err := ConstellationClient.GetAllItemsForURL(ctx, source)
 	if err != nil {
-		log.Printf("Constellation discover error, falling back to local: %v", err)
+		logger.Error("Constellation discover error, falling back to local: %v", err)
 		h.GetByTarget(w, r)
 		return
 	}
@@ -949,7 +949,7 @@ func (h *Handler) GetUserAnnotations(w http.ResponseWriter, r *http.Request) {
 	if offset == 0 && viewerDID != "" && did == viewerDID {
 		go func() {
 			if _, err := h.FetchLatestUserRecords(r, did, xrpc.CollectionAnnotation, limit); err != nil {
-				log.Printf("Background sync error (annotations): %v", err)
+				logger.Error("Background sync error (annotations): %v", err)
 			}
 		}()
 	}
@@ -989,7 +989,7 @@ func (h *Handler) GetUserHighlights(w http.ResponseWriter, r *http.Request) {
 	if offset == 0 && viewerDID != "" && did == viewerDID {
 		go func() {
 			if _, err := h.FetchLatestUserRecords(r, did, xrpc.CollectionHighlight, limit); err != nil {
-				log.Printf("Background sync error (highlights): %v", err)
+				logger.Error("Background sync error (highlights): %v", err)
 			}
 		}()
 	}
@@ -1029,7 +1029,7 @@ func (h *Handler) GetUserBookmarks(w http.ResponseWriter, r *http.Request) {
 	if offset == 0 && viewerDID != "" && did == viewerDID {
 		go func() {
 			if _, err := h.FetchLatestUserRecords(r, did, xrpc.CollectionBookmark, limit); err != nil {
-				log.Printf("Background sync error (bookmarks): %v", err)
+				logger.Error("Background sync error (bookmarks): %v", err)
 			}
 		}()
 	}
@@ -1332,7 +1332,7 @@ func (h *Handler) GetNotifications(w http.ResponseWriter, r *http.Request) {
 
 	enriched, err := hydrateNotifications(h.db, notifications)
 	if err != nil {
-		log.Printf("Failed to hydrate notifications: %v\n", err)
+		logger.Error("Failed to hydrate notifications: %v", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

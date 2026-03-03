@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,6 +17,7 @@ import (
 	"time"
 
 	"margin.at/internal/db"
+	"margin.at/internal/logger"
 	internal_sync "margin.at/internal/sync"
 	"margin.at/internal/xrpc"
 )
@@ -81,7 +81,7 @@ func loadOrGenerateKey() (*ecdsa.PrivateKey, error) {
 	}
 
 	if err := os.WriteFile(keyPath, pem.EncodeToMemory(block), 0600); err != nil {
-		log.Printf("Warning: could not save key to %s: %v\n", keyPath, err)
+		logger.Error("Warning: could not save key to %s: %v", keyPath, err)
 	}
 
 	return key, nil
@@ -240,7 +240,7 @@ func (h *Handler) HandleStart(w http.ResponseWriter, r *http.Request) {
 
 	parResp, state, dpopNonce, err := client.SendPAR(meta, req.Handle, scope, dpopKey, pkceChallenge)
 	if err != nil {
-		log.Printf("PAR request failed: %v", err)
+		logger.Error("PAR request failed: %v", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to initiate authentication"})
@@ -300,7 +300,7 @@ func (h *Handler) HandleSignup(w http.ResponseWriter, r *http.Request) {
 
 	meta, err := client.GetAuthServerMetadataForSignup(ctx, req.PdsURL)
 	if err != nil {
-		log.Printf("Failed to get auth metadata for signup from %s: %v", req.PdsURL, err)
+		logger.Error("Failed to get auth metadata for signup from %s: %v", req.PdsURL, err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to connect to PDS"})
@@ -321,12 +321,12 @@ func (h *Handler) HandleSignup(w http.ResponseWriter, r *http.Request) {
 	parResp, state, dpopNonce, err := client.SendPARWithPrompt(meta, "", scope, dpopKey, pkceChallenge, "create")
 	if err != nil {
 		if strings.Contains(err.Error(), "prompt") || strings.Contains(err.Error(), "invalid_request") {
-			log.Printf("prompt=create not supported, falling back to standard flow")
+			logger.Info("prompt=create not supported, falling back to standard flow")
 			pkceVerifier, pkceChallenge = client.GeneratePKCE()
 			parResp, state, dpopNonce, err = client.SendPAR(meta, "", scope, dpopKey, pkceChallenge)
 		}
 		if err != nil {
-			log.Printf("PAR request failed for signup: %v", err)
+			logger.Error("PAR request failed for signup: %v", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "Failed to initiate signup"})
@@ -368,7 +368,7 @@ func (h *Handler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 
 	if oauthErr := r.URL.Query().Get("error"); oauthErr != "" {
 		errDesc := r.URL.Query().Get("error_description")
-		log.Printf("OAuth callback error: %s - %s", oauthErr, errDesc)
+		logger.Error("OAuth callback error: %s - %s", oauthErr, errDesc)
 
 		if state := r.URL.Query().Get("state"); state != "" {
 			h.pendingMu.Lock()
@@ -414,7 +414,7 @@ func (h *Handler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	meta, err := client.GetAuthServerMetadataForSignup(ctx, pending.PDS)
 	if err != nil {
-		log.Printf("Failed to get auth metadata in callback for %s: %v", pending.PDS, err)
+		logger.Error("Failed to get auth metadata in callback for %s: %v", pending.PDS, err)
 		http.Error(w, fmt.Sprintf("Failed to get auth metadata: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -426,7 +426,7 @@ func (h *Handler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if pending.DID != "" && tokenResp.Sub != pending.DID {
-		log.Printf("Security: OAuth sub mismatch, expected %s, got %s", pending.DID, tokenResp.Sub)
+		logger.Error("Security: OAuth sub mismatch, expected %s, got %s", pending.DID, tokenResp.Sub)
 		http.Error(w, "Account identity mismatch, authorization returned different account", http.StatusBadRequest)
 		return
 	}
@@ -469,15 +469,15 @@ func (h *Handler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 
 	go h.cleanupOrphanedReplies(tokenResp.Sub, tokenResp.AccessToken, string(dpopKeyPEM), pending.PDS)
 	go func() {
-		log.Printf("Starting background sync for %s...", tokenResp.Sub)
+		logger.Info("Starting background sync for %s...", tokenResp.Sub)
 		_, err := h.syncService.PerformSync(context.Background(), tokenResp.Sub, func(ctx context.Context, did string) (*xrpc.Client, error) {
 			return xrpc.NewClient(pending.PDS, tokenResp.AccessToken, pending.DPoPKey), nil
 		})
 
 		if err != nil {
-			log.Printf("Background sync failed for %s: %v", tokenResp.Sub, err)
+			logger.Error("Background sync failed for %s: %v", tokenResp.Sub, err)
 		} else {
-			log.Printf("Background sync completed for %s", tokenResp.Sub)
+			logger.Info("Background sync completed for %s", tokenResp.Sub)
 		}
 	}()
 
@@ -544,9 +544,9 @@ func deleteFromPDS(pds, accessToken string, dpopKey *ecdsa.PrivateKey, collectio
 	client := xrpc.NewClient(pds, accessToken, dpopKey)
 	err := client.DeleteRecord(context.Background(), did, collection, rkey)
 	if err != nil {
-		log.Printf("Failed to delete orphaned reply from PDS: %v", err)
+		logger.Error("Failed to delete orphaned reply from PDS: %v", err)
 	} else {
-		log.Printf("Cleaned up orphaned reply %s/%s from PDS", collection, rkey)
+		logger.Info("Cleaned up orphaned reply %s/%s from PDS", collection, rkey)
 	}
 }
 

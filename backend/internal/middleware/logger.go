@@ -1,13 +1,13 @@
 package middleware
 
 import (
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
+	"margin.at/internal/logger"
 )
 
 func PrivacyLogger(next http.Handler) http.Handler {
@@ -18,7 +18,7 @@ func PrivacyLogger(next http.Handler) http.Handler {
 		defer func() {
 			safeURL := redactURL(r.URL)
 
-			log.Printf("[%d] %s %s %s",
+			logger.Info("[%d] %s %s %s",
 				ww.Status(),
 				r.Method,
 				safeURL,

@@ -2,12 +2,12 @@ package api
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
 
 	"margin.at/internal/config"
 	"margin.at/internal/db"
+	"margin.at/internal/logger"
 )
 
 type ModerationHandler struct {
@@ -40,7 +40,7 @@ func (m *ModerationHandler) BlockUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := m.db.CreateBlock(session.DID, req.DID); err != nil {
-		log.Printf("Failed to create block: %v", err)
+		logger.Error("Failed to create block: %v", err)
 		http.Error(w, "Failed to block user", http.StatusInternalServerError)
 		return
 	}
@@ -63,7 +63,7 @@ func (m *ModerationHandler) UnblockUser(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := m.db.DeleteBlock(session.DID, did); err != nil {
-		log.Printf("Failed to delete block: %v", err)
+		logger.Error("Failed to delete block: %v", err)
 		http.Error(w, "Failed to unblock user", http.StatusInternalServerError)
 		return
 	}
@@ -131,7 +131,7 @@ func (m *ModerationHandler) MuteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := m.db.CreateMute(session.DID, req.DID); err != nil {
-		log.Printf("Failed to create mute: %v", err)
+		logger.Error("Failed to create mute: %v", err)
 		http.Error(w, "Failed to mute user", http.StatusInternalServerError)
 		return
 	}
@@ -154,7 +154,7 @@ func (m *ModerationHandler) UnmuteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := m.db.DeleteMute(session.DID, did); err != nil {
-		log.Printf("Failed to delete mute: %v", err)
+		logger.Error("Failed to delete mute: %v", err)
 		http.Error(w, "Failed to unmute user", http.StatusInternalServerError)
 		return
 	}
@@ -263,7 +263,7 @@ func (m *ModerationHandler) CreateReport(w http.ResponseWriter, r *http.Request)
 
 	id, err := m.db.CreateReport(session.DID, req.SubjectDID, req.SubjectURI, req.ReasonType, req.ReasonText)
 	if err != nil {
-		log.Printf("Failed to create report: %v", err)
+		logger.Error("Failed to create report: %v", err)
 		http.Error(w, "Failed to submit report", http.StatusInternalServerError)
 		return
 	}
@@ -389,7 +389,7 @@ func (m *ModerationHandler) AdminTakeAction(w http.ResponseWriter, r *http.Reque
 	}
 
 	if err := m.db.CreateModerationAction(req.ReportID, session.DID, req.Action, req.Comment); err != nil {
-		log.Printf("Failed to create moderation action: %v", err)
+		logger.Error("Failed to create moderation action: %v", err)
 		http.Error(w, "Failed to take action", http.StatusInternalServerError)
 		return
 	}
@@ -410,7 +410,7 @@ func (m *ModerationHandler) AdminTakeAction(w http.ResponseWriter, r *http.Reque
 	}
 
 	if err := m.db.ResolveReport(req.ReportID, session.DID, resolveStatus); err != nil {
-		log.Printf("Failed to resolve report: %v", err)
+		logger.Error("Failed to resolve report: %v", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -531,7 +531,7 @@ func (m *ModerationHandler) AdminCreateLabel(w http.ResponseWriter, r *http.Requ
 	}
 
 	if err := m.db.CreateContentLabel(labelerDID, targetURI, req.Val, session.DID); err != nil {
-		log.Printf("Failed to create content label: %v", err)
+		logger.Error("Failed to create content label: %v", err)
 		http.Error(w, "Failed to create label", http.StatusInternalServerError)
 		return
 	}

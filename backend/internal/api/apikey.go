@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"margin.at/internal/db"
+	"margin.at/internal/logger"
 	"margin.at/internal/xrpc"
 )
 
@@ -73,7 +73,7 @@ func (h *APIKeyHandler) CreateKey(w http.ResponseWriter, r *http.Request) {
 		return createErr
 	})
 	if err != nil {
-		log.Printf("[ERROR] Failed to create API key record on PDS: %v", err)
+		logger.Error("[ERROR] Failed to create API key record on PDS: %v", err)
 		http.Error(w, "Failed to create key record: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -92,7 +92,7 @@ func (h *APIKeyHandler) CreateKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.db.CreateAPIKey(apiKey); err != nil {
-		log.Printf("[ERROR] Failed to insert API key into DB: %v", err)
+		logger.Error("[ERROR] Failed to insert API key into DB: %v", err)
 		http.Error(w, "Failed to create key", http.StatusInternalServerError)
 		return
 	}

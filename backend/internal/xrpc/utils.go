@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
 
 	"margin.at/internal/config"
+	"margin.at/internal/logger"
 	"margin.at/internal/slingshot"
 )
 
@@ -84,7 +84,7 @@ func (a *ATURI) String() string {
 }
 
 func init() {
-	log.Printf("Slingshot client initialized: %s", slingshot.DefaultBaseURL)
+	logger.Info("Slingshot client initialized: %s", slingshot.DefaultBaseURL)
 }
 
 func ResolveDIDToPDS(did string) (string, error) {

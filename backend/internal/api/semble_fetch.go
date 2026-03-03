@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"margin.at/internal/db"
+	"margin.at/internal/logger"
 	"margin.at/internal/xrpc"
 )
 
@@ -56,7 +56,7 @@ func ensureSembleCardsIndexed(ctx context.Context, database *db.DB, uris []strin
 		return
 	}
 
-	log.Printf("Active Cache: Fetching %d missing Semble cards...", len(missing))
+	logger.Info("Active Cache: Fetching %d missing Semble cards...", len(missing))
 	fetchAndIndexSembleCards(ctx, database, missing)
 }
 
@@ -84,7 +84,7 @@ func fetchAndIndexSembleCards(ctx context.Context, database *db.DB, uris []strin
 
 			if err := fetchSembleCard(ctx, database, u); err != nil {
 				if ctx.Err() == nil {
-					log.Printf("Failed to lazy fetch card %s: %v", u, err)
+					logger.Error("Failed to lazy fetch card %s: %v", u, err)
 				}
 			}
 		}(uri)

@@ -8,12 +8,12 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"time"
 
 	"margin.at/internal/db"
+	"margin.at/internal/logger"
 	"margin.at/internal/oauth"
 	"margin.at/internal/xrpc"
 )
@@ -156,7 +156,7 @@ func (tr *TokenRefresher) RefreshSessionToken(r *http.Request, session *SessionD
 		return nil, fmt.Errorf("failed to save refreshed session: %w", err)
 	}
 
-	log.Printf("Successfully refreshed token for user %s", session.Handle)
+	logger.Info("Successfully refreshed token for user %s", session.Handle)
 
 	return &SessionData{
 		ID:           session.ID,
@@ -194,11 +194,11 @@ func (tr *TokenRefresher) ExecuteWithAutoRefresh(
 		return err
 	}
 
-	log.Printf("Token expired for user %s, attempting refresh...", session.Handle)
+	logger.Info("Token expired for user %s, attempting refresh...", session.Handle)
 
 	newSession, refreshErr := tr.RefreshSessionToken(r, session)
 	if refreshErr != nil {
-		log.Printf("Token refresh failed for user %s, invalidating session: %v", session.Handle, refreshErr)
+		logger.Error("Token refresh failed for user %s, invalidating session: %v", session.Handle, refreshErr)
 		tr.db.DeleteSession(session.ID)
 		return fmt.Errorf("%w: %v", ErrSessionInvalid, refreshErr)
 	}

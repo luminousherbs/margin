@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,6 +16,7 @@ import (
 	"margin.at/internal/api"
 	"margin.at/internal/db"
 	"margin.at/internal/firehose"
+	"margin.at/internal/logger"
 	internalMiddleware "margin.at/internal/middleware"
 	"margin.at/internal/oauth"
 	"margin.at/internal/sync"
@@ -27,28 +27,28 @@ func main() {
 
 	database, err := db.New(getEnv("DATABASE_URL", "margin.db"))
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		logger.Fatal("Failed to connect to database: %v", err)
 	}
 	defer database.Close()
 
 	if err := database.Migrate(); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
+		logger.Fatal("Failed to run migrations: %v", err)
 	}
 
 	syncSvc := sync.NewService(database)
 
 	oauthHandler, err := oauth.NewHandler(database, syncSvc)
 	if err != nil {
-		log.Fatalf("Failed to initialize OAuth: %v", err)
+		logger.Fatal("Failed to initialize OAuth: %v", err)
 	}
 
 	ingester := firehose.NewIngester(database, syncSvc)
 	firehose.RelayURL = getEnv("BLOCK_RELAY_URL", "wss://jetstream2.us-east.bsky.network/subscribe")
-	log.Printf("Firehose URL: %s", firehose.RelayURL)
+	logger.Info("Firehose URL: %s", firehose.RelayURL)
 
 	go func() {
 		if err := ingester.Start(context.Background()); err != nil {
-			log.Printf("Firehose ingester error: %v", err)
+			logger.Error("Firehose ingester error: %v", err)
 		}
 	}()
 
@@ -114,9 +114,9 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Margin API server running on :%s", port)
+		logger.Info("Margin API server running on :%s", port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server error: %v", err)
+			logger.Fatal("Server error: %v", err)
 		}
 	}()
 
@@ -124,17 +124,17 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down server...")
+	logger.Infoln("Shutting down server...")
 	ingester.Stop()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
+		logger.Fatal("Server forced to shutdown: %v", err)
 	}
 
-	log.Println("Server exited")
+	logger.Infoln("Server exited")
 }
 
 func getEnv(key, fallback string) string {

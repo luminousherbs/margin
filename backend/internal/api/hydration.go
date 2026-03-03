@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"margin.at/internal/config"
 	"margin.at/internal/constellation"
 	"margin.at/internal/db"
+	"margin.at/internal/logger"
 )
 
 var (
@@ -22,7 +22,7 @@ var (
 )
 
 func init() {
-	log.Printf("Constellation client initialized: %s", constellation.DefaultBaseURL)
+	logger.Info("Constellation client initialized: %s", constellation.DefaultBaseURL)
 }
 
 type Author struct {
@@ -188,7 +188,7 @@ func fetchCounts(ctx context.Context, database *db.DB, uris []string, viewerDID 
 	if ConstellationClient != nil && len(uris) <= 5 {
 		constellationCounts, err := ConstellationClient.GetCountsBatch(ctx, uris)
 		if err != nil {
-			log.Printf("Constellation fetch error (non-fatal): %v", err)
+			logger.Error("Constellation fetch error (non-fatal): %v", err)
 			return
 		}
 
@@ -581,13 +581,13 @@ func fetchProfiles(dids []string) (map[string]Author, error) {
 
 	resp, err := http.Get(config.Get().BskyGetProfilesURL() + "?" + q.Encode())
 	if err != nil {
-		log.Printf("Hydration fetch error: %v\n", err)
+		logger.Error("Hydration fetch error: %v", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		log.Printf("Hydration fetch status error: %d\n", resp.StatusCode)
+		logger.Error("Hydration fetch status error: %d", resp.StatusCode)
 		return nil, fmt.Errorf("failed to fetch profiles: %d", resp.StatusCode)
 	}
 
@@ -770,9 +770,12 @@ func hydrateNotifications(database *db.DB, notifications []db.Notification) ([]A
 	profiles := fetchProfilesForDIDs(database, dids)
 
 	replyURIs := make([]string, 0)
+	contentURIs := make([]string, 0)
 	for _, n := range notifications {
 		if n.Type == "reply" {
 			replyURIs = append(replyURIs, n.SubjectURI)
+		} else if n.Type != "follow" && n.SubjectURI != "" {
+			contentURIs = append(contentURIs, n.SubjectURI)
 		}
 	}
 
@@ -787,11 +790,37 @@ func hydrateNotifications(database *db.DB, notifications []db.Notification) ([]A
 		}
 	}
 
+	contentMap := make(map[string]interface{})
+	if len(contentURIs) > 0 {
+		if annotations, err := database.GetAnnotationsByURIs(contentURIs); err == nil && len(annotations) > 0 {
+			hydratedAnnotations, _ := hydrateAnnotations(database, annotations, "")
+			for _, a := range hydratedAnnotations {
+				contentMap[a.ID] = a
+			}
+		}
+		if highlights, err := database.GetHighlightsByURIs(contentURIs); err == nil && len(highlights) > 0 {
+			hydratedHighlights, _ := hydrateHighlights(database, highlights, "")
+			for _, h := range hydratedHighlights {
+				contentMap[h.ID] = h
+			}
+		}
+		if bookmarks, err := database.GetBookmarksByURIs(contentURIs); err == nil && len(bookmarks) > 0 {
+			hydratedBookmarks, _ := hydrateBookmarks(database, bookmarks, "")
+			for _, b := range hydratedBookmarks {
+				contentMap[b.ID] = b
+			}
+		}
+	}
+
 	result := make([]APINotification, len(notifications))
 	for i, n := range notifications {
 		var subject interface{}
 		if n.Type == "reply" {
 			if val, ok := replyMap[n.SubjectURI]; ok {
+				subject = val
+			}
+		} else if n.SubjectURI != "" {
+			if val, ok := contentMap[n.SubjectURI]; ok {
 				subject = val
 			}
 		}

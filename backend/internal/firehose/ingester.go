@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"margin.at/internal/crypto"
 	"margin.at/internal/db"
+	"margin.at/internal/logger"
 	internal_sync "margin.at/internal/sync"
 	"margin.at/internal/xrpc"
 )
@@ -104,11 +104,11 @@ func (i *Ingester) run(ctx context.Context) {
 		default:
 			if err := i.subscribe(ctx); err != nil {
 				consecutiveFailures++
-				log.Printf("Jetstream error (relay %d): %v, reconnecting in 5s...", i.currentRelayIdx, err)
+				logger.Error("Jetstream error (relay %d): %v, reconnecting in 5s...", i.currentRelayIdx, err)
 
 				if consecutiveFailures >= maxFailuresBeforeSwitch {
 					i.currentRelayIdx = (i.currentRelayIdx + 1) % len(RelayURLs)
-					log.Printf("Switching to relay %d: %s", i.currentRelayIdx, RelayURLs[i.currentRelayIdx])
+					logger.Info("Switching to relay %d: %s", i.currentRelayIdx, RelayURLs[i.currentRelayIdx])
 					consecutiveFailures = 0
 				}
 
@@ -153,7 +153,7 @@ func (i *Ingester) subscribe(ctx context.Context) error {
 		url = fmt.Sprintf("%s&cursor=%d", url, cursor)
 	}
 
-	log.Printf("Connecting to Jetstream: %s", url)
+	logger.Info("Connecting to Jetstream: %s", url)
 
 	conn, _, err := websocket.DefaultDialer.DialContext(ctx, url, nil)
 	if err != nil {
@@ -161,7 +161,7 @@ func (i *Ingester) subscribe(ctx context.Context) error {
 	}
 	defer conn.Close()
 
-	log.Printf("Connected to Jetstream")
+	logger.Info("Connected to Jetstream")
 
 	for {
 		select {
@@ -185,7 +185,7 @@ func (i *Ingester) subscribe(ctx context.Context) error {
 
 			if event.Time > 0 {
 				if err := i.db.SetCursor("firehose_cursor", event.Time); err != nil {
-					log.Printf("Failed to save cursor: %v", err)
+					logger.Error("Failed to save cursor: %v", err)
 				}
 			}
 		}
@@ -201,7 +201,7 @@ func (i *Ingester) handleCommit(event JetstreamEvent) {
 		if len(commit.Record) > 0 {
 			if CIDVerificationEnabled && commit.Cid != "" {
 				if err := crypto.VerifyRecordCID(commit.Record, commit.Cid, uri); err != nil {
-					log.Printf("CID verification failed for %s: %v (skipping)", uri, err)
+					logger.Error("CID verification failed for %s: %v (skipping)", uri, err)
 					return
 				}
 			}
@@ -254,7 +254,7 @@ func (i *Ingester) triggerLazySync(did string) {
 	})
 
 	if err == nil {
-		log.Printf("Auto-synced repo for active user: %s", did)
+		logger.Info("Auto-synced repo for active user: %s", did)
 	}
 }
 
@@ -294,7 +294,7 @@ func (i *Ingester) handleDelete(collection, uri string) {
 func (i *Ingester) getLastCursor() int64 {
 	cursor, err := i.db.GetCursor("firehose_cursor")
 	if err != nil {
-		log.Printf("Failed to get last cursor from DB: %v", err)
+		logger.Error("Failed to get last cursor from DB: %v", err)
 		return 0
 	}
 	return cursor
@@ -410,9 +410,9 @@ func (i *Ingester) handleAnnotation(event *FirehoseEvent) {
 	}
 
 	if err := i.db.CreateAnnotation(annotation); err != nil {
-		log.Printf("Failed to index annotation: %v", err)
+		logger.Error("Failed to index annotation: %v", err)
 	} else {
-		log.Printf("Indexed annotation from %s on %s", event.Repo, targetSource)
+		logger.Info("Indexed annotation from %s on %s", event.Repo, targetSource)
 	}
 }
 
@@ -542,9 +542,9 @@ func (i *Ingester) handleHighlight(event *FirehoseEvent) {
 	}
 
 	if err := i.db.CreateHighlight(highlight); err != nil {
-		log.Printf("Failed to index highlight: %v", err)
+		logger.Error("Failed to index highlight: %v", err)
 	} else {
-		log.Printf("Indexed highlight from %s on %s", event.Repo, record.Target.Source)
+		logger.Info("Indexed highlight from %s on %s", event.Repo, record.Target.Source)
 	}
 }
 
@@ -600,9 +600,9 @@ func (i *Ingester) handleBookmark(event *FirehoseEvent) {
 	}
 
 	if err := i.db.CreateBookmark(bookmark); err != nil {
-		log.Printf("Failed to index bookmark: %v", err)
+		logger.Error("Failed to index bookmark: %v", err)
 	} else {
-		log.Printf("Indexed bookmark from %s: %s", event.Repo, record.Source)
+		logger.Info("Indexed bookmark from %s: %s", event.Repo, record.Source)
 	}
 }
 
@@ -644,9 +644,9 @@ func (i *Ingester) handleCollection(event *FirehoseEvent) {
 	}
 
 	if err := i.db.CreateCollection(collection); err != nil {
-		log.Printf("Failed to index collection: %v", err)
+		logger.Error("Failed to index collection: %v", err)
 	} else {
-		log.Printf("Indexed collection from %s: %s", event.Repo, record.Name)
+		logger.Info("Indexed collection from %s: %s", event.Repo, record.Name)
 	}
 }
 
@@ -680,9 +680,9 @@ func (i *Ingester) handleCollectionItem(event *FirehoseEvent) {
 	}
 
 	if err := i.db.AddToCollection(item); err != nil {
-		log.Printf("Failed to index collection item: %v", err)
+		logger.Error("Failed to index collection item: %v", err)
 	} else {
-		log.Printf("Indexed collection item from %s", event.Repo)
+		logger.Info("Indexed collection item from %s", event.Repo)
 	}
 }
 
@@ -738,9 +738,9 @@ func (i *Ingester) handleProfile(event *FirehoseEvent) {
 	}
 
 	if err := i.db.UpsertProfile(profile); err != nil {
-		log.Printf("Failed to index profile: %v", err)
+		logger.Error("Failed to index profile: %v", err)
 	} else {
-		log.Printf("Indexed profile from %s", event.Repo)
+		logger.Info("Indexed profile from %s", event.Repo)
 	}
 }
 
@@ -779,9 +779,9 @@ func (i *Ingester) handleAPIKey(event *FirehoseEvent) {
 	}
 
 	if err := i.db.CreateAPIKey(apiKey); err != nil {
-		log.Printf("Failed to index API key: %v", err)
+		logger.Error("Failed to index API key: %v", err)
 	} else {
-		log.Printf("Indexed API key from %s: %s", event.Repo, record.Name)
+		logger.Info("Indexed API key from %s: %s", event.Repo, record.Name)
 	}
 }
 
@@ -846,9 +846,9 @@ func (i *Ingester) handlePreferences(event *FirehoseEvent) {
 	}
 
 	if err := i.db.UpsertPreferences(prefs); err != nil {
-		log.Printf("Failed to index preferences: %v", err)
+		logger.Error("Failed to index preferences: %v", err)
 	} else {
-		log.Printf("Indexed preferences from %s", event.Repo)
+		logger.Info("Indexed preferences from %s", event.Repo)
 	}
 }
 
@@ -915,12 +915,12 @@ func (i *Ingester) handleSembleCard(event *FirehoseEvent) {
 			IndexedAt:    time.Now(),
 		}
 		if err := i.db.CreateAnnotation(annotation); err != nil {
-			log.Printf("Failed to index Semble NOTE as annotation: %v", err)
+			logger.Error("Failed to index Semble NOTE as annotation: %v", err)
 		} else {
 			if card.ParentCard != nil {
-				log.Printf("Indexed Semble NOTE from %s on %s (Parent: %s)", event.Repo, targetSource, card.ParentCard.URI)
+				logger.Info("Indexed Semble NOTE from %s on %s (Parent: %s)", event.Repo, targetSource, card.ParentCard.URI)
 			} else {
-				log.Printf("Indexed Semble NOTE from %s on %s", event.Repo, targetSource)
+				logger.Info("Indexed Semble NOTE from %s on %s", event.Repo, targetSource)
 			}
 		}
 
@@ -952,9 +952,9 @@ func (i *Ingester) handleSembleCard(event *FirehoseEvent) {
 			IndexedAt:  time.Now(),
 		}
 		if err := i.db.CreateBookmark(bookmark); err != nil {
-			log.Printf("Failed to index Semble URL as bookmark: %v", err)
+			logger.Error("Failed to index Semble URL as bookmark: %v", err)
 		} else {
-			log.Printf("Indexed Semble URL from %s: %s", event.Repo, source)
+			logger.Info("Indexed Semble URL from %s: %s", event.Repo, source)
 		}
 	}
 }
@@ -989,9 +989,9 @@ func (i *Ingester) handleSembleCollection(event *FirehoseEvent) {
 	}
 
 	if err := i.db.CreateCollection(collection); err != nil {
-		log.Printf("Failed to index Semble collection: %v", err)
+		logger.Error("Failed to index Semble collection: %v", err)
 	} else {
-		log.Printf("Indexed Semble collection from %s: %s", event.Repo, record.Name)
+		logger.Info("Indexed Semble collection from %s: %s", event.Repo, record.Name)
 	}
 }
 
@@ -1018,8 +1018,8 @@ func (i *Ingester) handleSembleCollectionLink(event *FirehoseEvent) {
 	}
 
 	if err := i.db.AddToCollection(item); err != nil {
-		log.Printf("Failed to index Semble collection link: %v", err)
+		logger.Error("Failed to index Semble collection link: %v", err)
 	} else {
-		log.Printf("Indexed Semble collection link from %s", event.Repo)
+		logger.Info("Indexed Semble collection link from %s", event.Repo)
 	}
 }

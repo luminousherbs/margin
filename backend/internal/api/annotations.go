@@ -3,13 +3,13 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
 
 	"margin.at/internal/db"
+	"margin.at/internal/logger"
 	"margin.at/internal/xrpc"
 )
 
@@ -220,12 +220,12 @@ func (s *AnnotationService) CreateAnnotation(w http.ResponseWriter, r *http.Requ
 	}
 
 	if err := s.db.CreateAnnotation(annotation); err != nil {
-		log.Printf("Warning: failed to index annotation in local DB: %v", err)
+		logger.Error("Warning: failed to index annotation in local DB: %v", err)
 	}
 
 	for _, label := range validLabels {
 		if err := s.db.CreateContentLabel(session.DID, result.URI, label, session.DID); err != nil {
-			log.Printf("Warning: failed to create self-label %s: %v", label, err)
+			logger.Error("Warning: failed to create self-label %s: %v", label, err)
 		}
 	}
 
@@ -271,7 +271,7 @@ func (s *AnnotationService) DeleteAnnotation(w http.ResponseWriter, r *http.Requ
 		return client.DeleteRecord(r.Context(), did, collection, rkey)
 	})
 	if pdsErr != nil {
-		log.Printf("PDS delete failed (will still clean local DB): %v", pdsErr)
+		logger.Error("PDS delete failed (will still clean local DB): %v", pdsErr)
 	}
 
 	// Always clean up local DB regardless of PDS result
@@ -338,14 +338,14 @@ func (s *AnnotationService) UpdateAnnotation(w http.ResponseWriter, r *http.Requ
 
 	if annotation.BodyValue != nil {
 		previousContent := *annotation.BodyValue
-		log.Printf("[DEBUG] Saving edit history for %s. Previous content: %s", uri, previousContent)
+		logger.Info("[DEBUG] Saving edit history for %s. Previous content: %s", uri, previousContent)
 		if err := s.db.SaveEditHistory(uri, "annotation", previousContent, annotation.CID); err != nil {
-			log.Printf("Failed to save edit history for %s: %v", uri, err)
+			logger.Error("Failed to save edit history for %s: %v", uri, err)
 		} else {
-			log.Printf("[DEBUG] Successfully saved edit history for %s", uri)
+			logger.Info("[DEBUG] Successfully saved edit history for %s", uri)
 		}
 	} else {
-		log.Printf("[DEBUG] Annotation BodyValue is nil for %s", uri)
+		logger.Info("[DEBUG] Annotation BodyValue is nil for %s", uri)
 	}
 
 	var result *xrpc.PutRecordOutput
@@ -386,7 +386,7 @@ func (s *AnnotationService) UpdateAnnotation(w http.ResponseWriter, r *http.Requ
 		var updateErr error
 		result, updateErr = client.PutRecord(r.Context(), did, xrpc.CollectionAnnotation, rkey, record)
 		if updateErr != nil {
-			log.Printf("UpdateAnnotation failed: %v. Retrying with delete-then-create workaround.", updateErr)
+			logger.Error("UpdateAnnotation failed: %v. Retrying with delete-then-create workaround.", updateErr)
 			_ = client.DeleteRecord(r.Context(), did, xrpc.CollectionAnnotation, rkey)
 			result, updateErr = client.PutRecord(r.Context(), did, xrpc.CollectionAnnotation, rkey, record)
 		}
@@ -394,7 +394,7 @@ func (s *AnnotationService) UpdateAnnotation(w http.ResponseWriter, r *http.Requ
 	})
 
 	if err != nil {
-		log.Printf("[UpdateAnnotation] Failed: %v", err)
+		logger.Error("[UpdateAnnotation] Failed: %v", err)
 		HandleAPIError(w, r, err, "Failed to update record: ", http.StatusInternalServerError)
 		return
 	}
@@ -409,7 +409,7 @@ func (s *AnnotationService) UpdateAnnotation(w http.ResponseWriter, r *http.Requ
 		}
 	}
 	if err := s.db.SyncSelfLabels(session.DID, uri, validLabels); err != nil {
-		log.Printf("Warning: failed to sync self-labels: %v", err)
+		logger.Error("Warning: failed to sync self-labels: %v", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -610,6 +610,21 @@ func (s *AnnotationService) CreateReply(w http.ResponseWriter, r *http.Request) 
 		})
 	}
 
+	if req.RootURI != req.ParentURI {
+		if rootAuthorDID, err := s.db.GetAuthorByURI(req.RootURI); err == nil && rootAuthorDID != session.DID {
+			parentAuthorDID, _ := s.db.GetAuthorByURI(req.ParentURI)
+			if rootAuthorDID != parentAuthorDID {
+				s.db.CreateNotification(&db.Notification{
+					RecipientDID: rootAuthorDID,
+					ActorDID:     session.DID,
+					Type:         "reply",
+					SubjectURI:   result.URI,
+					CreatedAt:    time.Now(),
+				})
+			}
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"uri": result.URI})
 }
@@ -758,7 +773,7 @@ func (s *AnnotationService) CreateHighlight(w http.ResponseWriter, r *http.Reque
 
 	for _, label := range validLabels {
 		if err := s.db.CreateContentLabel(session.DID, result.URI, label, session.DID); err != nil {
-			log.Printf("Warning: failed to create self-label %s: %v", label, err)
+			logger.Error("Warning: failed to create self-label %s: %v", label, err)
 		}
 	}
 
@@ -871,7 +886,7 @@ func (s *AnnotationService) DeleteHighlight(w http.ResponseWriter, r *http.Reque
 		return client.DeleteRecord(r.Context(), did, xrpc.CollectionHighlight, rkey)
 	})
 	if pdsErr != nil {
-		log.Printf("PDS delete highlight failed (will still clean local DB): %v", pdsErr)
+		logger.Error("PDS delete highlight failed (will still clean local DB): %v", pdsErr)
 	}
 
 	uri := "at://" + session.DID + "/" + xrpc.CollectionHighlight + "/" + rkey
@@ -898,7 +913,7 @@ func (s *AnnotationService) DeleteBookmark(w http.ResponseWriter, r *http.Reques
 		return client.DeleteRecord(r.Context(), did, xrpc.CollectionBookmark, rkey)
 	})
 	if pdsErr != nil {
-		log.Printf("PDS delete bookmark failed (will still clean local DB): %v", pdsErr)
+		logger.Error("PDS delete bookmark failed (will still clean local DB): %v", pdsErr)
 	}
 
 	uri := "at://" + session.DID + "/" + xrpc.CollectionBookmark + "/" + rkey
@@ -978,7 +993,7 @@ func (s *AnnotationService) UpdateHighlight(w http.ResponseWriter, r *http.Reque
 		var updateErr error
 		result, updateErr = client.PutRecord(r.Context(), did, xrpc.CollectionHighlight, rkey, record)
 		if updateErr != nil {
-			log.Printf("UpdateHighlight failed: %v. Retrying with delete-then-create workaround.", updateErr)
+			logger.Error("UpdateHighlight failed: %v. Retrying with delete-then-create workaround.", updateErr)
 			_ = client.DeleteRecord(r.Context(), did, xrpc.CollectionHighlight, rkey)
 			result, updateErr = client.PutRecord(r.Context(), did, xrpc.CollectionHighlight, rkey, record)
 		}
@@ -1005,7 +1020,7 @@ func (s *AnnotationService) UpdateHighlight(w http.ResponseWriter, r *http.Reque
 		}
 	}
 	if err := s.db.SyncSelfLabels(session.DID, uri, validLabels); err != nil {
-		log.Printf("Warning: failed to sync self-labels: %v", err)
+		logger.Error("Warning: failed to sync self-labels: %v", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -1086,7 +1101,7 @@ func (s *AnnotationService) UpdateBookmark(w http.ResponseWriter, r *http.Reques
 		var updateErr error
 		result, updateErr = client.PutRecord(r.Context(), did, xrpc.CollectionBookmark, rkey, record)
 		if updateErr != nil {
-			log.Printf("UpdateBookmark failed: %v. Retrying with delete-then-create workaround.", updateErr)
+			logger.Error("UpdateBookmark failed: %v. Retrying with delete-then-create workaround.", updateErr)
 			_ = client.DeleteRecord(r.Context(), did, xrpc.CollectionBookmark, rkey)
 			result, updateErr = client.PutRecord(r.Context(), did, xrpc.CollectionBookmark, rkey, record)
 		}
@@ -1113,7 +1128,7 @@ func (s *AnnotationService) UpdateBookmark(w http.ResponseWriter, r *http.Reques
 		}
 	}
 	if err := s.db.SyncSelfLabels(session.DID, uri, validLabels); err != nil {
-		log.Printf("Warning: failed to sync self-labels: %v", err)
+		logger.Error("Warning: failed to sync self-labels: %v", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
