@@ -7,7 +7,7 @@ import {
   removeCollectionItem,
   resolveHandle,
 } from "../../api/client";
-import { Loader2, ArrowLeft, Trash2, Plus } from "lucide-react";
+import { Loader2, ArrowLeft, Trash2, Plus, ExternalLink } from "lucide-react";
 import CollectionIcon from "../../components/common/CollectionIcon";
 import ShareMenu from "../../components/modals/ShareMenu";
 import Card from "../../components/common/Card";
@@ -114,6 +114,15 @@ export default function CollectionDetail({
   }
 
   const isOwner = user?.did === collection.creator?.did;
+  const isSemble = collection.uri?.includes("network.cosmik");
+
+  const sembleUrl = (() => {
+    if (!isSemble) return "";
+    const parts = collection.uri.split("/");
+    const rk = parts[parts.length - 1];
+    const h = collection.creator?.handle || "";
+    return `https://semble.so/profile/${h}/collections/${rk}`;
+  })();
 
   return (
     <div className="animate-fade-in max-w-2xl mx-auto">
@@ -162,7 +171,7 @@ export default function CollectionDetail({
               type="Collection"
               text={collection.name}
             />
-            {isOwner && (
+            {isOwner && !isSemble && (
               <>
                 <button
                   onClick={() => setIsEditModalOpen(true)}
@@ -179,6 +188,18 @@ export default function CollectionDetail({
                   <Trash2 size={18} />
                 </button>
               </>
+            )}
+            {isSemble && (
+              <a
+                href={sembleUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+              >
+                <img src="/semble-logo.svg" alt="" className="w-3.5 h-3.5" />
+                View in Semble
+                <ExternalLink size={12} />
+              </a>
             )}
           </div>
         </div>
@@ -209,7 +230,7 @@ export default function CollectionDetail({
           items.map((item) => (
             <div key={item.uri} className="relative group">
               <Card item={item} hideShare />
-              {isOwner && item.collectionItemUri && (
+              {isOwner && !isSemble && item.collectionItemUri && (
                 <button
                   className="absolute top-3 right-3 p-1.5 bg-white/90 dark:bg-surface-800/90 backdrop-blur text-surface-400 dark:text-surface-500 hover:text-red-500 dark:hover:text-red-400 rounded-lg shadow-sm transition-all"
                   onClick={() => handleRemoveItem(item)}

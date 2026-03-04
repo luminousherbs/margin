@@ -11,7 +11,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
 		<div class="prose prose-surface dark:prose-invert max-w-none">
 			<h1 class="font-display font-bold text-3xl mb-2 text-surface-900 dark:text-white">Privacy Policy</h1>
-			<p class="text-surface-500 dark:text-surface-400 mb-8">Last updated: February 24, 2026</p>
+			<p class="text-surface-500 dark:text-surface-400 mb-8">Last updated: March 4, 2026</p>
 
 			<section class="mb-8">
 				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Overview</h2>
@@ -42,6 +42,18 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 					<li>Collections you organize content into</li>
 				</ul>
 
+				<h3 class="text-lg font-semibold text-surface-900 dark:text-white mb-2">Discover & Recommendations</h3>
+				<p class="text-surface-700 dark:text-surface-300 mb-4">
+					To power the Discover page and personalized recommendations, we generate mathematical representations (embeddings) of:
+				</p>
+				<ul class="list-disc pl-5 mb-4 text-surface-700 dark:text-surface-300 space-y-1">
+					<li>Your annotations, highlights, and their associated tags</li>
+					<li>Publicly published documents from the AT Protocol network</li>
+				</ul>
+				<p class="text-surface-700 dark:text-surface-300 mb-4">
+					These embeddings are used to build an interest profile that helps us suggest relevant content. Your interest profile is stored on our server and is not shared with other users.
+				</p>
+
 				<h3 class="text-lg font-semibold text-surface-900 dark:text-white mb-2">Authentication</h3>
 				<p class="text-surface-700 dark:text-surface-300 mb-4">
 					We store OAuth session tokens locally in your browser to keep you logged in. These tokens are used solely for authenticating API requests.
@@ -56,7 +68,13 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 					<li>Sync your content across devices</li>
 					<li>Show your public annotations to other users</li>
 					<li>Enable social features like replies and likes</li>
+					<li>Generate personalized content recommendations on the Discover page</li>
 				</ul>
+
+				<h3 class="text-lg font-semibold text-surface-900 dark:text-white mb-2">Third-Party Services</h3>
+				<p class="text-surface-700 dark:text-surface-300 mb-4">
+					We use <strong>OpenAI</strong> to generate text embeddings for powering recommendations. When generating embeddings, the text content of your annotations and public documents is sent to OpenAI's API. OpenAI processes this data according to their <a href="https://openai.com/policies/api-data-usage-policies" class="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline" target="_blank" rel="noopener noreferrer">API data usage policy</a>, which states that API inputs are not used to train their models. No other third-party services receive your data.
+				</p>
 			</section>
 
 			<section class="mb-8">

@@ -18,6 +18,8 @@ const (
 	CollectionProfile        = "at.margin.profile"
 	CollectionPreferences    = "at.margin.preferences"
 	CollectionAPIKey         = "at.margin.apikey"
+	CollectionDocument       = "site.standard.document"
+	CollectionPublication    = "site.standard.publication"
 )
 
 const (

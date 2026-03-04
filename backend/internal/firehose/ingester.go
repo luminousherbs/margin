@@ -12,7 +12,9 @@ import (
 	"margin.at/internal/crypto"
 	"margin.at/internal/db"
 	"margin.at/internal/logger"
+	"margin.at/internal/standardsite"
 	internal_sync "margin.at/internal/sync"
+	"margin.at/internal/verification"
 	"margin.at/internal/xrpc"
 )
 
@@ -31,6 +33,8 @@ const (
 	CollectionPreferences      = "at.margin.preferences"
 	CollectionSembleCard       = "network.cosmik.card"
 	CollectionSembleCollection = "network.cosmik.collection"
+	CollectionDocument         = "site.standard.document"
+	CollectionPublication      = "site.standard.publication"
 )
 
 var RelayURLs = []string{
@@ -41,12 +45,18 @@ var RelayURLs = []string{
 
 var RelayURL = RelayURLs[0]
 
+type AnnotationCallback func(uri, authorDID, targetSource string, bodyValue, selectorJSON, targetTitle, tagsJSON *string)
+
+type DocumentCallback func(documentURI string)
+
 type Ingester struct {
 	db              *db.DB
 	sync            *internal_sync.Service
 	cancel          context.CancelFunc
 	handlers        map[string]RecordHandler
 	currentRelayIdx int
+	onAnnotation    AnnotationCallback
+	onDocument      DocumentCallback
 }
 
 type RecordHandler func(event *FirehoseEvent)
@@ -71,12 +81,21 @@ func NewIngester(database *db.DB, syncService *internal_sync.Service) *Ingester 
 	i.RegisterHandler(CollectionSembleCard, i.handleSembleCard)
 	i.RegisterHandler(CollectionSembleCollection, i.handleSembleCollection)
 	i.RegisterHandler(xrpc.CollectionSembleCollectionLink, i.handleSembleCollectionLink)
+	i.RegisterHandler(CollectionDocument, i.handleDocument)
 
 	return i
 }
 
 func (i *Ingester) RegisterHandler(collection string, handler RecordHandler) {
 	i.handlers[collection] = handler
+}
+
+func (i *Ingester) SetOnAnnotation(cb AnnotationCallback) {
+	i.onAnnotation = cb
+}
+
+func (i *Ingester) SetOnDocument(cb DocumentCallback) {
+	i.onDocument = cb
 }
 
 func (i *Ingester) Start(ctx context.Context) error {
@@ -287,7 +306,8 @@ func (i *Ingester) handleDelete(collection, uri string) {
 		i.db.DeleteCollection(uri)
 	case xrpc.CollectionSembleCollectionLink:
 		i.db.RemoveFromCollection(uri)
-
+	case CollectionDocument:
+		i.db.DeleteDocument(uri)
 	}
 }
 
@@ -413,6 +433,9 @@ func (i *Ingester) handleAnnotation(event *FirehoseEvent) {
 		logger.Error("Failed to index annotation: %v", err)
 	} else {
 		logger.Info("Indexed annotation from %s on %s", event.Repo, targetSource)
+		if i.onAnnotation != nil {
+			go i.onAnnotation(uri, event.Repo, targetSource, bodyValuePtr, selectorJSONPtr, targetTitlePtr, tagsJSONPtr)
+		}
 	}
 }
 
@@ -545,6 +568,9 @@ func (i *Ingester) handleHighlight(event *FirehoseEvent) {
 		logger.Error("Failed to index highlight: %v", err)
 	} else {
 		logger.Info("Indexed highlight from %s on %s", event.Repo, record.Target.Source)
+		if i.onAnnotation != nil {
+			go i.onAnnotation(uri, event.Repo, record.Target.Source, nil, selectorJSONPtr, titlePtr, tagsJSONPtr)
+		}
 	}
 }
 
@@ -1022,4 +1048,78 @@ func (i *Ingester) handleSembleCollectionLink(event *FirehoseEvent) {
 	} else {
 		logger.Info("Indexed Semble collection link from %s", event.Repo)
 	}
+}
+
+func (i *Ingester) handleDocument(event *FirehoseEvent) {
+	var record struct {
+		Site         string   `json:"site"`
+		Path         string   `json:"path"`
+		Title        string   `json:"title"`
+		Description  string   `json:"description"`
+		TextContent  string   `json:"textContent"`
+		Tags         []string `json:"tags"`
+		PublishedAt  string   `json:"publishedAt"`
+		CanonicalURL string   `json:"canonicalUrl"`
+	}
+
+	if err := json.Unmarshal(event.Record, &record); err != nil {
+		return
+	}
+
+	if record.Title == "" || record.Site == "" {
+		return
+	}
+
+	uri := fmt.Sprintf("at://%s/%s/%s", event.Repo, event.Collection, event.Rkey)
+
+	publishedAt, err := time.Parse(time.RFC3339, record.PublishedAt)
+	if err != nil {
+		publishedAt = time.Now()
+	}
+
+	canonicalURL := standardsite.ResolveCanonicalURL(record.Site, record.Path, record.CanonicalURL)
+	if canonicalURL == "" {
+		return
+	}
+
+	var pathPtr, descPtr, textPtr, tagsJSONPtr *string
+	if record.Path != "" {
+		pathPtr = &record.Path
+	}
+	if record.Description != "" {
+		descPtr = &record.Description
+	}
+	if record.TextContent != "" {
+		textPtr = &record.TextContent
+	}
+	if len(record.Tags) > 0 {
+		tagsBytes, _ := json.Marshal(record.Tags)
+		tagsStr := string(tagsBytes)
+		tagsJSONPtr = &tagsStr
+	}
+
+	doc := &db.Document{
+		URI:          uri,
+		AuthorDID:    event.Repo,
+		Site:         record.Site,
+		Path:         pathPtr,
+		Title:        record.Title,
+		Description:  descPtr,
+		TextContent:  textPtr,
+		TagsJSON:     tagsJSONPtr,
+		CanonicalURL: canonicalURL,
+		PublishedAt:  publishedAt,
+		IndexedAt:    time.Now(),
+	}
+
+	verification.VerifyDocumentAsync(canonicalURL, uri, func(verifiedURI string) {
+		if err := i.db.UpsertDocument(doc); err != nil {
+			logger.Error("Failed to index document: %v", err)
+		} else {
+			logger.Info("Indexed verified document from %s: %s", event.Repo, record.Title)
+			if i.onDocument != nil {
+				go i.onDocument(verifiedURI)
+			}
+		}
+	})
 }

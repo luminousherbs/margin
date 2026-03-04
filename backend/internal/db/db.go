@@ -498,6 +498,36 @@ func (db *DB) Migrate() error {
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_content_labels_uri ON content_labels(uri)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_content_labels_src ON content_labels(src)`)
 
+	db.Exec(`CREATE TABLE IF NOT EXISTS publications (
+		uri TEXT PRIMARY KEY,
+		author_did TEXT NOT NULL,
+		url TEXT NOT NULL,
+		name TEXT NOT NULL,
+		description TEXT,
+		show_in_discover BOOLEAN NOT NULL DEFAULT true,
+		indexed_at ` + dateType + ` NOT NULL
+	)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_publications_author ON publications(author_did)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_publications_url ON publications(url)`)
+
+	db.Exec(`CREATE TABLE IF NOT EXISTS documents (
+		uri TEXT PRIMARY KEY,
+		author_did TEXT NOT NULL,
+		site TEXT NOT NULL,
+		path TEXT,
+		title TEXT NOT NULL,
+		description TEXT,
+		text_content TEXT,
+		tags_json TEXT,
+		canonical_url TEXT,
+		published_at ` + dateType + ` NOT NULL,
+		indexed_at ` + dateType + ` NOT NULL
+	)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_documents_author ON documents(author_did)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_documents_site ON documents(site)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_documents_canonical ON documents(canonical_url)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_documents_published ON documents(published_at DESC)`)
+
 	db.runMigrations()
 
 	return nil

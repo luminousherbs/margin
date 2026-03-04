@@ -12,6 +12,8 @@ import (
 	"margin.at/internal/crypto"
 	"margin.at/internal/db"
 	"margin.at/internal/logger"
+	"margin.at/internal/standardsite"
+	"margin.at/internal/verification"
 	"margin.at/internal/xrpc"
 )
 
@@ -39,6 +41,7 @@ func (s *Service) PerformSync(ctx context.Context, did string, getClient func(co
 		xrpc.CollectionSembleCard,
 		xrpc.CollectionSembleCollection,
 		xrpc.CollectionSembleCollectionLink,
+		xrpc.CollectionDocument,
 	}
 
 	results := make(map[string]string)
@@ -645,6 +648,63 @@ func (s *Service) upsertRecord(did, collection, uri, cid string, value json.RawM
 			URI:       uri,
 			CID:       cidPtr,
 			IndexedAt: time.Now(),
+		})
+
+	case xrpc.CollectionDocument:
+		var record struct {
+			Site         string   `json:"site"`
+			Path         string   `json:"path"`
+			Title        string   `json:"title"`
+			Description  string   `json:"description"`
+			TextContent  string   `json:"textContent"`
+			Tags         []string `json:"tags"`
+			PublishedAt  string   `json:"publishedAt"`
+			CanonicalURL string   `json:"canonicalUrl"`
+		}
+		if err := json.Unmarshal(value, &record); err != nil {
+			return err
+		}
+		if record.Title == "" || record.Site == "" {
+			return nil
+		}
+		publishedAt, err := time.Parse(time.RFC3339, record.PublishedAt)
+		if err != nil {
+			publishedAt = time.Now()
+		}
+		canonicalURL := standardsite.ResolveCanonicalURL(record.Site, record.Path, record.CanonicalURL)
+		if canonicalURL == "" {
+			return nil
+		}
+		var pathPtr, descPtr, textPtr, tagsJSONPtr *string
+		if record.Path != "" {
+			pathPtr = &record.Path
+		}
+		if record.Description != "" {
+			descPtr = &record.Description
+		}
+		if record.TextContent != "" {
+			textPtr = &record.TextContent
+		}
+		if len(record.Tags) > 0 {
+			tagsBytes, _ := json.Marshal(record.Tags)
+			tagsStr := string(tagsBytes)
+			tagsJSONPtr = &tagsStr
+		}
+		if err := verification.VerifyDocument(canonicalURL, uri); err != nil {
+			return nil
+		}
+		return s.db.UpsertDocument(&db.Document{
+			URI:          uri,
+			AuthorDID:    did,
+			Site:         record.Site,
+			Path:         pathPtr,
+			Title:        record.Title,
+			Description:  descPtr,
+			TextContent:  textPtr,
+			TagsJSON:     tagsJSONPtr,
+			CanonicalURL: canonicalURL,
+			PublishedAt:  publishedAt,
+			IndexedAt:    time.Now(),
 		})
 
 	case xrpc.CollectionPreferences:

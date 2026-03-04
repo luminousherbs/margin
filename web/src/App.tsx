@@ -23,6 +23,7 @@ import {
 import About from "./views/About";
 import AdminModeration from "./views/core/AdminModeration";
 import Search from "./views/core/Search";
+import Discover from "./views/core/Discover";
 
 function RootRoute() {
   const user = useStore($user);
@@ -63,6 +64,15 @@ export default function App() {
           element={
             <AppLayout>
               <Search />
+            </AppLayout>
+          }
+        />
+
+        <Route
+          path="/discover"
+          element={
+            <AppLayout>
+              <Discover />
             </AppLayout>
           }
         />

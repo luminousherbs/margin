@@ -1361,3 +1361,61 @@ export async function adminGetLabels(
     return { items: [] };
   }
 }
+
+export interface DocumentItem {
+  uri: string;
+  authorDid: string;
+  site: string;
+  path?: string;
+  title: string;
+  description?: string;
+  tags?: string[];
+  canonicalUrl: string;
+  publishedAt: string;
+}
+
+export interface DocumentsResponse {
+  items: DocumentItem[];
+  totalItems: number;
+}
+
+export async function getDocuments({
+  sort = "new",
+  limit = 30,
+  offset = 0,
+}: {
+  sort?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<DocumentsResponse> {
+  try {
+    const params = new URLSearchParams();
+    if (sort) params.append("sort", sort);
+    params.append("limit", limit.toString());
+    params.append("offset", offset.toString());
+
+    const res = await apiRequest(`/api/documents?${params.toString()}`, {
+      skipAuthRedirect: true,
+    });
+    if (!res.ok) throw new Error("Failed to fetch documents");
+    return await res.json();
+  } catch (e) {
+    console.error("Failed to fetch documents:", e);
+    return { items: [], totalItems: 0 };
+  }
+}
+
+export async function getRecommendations(
+  limit = 20,
+): Promise<DocumentsResponse & { unavailable?: boolean }> {
+  try {
+    const res = await apiRequest(`/api/recommendations?limit=${limit}`);
+    if (res.status === 503)
+      return { items: [], totalItems: 0, unavailable: true };
+    if (!res.ok) throw new Error("Failed to fetch recommendations");
+    return await res.json();
+  } catch (e) {
+    console.error("Failed to fetch recommendations:", e);
+    return { items: [], totalItems: 0 };
+  }
+}

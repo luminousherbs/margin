@@ -14,8 +14,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"margin.at/internal/config"
 	"margin.at/internal/db"
 	"margin.at/internal/logger"
+	"margin.at/internal/recommendations"
 	internal_sync "margin.at/internal/sync"
 	"margin.at/internal/xrpc"
 )
@@ -27,9 +29,10 @@ type Handler struct {
 	apiKeys           *APIKeyHandler
 	syncService       *internal_sync.Service
 	moderation        *ModerationHandler
+	recommendations   *recommendations.Service
 }
 
-func NewHandler(database *db.DB, annotationService *AnnotationService, refresher *TokenRefresher, syncService *internal_sync.Service) *Handler {
+func NewHandler(database *db.DB, annotationService *AnnotationService, refresher *TokenRefresher, syncService *internal_sync.Service, recService *recommendations.Service) *Handler {
 	return &Handler{
 		db:                database,
 		annotationService: annotationService,
@@ -37,6 +40,7 @@ func NewHandler(database *db.DB, annotationService *AnnotationService, refresher
 		apiKeys:           NewAPIKeyHandler(database, refresher),
 		syncService:       syncService,
 		moderation:        NewModerationHandler(database, refresher),
+		recommendations:   recService,
 	}
 }
 
@@ -80,6 +84,9 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 		r.Get("/trending-tags", h.HandleGetTrendingTags)
 		r.Get("/search", h.Search)
+		r.Get("/recommendations", h.GetRecommendations)
+		r.Get("/documents", h.GetDocuments)
+		r.Post("/admin/backfill", h.AdminBackfill)
 
 		r.Get("/replies", h.GetReplies)
 		r.Get("/likes", h.GetLikeCount)
@@ -1515,4 +1522,164 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 		"items":        feed,
 		"fetchedCount": len(feed),
 	})
+}
+
+func (h *Handler) GetRecommendations(w http.ResponseWriter, r *http.Request) {
+	viewerDID := h.getViewerDID(r)
+	if viewerDID == "" {
+		http.Error(w, "authentication required", http.StatusUnauthorized)
+		return
+	}
+
+	if !h.recommendations.IsEnabled() {
+		http.Error(w, "recommendations not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	limit := parseIntParam(r, "limit", 20)
+	if limit > 100 {
+		limit = 100
+	}
+
+	items, err := h.recommendations.GetRecommendations(viewerDID, limit)
+	if err != nil {
+		logger.Error("Recommendations error for %s: %v", viewerDID, err)
+		http.Error(w, "failed to get recommendations", http.StatusInternalServerError)
+		return
+	}
+
+	if items == nil {
+		items = []recommendations.RecommendedItem{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"items":      items,
+		"totalItems": len(items),
+	})
+}
+
+func (h *Handler) GetDocuments(w http.ResponseWriter, r *http.Request) {
+	limit := parseIntParam(r, "limit", 30)
+	if limit > 100 {
+		limit = 100
+	}
+	offset := parseIntParam(r, "offset", 0)
+	sort := r.URL.Query().Get("sort")
+
+	var docs []db.Document
+	var err error
+
+	switch sort {
+	case "popular":
+		docs, err = h.db.GetPopularDocuments(limit, offset)
+	default:
+		docs, err = h.db.GetRecentDocuments(limit, offset)
+	}
+
+	if err != nil {
+		logger.Error("GetDocuments error: %v", err)
+		http.Error(w, "failed to get documents", http.StatusInternalServerError)
+		return
+	}
+
+	if docs == nil {
+		docs = []db.Document{}
+	}
+
+	type DocumentResponse struct {
+		URI          string    `json:"uri"`
+		AuthorDID    string    `json:"authorDid"`
+		Site         string    `json:"site"`
+		Path         *string   `json:"path,omitempty"`
+		Title        string    `json:"title"`
+		Description  *string   `json:"description,omitempty"`
+		Tags         []string  `json:"tags,omitempty"`
+		CanonicalURL string    `json:"canonicalUrl"`
+		PublishedAt  time.Time `json:"publishedAt"`
+	}
+
+	items := make([]DocumentResponse, len(docs))
+	for i, d := range docs {
+		var tags []string
+		if d.TagsJSON != nil {
+			json.Unmarshal([]byte(*d.TagsJSON), &tags)
+		}
+		items[i] = DocumentResponse{
+			URI:          d.URI,
+			AuthorDID:    d.AuthorDID,
+			Site:         d.Site,
+			Path:         d.Path,
+			Title:        d.Title,
+			Description:  d.Description,
+			Tags:         tags,
+			CanonicalURL: d.CanonicalURL,
+			PublishedAt:  d.PublishedAt,
+		}
+	}
+
+	total, _ := h.db.GetDocumentCount()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"items":      items,
+		"totalItems": total,
+	})
+}
+
+func (h *Handler) AdminBackfill(w http.ResponseWriter, r *http.Request) {
+	session, err := h.refresher.GetSessionWithAutoRefresh(r)
+	if err != nil || session == nil {
+		http.Error(w, "authentication required", http.StatusUnauthorized)
+		return
+	}
+	if !config.Get().IsAdmin(session.DID) {
+		http.Error(w, "admin access required", http.StatusForbidden)
+		return
+	}
+	if !h.recommendations.IsEnabled() {
+		http.Error(w, "embeddings not enabled (set OPENAI_API_KEY)", http.StatusServiceUnavailable)
+		return
+	}
+
+	batchSize := parseIntParam(r, "batch", 100)
+
+	type result struct {
+		Documents       int    `json:"documents"`
+		Annotations     int    `json:"annotations"`
+		ProfilesRebuilt int    `json:"profilesRebuilt"`
+		Error           string `json:"error,omitempty"`
+	}
+	res := result{}
+
+	if err := h.recommendations.BackfillDocumentEmbeddings(batchSize); err != nil {
+		logger.Error("Document backfill error: %v", err)
+		res.Error = err.Error()
+	}
+
+	annCount, err := h.recommendations.BackfillAnnotationEmbeddings(batchSize)
+	if err != nil {
+		logger.Error("Annotation backfill error: %v", err)
+		if res.Error != "" {
+			res.Error += "; "
+		}
+		res.Error += err.Error()
+	}
+	res.Annotations = annCount
+
+	profileCount, err := h.recommendations.RebuildAllProfiles()
+	if err != nil {
+		logger.Error("Profile rebuild error: %v", err)
+		if res.Error != "" {
+			res.Error += "; "
+		}
+		res.Error += err.Error()
+	}
+	res.ProfilesRebuilt = profileCount
+
+	docCount, _ := h.db.GetDocumentCount()
+	res.Documents = docCount
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(res)
 }

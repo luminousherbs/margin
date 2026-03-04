@@ -13,6 +13,7 @@ import {
   PenSquare,
   MessageSquareText,
   Highlighter,
+  Compass,
 } from "lucide-react";
 import { useStore } from "@nanostores/react";
 import { $user, logout } from "../../store/auth";
@@ -43,6 +44,7 @@ export default function Sidebar() {
 
   const publicNavItems = [
     { icon: Home, label: "Feed", href: "/home", badge: undefined },
+    { icon: Compass, label: "Discover", href: "/discover", badge: undefined },
     {
       icon: MessageSquareText,
       label: "Annotations",
@@ -65,6 +67,7 @@ export default function Sidebar() {
 
   const authNavItems = [
     { icon: Home, label: "Feed", href: "/home" },
+    { icon: Compass, label: "Discover", href: "/discover" },
     {
       icon: Bell,
       label: "Activity",

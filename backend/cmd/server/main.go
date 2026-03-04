@@ -15,10 +15,12 @@ import (
 
 	"margin.at/internal/api"
 	"margin.at/internal/db"
+	"margin.at/internal/embeddings"
 	"margin.at/internal/firehose"
 	"margin.at/internal/logger"
 	internalMiddleware "margin.at/internal/middleware"
 	"margin.at/internal/oauth"
+	"margin.at/internal/recommendations"
 	"margin.at/internal/sync"
 )
 
@@ -35,6 +37,13 @@ func main() {
 		logger.Fatal("Failed to run migrations: %v", err)
 	}
 
+	embeddingClient := embeddings.NewClient()
+	if err := database.MigrateRecommendations(); err != nil {
+		logger.Fatal("Failed to run recommendation migrations: %v", err)
+	}
+	recService := recommendations.NewService(database, embeddingClient)
+	logger.Info("Recommendation engine initialized (embeddings enabled: %v)", embeddingClient.IsEnabled())
+
 	syncSvc := sync.NewService(database)
 
 	oauthHandler, err := oauth.NewHandler(database, syncSvc)
@@ -45,6 +54,31 @@ func main() {
 	ingester := firehose.NewIngester(database, syncSvc)
 	firehose.RelayURL = getEnv("BLOCK_RELAY_URL", "wss://jetstream2.us-east.bsky.network/subscribe")
 	logger.Info("Firehose URL: %s", firehose.RelayURL)
+
+	if recService.IsEnabled() {
+		ingester.SetOnAnnotation(recService.OnAnnotation)
+		ingester.SetOnDocument(recService.OnDocument)
+
+		go func() {
+			logger.Info("Starting recommendation backfill...")
+			if err := recService.BackfillDocumentEmbeddings(200); err != nil {
+				logger.Error("Document embedding backfill error: %v", err)
+			}
+			annCount, err := recService.BackfillAnnotationEmbeddings(200)
+			if err != nil {
+				logger.Error("Annotation embedding backfill error: %v", err)
+			}
+			hlCount, err := recService.BackfillHighlightEmbeddings(200)
+			if err != nil {
+				logger.Error("Highlight embedding backfill error: %v", err)
+			}
+			profileCount, err := recService.RebuildAllProfiles()
+			if err != nil {
+				logger.Error("Profile rebuild error: %v", err)
+			}
+			logger.Info("Recommendation backfill complete (annotations: %d, highlights: %d, profiles: %d)", annCount, hlCount, profileCount)
+		}()
+	}
 
 	go func() {
 		if err := ingester.Start(context.Background()); err != nil {
@@ -73,7 +107,7 @@ func main() {
 	tokenRefresher := api.NewTokenRefresher(database, oauthHandler.GetPrivateKey())
 	annotationSvc := api.NewAnnotationService(database, tokenRefresher)
 
-	handler := api.NewHandler(database, annotationSvc, tokenRefresher, syncSvc)
+	handler := api.NewHandler(database, annotationSvc, tokenRefresher, syncSvc, recService)
 	handler.RegisterRoutes(r)
 
 	r.Post("/api/annotations", annotationSvc.CreateAnnotation)
