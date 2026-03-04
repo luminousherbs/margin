@@ -62,9 +62,7 @@ export default function Discover() {
   );
 
   useEffect(() => {
-    setItems([]);
-    setOffset(0);
-    fetchItems(activeTab, 0);
+    queueMicrotask(() => fetchItems(activeTab, 0));
   }, [activeTab, fetchItems]);
 
   const handleTabChange = (id: string) => {
@@ -122,7 +120,7 @@ export default function Discover() {
                 layout === "mosaic" ? "break-inside-avoid mb-4" : undefined
               }
             >
-              <DocumentCard doc={doc} layout={layout} />
+              <DocumentCard doc={doc} />
             </div>
           ))}
 
@@ -146,13 +144,7 @@ export default function Discover() {
   );
 }
 
-function DocumentCard({
-  doc,
-  layout = "list",
-}: {
-  doc: DocumentItem;
-  layout?: "list" | "mosaic";
-}) {
+function DocumentCard({ doc }: { doc: DocumentItem }) {
   const [ogData, setOgData] = useState<{
     title?: string;
     description?: string;

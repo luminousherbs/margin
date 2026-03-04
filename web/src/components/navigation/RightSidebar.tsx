@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search } from "lucide-react";
+import { Search, Coffee, Heart, Globe } from "lucide-react";
 import {
   getTrendingTags,
   searchActors,
@@ -229,6 +229,46 @@ export default function RightSidebar() {
                 ? "Edge"
                 : "Chrome"}
           </a>
+        </div>
+
+        <div className="rounded-xl p-3 border border-surface-200/60 dark:border-surface-700/60">
+          <p className="text-surface-500 dark:text-surface-400 text-xs mb-2">
+            Support Margin
+          </p>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex gap-1.5">
+              <a
+                href="https://ko-fi.com/scan"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Ko-fi"
+                className="flex items-center justify-center flex-1 px-2 py-1.5 rounded-lg border border-surface-200/80 dark:border-surface-700/80 text-surface-500 dark:text-surface-400 hover:border-[#FF5E5B] hover:text-[#FF5E5B] dark:hover:border-[#FF5E5B] dark:hover:text-[#FF5E5B] text-xs font-medium transition-colors gap-1.5"
+              >
+                <Coffee size={13} className="shrink-0" />
+                Ko-fi
+              </a>
+              <a
+                href="https://github.com/sponsors/margin-at"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="GitHub Sponsors"
+                className="flex items-center justify-center flex-1 px-2 py-1.5 rounded-lg border border-surface-200/80 dark:border-surface-700/80 text-surface-500 dark:text-surface-400 hover:border-[#EA4AAA] hover:text-[#EA4AAA] dark:hover:border-[#EA4AAA] dark:hover:text-[#EA4AAA] text-xs font-medium transition-colors gap-1.5"
+              >
+                <Heart size={13} className="shrink-0" />
+                GitHub
+              </a>
+            </div>
+            <a
+              href="https://opencollective.com/margin"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open Collective"
+              className="flex items-center justify-center w-full px-2 py-1.5 rounded-lg border border-surface-200/80 dark:border-surface-700/80 text-surface-500 dark:text-surface-400 hover:border-[#7FADF2] hover:text-[#7FADF2] dark:hover:border-[#7FADF2] dark:hover:text-[#7FADF2] text-xs font-medium transition-colors gap-1.5"
+            >
+              <Globe size={13} className="shrink-0" />
+              Open Collective
+            </a>
+          </div>
         </div>
 
         <div>
