@@ -150,15 +150,34 @@ function DocumentCard({ doc }: { doc: DocumentItem }) {
     description?: string;
     image?: string;
     icon?: string;
-  } | null>(null);
+  } | null>(() => {
+    try {
+      const cached = sessionStorage.getItem(`og:${doc.canonicalUrl}`);
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
 
   useEffect(() => {
-    if (!doc.canonicalUrl) return;
+    if (!doc.canonicalUrl || ogData) return;
     fetch(`/api/url-metadata?url=${encodeURIComponent(doc.canonicalUrl)}`)
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => data && setOgData(data))
+      .then((data) => {
+        if (data) {
+          setOgData(data);
+          try {
+            sessionStorage.setItem(
+              `og:${doc.canonicalUrl}`,
+              JSON.stringify(data),
+            );
+          } catch {
+            /* quota exceeded */
+          }
+        }
+      })
       .catch(() => {});
-  }, [doc.canonicalUrl]);
+  }, [doc.canonicalUrl, ogData]);
 
   const displayUrl = doc.canonicalUrl
     .replace(/^https?:\/\//, "")

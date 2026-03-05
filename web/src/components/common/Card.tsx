@@ -137,7 +137,17 @@ export default function Card({
     description?: string;
     image?: string;
     icon?: string;
-  } | null>(null);
+  } | null>(() => {
+    if (initialItem.motivation !== "bookmarking") return null;
+    const url = initialItem.target?.source || initialItem.source;
+    if (!url) return null;
+    try {
+      const cached = sessionStorage.getItem(`og:${url}`);
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
   const [imgError, setImgError] = useState(false);
   const [iconError, setIconError] = useState(false);
 
@@ -184,6 +194,11 @@ export default function Card({
           if (res.ok) {
             const data = await res.json();
             setOgData(data);
+            try {
+              sessionStorage.setItem(`og:${pageUrl}`, JSON.stringify(data));
+            } catch {
+              /* quota exceeded */
+            }
           }
         } catch (e) {
           console.error("Failed to fetch metadata", e);
