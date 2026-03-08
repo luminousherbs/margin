@@ -123,16 +123,18 @@ func (db *DB) GetRecentCollectionItems(limit, offset int) ([]CollectionItem, err
 func (db *DB) GetPopularCollectionItems(limit, offset int) ([]CollectionItem, error) {
 	since := time.Now().AddDate(0, 0, -14)
 	rows, err := db.Query(db.Rebind(`
-		SELECT uri, author_did, collection_uri, annotation_uri, position, created_at, indexed_at
-		FROM collection_items
-		WHERE created_at > ? AND (
-			(SELECT COUNT(*) FROM likes WHERE subject_uri = collection_items.annotation_uri) +
-			(SELECT COUNT(*) FROM replies WHERE root_uri = collection_items.annotation_uri)
-		) > 0
-		ORDER BY (
-			(SELECT COUNT(*) FROM likes WHERE subject_uri = collection_items.annotation_uri) +
-			(SELECT COUNT(*) FROM replies WHERE root_uri = collection_items.annotation_uri)
-		) DESC, created_at DESC
+		SELECT 
+			c.uri, c.author_did, c.collection_uri, c.annotation_uri, 
+			c.position, c.created_at, c.indexed_at
+		FROM collection_items c
+		LEFT JOIN (
+			SELECT subject_uri, COUNT(*) as cnt FROM likes GROUP BY subject_uri
+		) l ON l.subject_uri = c.annotation_uri
+		LEFT JOIN (
+			SELECT root_uri, COUNT(*) as cnt FROM replies GROUP BY root_uri
+		) r ON r.root_uri = c.annotation_uri
+		WHERE c.created_at > ? AND (COALESCE(l.cnt, 0) + COALESCE(r.cnt, 0)) > 0
+		ORDER BY (COALESCE(l.cnt, 0) + COALESCE(r.cnt, 0)) DESC, c.created_at DESC
 		LIMIT ? OFFSET ?
 	`), since, limit, offset)
 	if err != nil {
@@ -155,12 +157,17 @@ func (db *DB) GetShelvedCollectionItems(limit, offset int) ([]CollectionItem, er
 	olderThan := time.Now().AddDate(0, 0, -1)
 	since := time.Now().AddDate(0, 0, -14)
 	rows, err := db.Query(db.Rebind(`
-		SELECT uri, author_did, collection_uri, annotation_uri, position, created_at, indexed_at
-		FROM collection_items
-		WHERE created_at < ? AND created_at > ? AND (
-			(SELECT COUNT(*) FROM likes WHERE subject_uri = collection_items.annotation_uri) +
-			(SELECT COUNT(*) FROM replies WHERE root_uri = collection_items.annotation_uri)
-		) = 0
+		SELECT 
+			c.uri, c.author_did, c.collection_uri, c.annotation_uri, 
+			c.position, c.created_at, c.indexed_at
+		FROM collection_items c
+		LEFT JOIN (
+			SELECT subject_uri, COUNT(*) as cnt FROM likes GROUP BY subject_uri
+		) l ON l.subject_uri = c.annotation_uri
+		LEFT JOIN (
+			SELECT root_uri, COUNT(*) as cnt FROM replies GROUP BY root_uri
+		) r ON r.root_uri = c.annotation_uri
+		WHERE c.created_at < ? AND c.created_at > ? AND (COALESCE(l.cnt, 0) + COALESCE(r.cnt, 0)) = 0
 		ORDER BY RANDOM()
 		LIMIT ? OFFSET ?
 	`), olderThan, since, limit, offset)

@@ -60,16 +60,18 @@ func (db *DB) GetRecentHighlights(limit, offset int) ([]Highlight, error) {
 func (db *DB) GetPopularHighlights(limit, offset int) ([]Highlight, error) {
 	since := time.Now().AddDate(0, 0, -14)
 	rows, err := db.Query(db.Rebind(`
-		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
-		FROM highlights
-		WHERE created_at > ? AND (
-			(SELECT COUNT(*) FROM likes WHERE subject_uri = highlights.uri) +
-			(SELECT COUNT(*) FROM replies WHERE root_uri = highlights.uri)
-		) > 0
-		ORDER BY (
-			(SELECT COUNT(*) FROM likes WHERE subject_uri = highlights.uri) +
-			(SELECT COUNT(*) FROM replies WHERE root_uri = highlights.uri)
-		) DESC, created_at DESC
+		SELECT 
+			h.uri, h.author_did, h.target_source, h.target_hash, h.target_title, 
+			h.selector_json, h.color, h.tags_json, h.created_at, h.indexed_at, h.cid
+		FROM highlights h
+		LEFT JOIN (
+			SELECT subject_uri, COUNT(*) as cnt FROM likes GROUP BY subject_uri
+		) l ON l.subject_uri = h.uri
+		LEFT JOIN (
+			SELECT root_uri, COUNT(*) as cnt FROM replies GROUP BY root_uri
+		) r ON r.root_uri = h.uri
+		WHERE h.created_at > ? AND (COALESCE(l.cnt, 0) + COALESCE(r.cnt, 0)) > 0
+		ORDER BY (COALESCE(l.cnt, 0) + COALESCE(r.cnt, 0)) DESC, h.created_at DESC
 		LIMIT ? OFFSET ?
 	`), since, limit, offset)
 	if err != nil {
@@ -92,12 +94,17 @@ func (db *DB) GetShelvedHighlights(limit, offset int) ([]Highlight, error) {
 	olderThan := time.Now().AddDate(0, 0, -1)
 	since := time.Now().AddDate(0, 0, -14)
 	rows, err := db.Query(db.Rebind(`
-		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
-		FROM highlights
-		WHERE created_at < ? AND created_at > ? AND (
-			(SELECT COUNT(*) FROM likes WHERE subject_uri = highlights.uri) +
-			(SELECT COUNT(*) FROM replies WHERE root_uri = highlights.uri)
-		) = 0
+		SELECT 
+			h.uri, h.author_did, h.target_source, h.target_hash, h.target_title, 
+			h.selector_json, h.color, h.tags_json, h.created_at, h.indexed_at, h.cid
+		FROM highlights h
+		LEFT JOIN (
+			SELECT subject_uri, COUNT(*) as cnt FROM likes GROUP BY subject_uri
+		) l ON l.subject_uri = h.uri
+		LEFT JOIN (
+			SELECT root_uri, COUNT(*) as cnt FROM replies GROUP BY root_uri
+		) r ON r.root_uri = h.uri
+		WHERE h.created_at < ? AND h.created_at > ? AND (COALESCE(l.cnt, 0) + COALESCE(r.cnt, 0)) = 0
 		ORDER BY RANDOM()
 		LIMIT ? OFFSET ?
 	`), olderThan, since, limit, offset)

@@ -422,6 +422,9 @@ type CandidateDocument struct {
 }
 
 func (db *DB) GetCandidateDocuments(userDID string, limit int) ([]CandidateDocument, error) {
+	// Note: We use NOT LIKE instead of !~* for cross-database compatibility and performance.
+	// The engagement count sub-select is also constrained to recent elements if possible, but
+	// for now we just optimize the regex and exact grouping.
 	rows, err := db.Query(db.Rebind(`
 		SELECT 
 			d.uri, d.author_did, d.site, d.path, d.title, d.description, d.tags_json,
@@ -440,7 +443,14 @@ func (db *DB) GetCandidateDocuments(userDID string, limit int) ([]CandidateDocum
 		  AND (p.show_in_discover IS NULL OR p.show_in_discover = true)
 		  AND LENGTH(d.title) > 15
 		  AND (LENGTH(COALESCE(d.description, '')) >= 30 OR LENGTH(COALESCE(d.text_content, '')) >= 100)
-		  AND d.title !~* '(^test$|^test\\s|\\stest$|^testing|^hello\\sworld|^untitled|^draft|^asdf|^lorem|^foo$|^bar$|^placeholder)'
+		  AND LOWER(d.title) NOT LIKE '%test%'
+		  AND LOWER(d.title) NOT LIKE '%testing%'
+		  AND LOWER(d.title) NOT LIKE '%hello world%'
+		  AND LOWER(d.title) NOT LIKE '%untitled%'
+		  AND LOWER(d.title) NOT LIKE '%draft%'
+		  AND LOWER(d.title) NOT LIKE '%asdf%'
+		  AND LOWER(d.title) NOT LIKE '%lorem%'
+		  AND LOWER(d.title) NOT LIKE '%placeholder%'
 		  AND d.uri NOT IN (
 		    SELECT DISTINCT document_uri FROM annotation_embeddings
 		    WHERE author_did = ? AND document_uri IS NOT NULL

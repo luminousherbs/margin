@@ -268,6 +268,7 @@ func (db *DB) Migrate() error {
 	}
 
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_annotations_target_hash ON annotations(target_hash)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_annotations_target_source ON annotations(target_source)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_annotations_author_did ON annotations(author_did)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_annotations_motivation ON annotations(motivation)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_annotations_created_at ON annotations(created_at DESC)`)
@@ -287,6 +288,7 @@ func (db *DB) Migrate() error {
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_highlights_target_hash ON highlights(target_hash)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_highlights_author_did ON highlights(author_did)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_highlights_created_at ON highlights(created_at DESC)`)
 
 	db.Exec(`CREATE TABLE IF NOT EXISTS bookmarks (
 		uri TEXT PRIMARY KEY,
@@ -302,6 +304,7 @@ func (db *DB) Migrate() error {
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_bookmarks_source_hash ON bookmarks(source_hash)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_bookmarks_author_did ON bookmarks(author_did)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_bookmarks_created_at ON bookmarks(created_at DESC)`)
 
 	db.Exec(`CREATE TABLE IF NOT EXISTS replies (
 		uri TEXT PRIMARY KEY,
@@ -316,6 +319,7 @@ func (db *DB) Migrate() error {
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_replies_parent_uri ON replies(parent_uri)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_replies_root_uri ON replies(root_uri)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_replies_created_at ON replies(created_at DESC)`)
 
 	db.Exec(`CREATE TABLE IF NOT EXISTS likes (
 		uri TEXT PRIMARY KEY,
@@ -338,6 +342,7 @@ func (db *DB) Migrate() error {
 		indexed_at ` + dateType + ` NOT NULL
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_collections_author_did ON collections(author_did)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_collections_created_at ON collections(created_at DESC)`)
 
 	db.Exec(`CREATE TABLE IF NOT EXISTS collection_items (
 		uri TEXT PRIMARY KEY,
@@ -350,6 +355,7 @@ func (db *DB) Migrate() error {
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_collection_items_collection ON collection_items(collection_uri)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_collection_items_annotation ON collection_items(annotation_uri)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_collection_items_created_at ON collection_items(created_at DESC)`)
 
 	db.Exec(`CREATE TABLE IF NOT EXISTS sessions (
 		id TEXT PRIMARY KEY,

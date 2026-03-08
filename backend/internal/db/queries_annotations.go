@@ -135,16 +135,19 @@ func (db *DB) GetRecentAnnotations(limit, offset int) ([]Annotation, error) {
 func (db *DB) GetPopularAnnotations(limit, offset int) ([]Annotation, error) {
 	since := time.Now().AddDate(0, 0, -14)
 	rows, err := db.Query(db.Rebind(`
-		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
-		WHERE created_at > ? AND (
-			(SELECT COUNT(*) FROM likes WHERE subject_uri = annotations.uri) +
-			(SELECT COUNT(*) FROM replies WHERE root_uri = annotations.uri)
-		) > 0
-		ORDER BY (
-			(SELECT COUNT(*) FROM likes WHERE subject_uri = annotations.uri) +
-			(SELECT COUNT(*) FROM replies WHERE root_uri = annotations.uri)
-		) DESC, created_at DESC
+		SELECT 
+			a.uri, a.author_did, a.motivation, a.body_value, a.body_format, 
+			a.body_uri, a.target_source, a.target_hash, a.target_title, 
+			a.selector_json, a.tags_json, a.created_at, a.indexed_at, a.cid
+		FROM annotations a
+		LEFT JOIN (
+			SELECT subject_uri, COUNT(*) as cnt FROM likes GROUP BY subject_uri
+		) l ON l.subject_uri = a.uri
+		LEFT JOIN (
+			SELECT root_uri, COUNT(*) as cnt FROM replies GROUP BY root_uri
+		) r ON r.root_uri = a.uri
+		WHERE a.created_at > ? AND (COALESCE(l.cnt, 0) + COALESCE(r.cnt, 0)) > 0
+		ORDER BY (COALESCE(l.cnt, 0) + COALESCE(r.cnt, 0)) DESC, a.created_at DESC
 		LIMIT ? OFFSET ?
 	`), since, limit, offset)
 	if err != nil {
@@ -159,12 +162,18 @@ func (db *DB) GetShelvedAnnotations(limit, offset int) ([]Annotation, error) {
 	olderThan := time.Now().AddDate(0, 0, -1)
 	since := time.Now().AddDate(0, 0, -14)
 	rows, err := db.Query(db.Rebind(`
-		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
-		WHERE created_at < ? AND created_at > ? AND (
-			(SELECT COUNT(*) FROM likes WHERE subject_uri = annotations.uri) +
-			(SELECT COUNT(*) FROM replies WHERE root_uri = annotations.uri)
-		) = 0
+		SELECT 
+			a.uri, a.author_did, a.motivation, a.body_value, a.body_format, 
+			a.body_uri, a.target_source, a.target_hash, a.target_title, 
+			a.selector_json, a.tags_json, a.created_at, a.indexed_at, a.cid
+		FROM annotations a
+		LEFT JOIN (
+			SELECT subject_uri, COUNT(*) as cnt FROM likes GROUP BY subject_uri
+		) l ON l.subject_uri = a.uri
+		LEFT JOIN (
+			SELECT root_uri, COUNT(*) as cnt FROM replies GROUP BY root_uri
+		) r ON r.root_uri = a.uri
+		WHERE a.created_at < ? AND a.created_at > ? AND (COALESCE(l.cnt, 0) + COALESCE(r.cnt, 0)) = 0
 		ORDER BY RANDOM()
 		LIMIT ? OFFSET ?
 	`), olderThan, since, limit, offset)

@@ -59,16 +59,18 @@ func (db *DB) GetRecentBookmarks(limit, offset int) ([]Bookmark, error) {
 func (db *DB) GetPopularBookmarks(limit, offset int) ([]Bookmark, error) {
 	since := time.Now().AddDate(0, 0, -14)
 	rows, err := db.Query(db.Rebind(`
-		SELECT uri, author_did, source, source_hash, title, description, tags_json, created_at, indexed_at, cid
-		FROM bookmarks
-		WHERE created_at > ? AND (
-			(SELECT COUNT(*) FROM likes WHERE subject_uri = bookmarks.uri) +
-			(SELECT COUNT(*) FROM replies WHERE root_uri = bookmarks.uri)
-		) > 0
-		ORDER BY (
-			(SELECT COUNT(*) FROM likes WHERE subject_uri = bookmarks.uri) +
-			(SELECT COUNT(*) FROM replies WHERE root_uri = bookmarks.uri)
-		) DESC, created_at DESC
+		SELECT 
+			b.uri, b.author_did, b.source, b.source_hash, b.title, 
+			b.description, b.tags_json, b.created_at, b.indexed_at, b.cid
+		FROM bookmarks b
+		LEFT JOIN (
+			SELECT subject_uri, COUNT(*) as cnt FROM likes GROUP BY subject_uri
+		) l ON l.subject_uri = b.uri
+		LEFT JOIN (
+			SELECT root_uri, COUNT(*) as cnt FROM replies GROUP BY root_uri
+		) r ON r.root_uri = b.uri
+		WHERE b.created_at > ? AND (COALESCE(l.cnt, 0) + COALESCE(r.cnt, 0)) > 0
+		ORDER BY (COALESCE(l.cnt, 0) + COALESCE(r.cnt, 0)) DESC, b.created_at DESC
 		LIMIT ? OFFSET ?
 	`), since, limit, offset)
 	if err != nil {
@@ -91,12 +93,17 @@ func (db *DB) GetShelvedBookmarks(limit, offset int) ([]Bookmark, error) {
 	olderThan := time.Now().AddDate(0, 0, -1)
 	since := time.Now().AddDate(0, 0, -14)
 	rows, err := db.Query(db.Rebind(`
-		SELECT uri, author_did, source, source_hash, title, description, tags_json, created_at, indexed_at, cid
-		FROM bookmarks
-		WHERE created_at < ? AND created_at > ? AND (
-			(SELECT COUNT(*) FROM likes WHERE subject_uri = bookmarks.uri) +
-			(SELECT COUNT(*) FROM replies WHERE root_uri = bookmarks.uri)
-		) = 0
+		SELECT 
+			b.uri, b.author_did, b.source, b.source_hash, b.title, 
+			b.description, b.tags_json, b.created_at, b.indexed_at, b.cid
+		FROM bookmarks b
+		LEFT JOIN (
+			SELECT subject_uri, COUNT(*) as cnt FROM likes GROUP BY subject_uri
+		) l ON l.subject_uri = b.uri
+		LEFT JOIN (
+			SELECT root_uri, COUNT(*) as cnt FROM replies GROUP BY root_uri
+		) r ON r.root_uri = b.uri
+		WHERE b.created_at < ? AND b.created_at > ? AND (COALESCE(l.cnt, 0) + COALESCE(r.cnt, 0)) = 0
 		ORDER BY RANDOM()
 		LIMIT ? OFFSET ?
 	`), olderThan, since, limit, offset)
