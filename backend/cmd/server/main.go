@@ -37,6 +37,21 @@ func main() {
 		logger.Fatal("Failed to run migrations: %v", err)
 	}
 
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+
+		if err := database.DeleteExpiredSessions(); err != nil {
+			logger.Error("Failed to run initial cleanup of expired sessions: %v", err)
+		}
+
+		for range ticker.C {
+			if err := database.DeleteExpiredSessions(); err != nil {
+				logger.Error("Failed to delete expired sessions: %v", err)
+			}
+		}
+	}()
+
 	embeddingClient := embeddings.NewClient()
 	if err := database.MigrateRecommendations(); err != nil {
 		logger.Fatal("Failed to run recommendation migrations: %v", err)

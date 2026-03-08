@@ -174,8 +174,11 @@ func IsTokenExpiredError(err error) bool {
 		return false
 	}
 	errStr := err.Error()
-	return bytes.Contains([]byte(errStr), []byte("invalid_token")) &&
-		bytes.Contains([]byte(errStr), []byte("exp"))
+	return bytes.Contains([]byte(errStr), []byte("invalid_token")) ||
+		bytes.Contains([]byte(errStr), []byte("AuthenticationRequired")) ||
+		bytes.Contains([]byte(errStr), []byte("Unauthorized")) ||
+		bytes.Contains([]byte(errStr), []byte("authentication required")) ||
+		bytes.Contains([]byte(errStr), []byte("TokenExpired"))
 }
 
 func (tr *TokenRefresher) ExecuteWithAutoRefresh(

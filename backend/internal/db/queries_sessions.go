@@ -30,3 +30,8 @@ func (db *DB) DeleteSession(id string) error {
 	_, err := db.Exec(db.Rebind(`DELETE FROM sessions WHERE id = ?`), id)
 	return err
 }
+
+func (db *DB) DeleteExpiredSessions() error {
+	_, err := db.Exec(db.Rebind(`DELETE FROM sessions WHERE expires_at <= ?`), time.Now())
+	return err
+}
