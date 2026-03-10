@@ -19,4 +19,4 @@ jobs:
           host: ${{ secrets.DOKKU_HOST }}
           username: deploy
           key: ${{ secrets.DEPLOY_KEY }}
-          script: sudo dokku git:from-image margin ghcr.io/margin-at/margin:latest --force
+          script: sudo docker pull ghcr.io/margin-at/margin:latest && sudo dokku git:from-image margin ghcr.io/margin-at/margin:latest --force
