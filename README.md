@@ -99,6 +99,13 @@ In production, a single Docker container runs both services:
 
 Thank you for making Margin possible!
 
+### Infrastructure Sponsor
+
+**Bryan**  
+[@chaosgreml.in](https://bsky.app/profile/chaosgreml.in)
+
+### GitHub Sponsors
+
 <!-- sponsors --><!-- sponsors -->
 
 ## License
