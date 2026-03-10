@@ -18,9 +18,8 @@ import {
   Github,
   ExternalLink,
   Hash,
-  Heart,
   Coffee,
-  Globe,
+  Heart,
   Eye,
   Sun,
   Moon,
@@ -636,24 +635,6 @@ export default function About() {
             >
               <Coffee size={16} />
               Ko-fi
-            </a>
-            <a
-              href="https://github.com/sponsors/margin-at"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-surface-500 dark:text-surface-400 hover:text-[#EA4AAA] dark:hover:text-[#EA4AAA] transition-colors font-medium"
-            >
-              <Heart size={16} />
-              GitHub Sponsors
-            </a>
-            <a
-              href="https://opencollective.com/margin"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-surface-500 dark:text-surface-400 hover:text-[#7FADF2] dark:hover:text-[#7FADF2] transition-colors font-medium"
-            >
-              <Globe size={16} />
-              Open Collective
             </a>
           </div>
         </div>
