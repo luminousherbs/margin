@@ -16,6 +16,11 @@ import { formatDistanceToNow } from "date-fns";
 import { clsx } from "clsx";
 import { Avatar, EmptyState, Skeleton } from "../../components/ui";
 
+const notificationsCache = {
+  data: null as NotificationItem[] | null,
+  timestamp: 0,
+};
+
 function getContentType(
   uri: string,
 ): "annotation" | "highlight" | "bookmark" | "reply" | "unknown" {
@@ -223,9 +228,25 @@ export default function Notifications() {
 
   useEffect(() => {
     const load = async () => {
+      if (notificationsCache.data && Date.now() - notificationsCache.timestamp < 5 * 60 * 1000) {
+        setNotifications(notificationsCache.data);
+        setLoading(false);
+        
+        getNotifications().then(data => {
+          setNotifications(data);
+          notificationsCache.data = data;
+          notificationsCache.timestamp = Date.now();
+        }).catch(console.error);
+        
+        markNotificationsRead();
+        return;
+      }
+
       setLoading(true);
       const data = await getNotifications();
       setNotifications(data);
+      notificationsCache.data = data;
+      notificationsCache.timestamp = Date.now();
       setLoading(false);
       markNotificationsRead();
     };

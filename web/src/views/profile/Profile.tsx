@@ -50,6 +50,24 @@ import type {
   UserProfile,
 } from "../../types";
 
+const profileCache = new Map<
+  string,
+  {
+    profile: UserProfile;
+    labels: ContentLabel[];
+    relation: ModerationRelationship;
+    timestamp: number;
+  }
+>();
+
+const profileCollectionsCache = new Map<
+  string,
+  {
+    collections: Collection[];
+    timestamp: number;
+  }
+>();
+
 interface ProfileProps {
   did: string;
 }
@@ -120,6 +138,16 @@ export default function Profile({ did }: ProfileProps) {
     setLoading(true);
 
     const loadProfile = async () => {
+      const cached = profileCache.get(did);
+      if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) {
+        setProfile(cached.profile);
+        setAccountLabels(cached.labels);
+        setModRelation(cached.relation);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+
       try {
         const marginPromise = getProfile(did);
         const bskyPromise = fetch(
@@ -158,9 +186,12 @@ export default function Profile({ did }: ProfileProps) {
           try {
             const rel = await getModerationRelationship(did);
             setModRelation(rel);
+            profileCache.set(did, { profile: merged, labels: marginData?.labels || [], relation: rel, timestamp: Date.now() });
           } catch {
-            // ignore
+            profileCache.set(did, { profile: merged, labels: marginData?.labels || [], relation: modRelation, timestamp: Date.now() });
           }
+        } else {
+          profileCache.set(did, { profile: merged, labels: marginData?.labels || [], relation: modRelation, timestamp: Date.now() });
         }
       } catch (e) {
         console.error("Profile load failed", e);
@@ -195,8 +226,14 @@ export default function Profile({ did }: ProfileProps) {
       setDataLoading(true);
       try {
         if (activeTab === "collections") {
+          const cached = profileCollectionsCache.get(resolvedDid);
+          if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) {
+            setCollections(cached.collections);
+            setDataLoading(false);
+          }
           const res = await getCollections(resolvedDid);
           setCollections(res);
+          profileCollectionsCache.set(resolvedDid, { collections: res, timestamp: Date.now() });
         }
       } catch (e) {
         console.error(e);

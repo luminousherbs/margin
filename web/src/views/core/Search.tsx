@@ -17,6 +17,16 @@ import LayoutToggle from "../../components/ui/LayoutToggle";
 import { $user } from "../../store/auth";
 import { $feedLayout } from "../../store/feedLayout";
 
+const searchCache = new Map<
+  string,
+  {
+    results: AnnotationItem[];
+    hasMore: boolean;
+    offset: number;
+    timestamp: number;
+  }
+>();
+
 interface SearchProps {
   initialQuery?: string;
 }
@@ -56,6 +66,34 @@ export default function Search({ initialQuery = "" }: SearchProps) {
         setResults([]);
         return;
       }
+      
+      const cacheKey = JSON.stringify({ q: q.trim(), myItemsOnly: myItemsRef.current });
+      
+      if (!append && newOffset === 0) {
+        const cached = searchCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) {
+          setResults(cached.results);
+          setHasMore(cached.hasMore);
+          setOffset(cached.offset);
+          setLoading(false);
+          
+          const id = ++fetchIdRef.current;
+          searchItems(q.trim(), {
+            creator: myItemsRef.current && user ? user.did : undefined,
+            limit: 30,
+            offset: newOffset,
+          }).then(data => {
+            if (id !== fetchIdRef.current) return;
+            setResults(data.items);
+            setHasMore(data.hasMore);
+            setOffset(newOffset + data.items.length);
+            searchCache.set(cacheKey, { results: data.items, hasMore: data.hasMore, offset: newOffset + data.items.length, timestamp: Date.now() });
+          }).catch(console.error);
+          
+          return;
+        }
+      }
+
       const id = ++fetchIdRef.current;
       setLoading(true);
       const data = await searchItems(q.trim(), {
@@ -65,9 +103,14 @@ export default function Search({ initialQuery = "" }: SearchProps) {
       });
       if (id !== fetchIdRef.current) return;
       if (append) {
-        setResults((prev) => [...prev, ...data.items]);
+        setResults((prev) => {
+          const newResults = [...prev, ...data.items];
+          searchCache.set(cacheKey, { results: newResults, hasMore: data.hasMore, offset: newOffset + data.items.length, timestamp: Date.now() });
+          return newResults;
+        });
       } else {
         setResults(data.items);
+        searchCache.set(cacheKey, { results: data.items, hasMore: data.hasMore, offset: newOffset + data.items.length, timestamp: Date.now() });
       }
       setHasMore(data.hasMore);
       setOffset(newOffset + data.items.length);

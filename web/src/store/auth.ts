@@ -6,14 +6,17 @@ import type { UserProfile } from "../types";
 export const $user = atom<UserProfile | null>(null);
 export const $isLoading = atom<boolean>(true);
 
+$user.subscribe((user) => {
+  if (user) {
+    loadPreferences();
+  }
+});
+
 export async function initAuth() {
   $isLoading.set(true);
   const session = await checkSession();
   $user.set(session);
   $isLoading.set(false);
-  if (session) {
-    loadPreferences();
-  }
 }
 
 export function logout() {

@@ -617,7 +617,7 @@ func fetchProfilesForDIDs(database *db.DB, dids []string) map[string]Author {
 
 	missingDIDs := make([]string, 0)
 	for _, did := range dids {
-		if author, ok := Cache.Get(did); ok {
+		if author, ok := Cache.Get(did); ok && author.Handle != "" {
 			profiles[did] = author
 		} else {
 			missingDIDs = append(missingDIDs, did)
@@ -646,7 +646,7 @@ func fetchProfilesForDIDs(database *db.DB, dids []string) map[string]Author {
 
 		stillMissing := make([]string, 0)
 		for _, did := range missingDIDs {
-			if _, ok := profiles[did]; !ok {
+			if p, ok := profiles[did]; !ok || p.Handle == "" {
 				stillMissing = append(stillMissing, did)
 			}
 		}

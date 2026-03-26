@@ -16,6 +16,11 @@ import { formatDistanceToNow } from "date-fns";
 import { clsx } from "clsx";
 import { Button, Input, EmptyState, Skeleton } from "../../components/ui";
 
+const collectionsCache = {
+  data: null as Collection[] | null,
+  timestamp: 0,
+};
+
 export default function Collections() {
   const user = useStore($user);
   const theme = useStore($theme);
@@ -29,10 +34,24 @@ export default function Collections() {
   const [creating, setCreating] = useState(false);
 
   const fetchCollections = async () => {
+    if (collectionsCache.data && Date.now() - collectionsCache.timestamp < 5 * 60 * 1000) {
+      setCollections(collectionsCache.data);
+      setLoading(false);
+      
+      getCollections().then(data => {
+        setCollections(data);
+        collectionsCache.data = data;
+        collectionsCache.timestamp = Date.now();
+      }).catch(console.error);
+      return;
+    }
+
     try {
       setLoading(true);
       const data = await getCollections();
       setCollections(data);
+      collectionsCache.data = data;
+      collectionsCache.timestamp = Date.now();
     } catch (error) {
       console.error("Failed to load collections:", error);
     } finally {
@@ -55,7 +74,10 @@ export default function Collections() {
 
     const res = await createCollection(newItemName, newItemDesc, finalIcon);
     if (res) {
-      setCollections([res, ...collections]);
+      const newCollections = [res, ...collections];
+      setCollections(newCollections);
+      collectionsCache.data = newCollections;
+      collectionsCache.timestamp = Date.now();
       setShowCreateModal(false);
       setNewItemName("");
       setNewItemDesc("");
@@ -71,7 +93,12 @@ export default function Collections() {
     if (window.confirm("Delete this collection?")) {
       const success = await deleteCollection(id);
       if (success) {
-        setCollections((prev) => prev.filter((c) => c.id !== id));
+        setCollections((prev) => {
+          const updated = prev.filter((c) => c.id !== id);
+          collectionsCache.data = updated;
+          collectionsCache.timestamp = Date.now();
+          return updated;
+        });
       }
     }
   };

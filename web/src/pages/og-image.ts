@@ -50,7 +50,9 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
       const item = await res.json();
       const author = item.author || item.creator || {};
       const handle = author.handle || "";
-      const displayName = author.displayName || handle || "someone";
+      const did = author.did || "";
+      const authorName = handle ? `@${handle}` : did || "someone";
+      const displayName = author.displayName || handle || did || "someone";
       const avatarURL = author.avatar || "";
       const targetSource = item.target?.source || item.url || item.source || "";
       const domain = targetSource
@@ -75,7 +77,7 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
       ) {
         return {
           type: "highlight",
-          author: handle ? `@${handle}` : "someone",
+          author: authorName,
           displayName,
           avatarURL,
           text: targetTitle,
@@ -91,7 +93,7 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
       if (uri.includes("/at.margin.bookmark/")) {
         return {
           type: "bookmark",
-          author: handle ? `@${handle}` : "someone",
+          author: authorName,
           displayName,
           avatarURL,
           text: item.title || targetTitle || "Bookmark",
@@ -106,7 +108,7 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
 
       return {
         type: "annotation",
-        author: handle ? `@${handle}` : "someone",
+        author: authorName,
         displayName,
         avatarURL,
         text: bodyText,
@@ -130,12 +132,14 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
       const item = await res.json();
       const author = item.author || item.creator || {};
       const handle = author.handle || "";
-      const displayName = author.displayName || handle || "someone";
+      const did = author.did || "";
+      const authorName = handle ? `@${handle}` : did || "someone";
+      const displayName = author.displayName || handle || did || "someone";
       const avatarURL = author.avatar || "";
 
       return {
         type: "collection",
-        author: handle ? `@${handle}` : "someone",
+        author: authorName,
         displayName,
         avatarURL,
         text: "",
