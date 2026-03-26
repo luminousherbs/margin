@@ -162,12 +162,7 @@ export default function Feed({
         motivation={activeFilter}
         emptyMessage={emptyMessage}
         layout={layout}
-        tag={
-          activeTab === "atmosphereconf" ||
-          tag?.toLowerCase() === "atmosphereconf"
-            ? "ATmosphereConf"
-            : tag
-        }
+        tag={activeTab === "atmosphereconf" ? "atmosphereconf" : tag?.toLowerCase()}
       />
     </div>
   );

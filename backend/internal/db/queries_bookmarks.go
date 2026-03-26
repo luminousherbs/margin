@@ -131,7 +131,7 @@ func (db *DB) GetBookmarksByTag(tag string, limit, offset int) ([]Bookmark, erro
 	rows, err := db.Query(`
 		SELECT uri, author_did, source, source_hash, title, description, tags_json, created_at, indexed_at, cid
 		FROM bookmarks
-		WHERE tags_json::jsonb ? $1
+		WHERE EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $1)
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`, tag, limit, offset)
@@ -147,7 +147,7 @@ func (db *DB) GetMarginBookmarksByTag(tag string, limit, offset int) ([]Bookmark
 	rows, err := db.Query(`
 		SELECT uri, author_did, source, source_hash, title, description, tags_json, created_at, indexed_at, cid
 		FROM bookmarks
-		WHERE tags_json::jsonb ? $1 AND uri NOT LIKE '%network.cosmik%'
+		WHERE EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $1) AND uri NOT LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`, tag, limit, offset)
@@ -163,7 +163,7 @@ func (db *DB) GetSembleBookmarksByTag(tag string, limit, offset int) ([]Bookmark
 	rows, err := db.Query(`
 		SELECT uri, author_did, source, source_hash, title, description, tags_json, created_at, indexed_at, cid
 		FROM bookmarks
-		WHERE tags_json::jsonb ? $1 AND uri LIKE '%network.cosmik%'
+		WHERE EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $1) AND uri LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`, tag, limit, offset)
@@ -179,7 +179,7 @@ func (db *DB) GetBookmarksByTagAndAuthor(tag, authorDID string, limit, offset in
 	rows, err := db.Query(`
 		SELECT uri, author_did, source, source_hash, title, description, tags_json, created_at, indexed_at, cid
 		FROM bookmarks
-		WHERE author_did = $1 AND tags_json::jsonb ? $2
+		WHERE author_did = $1 AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $2)
 		ORDER BY created_at DESC
 		LIMIT $3 OFFSET $4
 	`, authorDID, tag, limit, offset)
@@ -195,7 +195,7 @@ func (db *DB) GetMarginBookmarksByTagAndAuthor(tag, authorDID string, limit, off
 	rows, err := db.Query(`
 		SELECT uri, author_did, source, source_hash, title, description, tags_json, created_at, indexed_at, cid
 		FROM bookmarks
-		WHERE author_did = $1 AND tags_json::jsonb ? $2 AND uri NOT LIKE '%network.cosmik%'
+		WHERE author_did = $1 AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $2) AND uri NOT LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $3 OFFSET $4
 	`, authorDID, tag, limit, offset)
@@ -211,7 +211,7 @@ func (db *DB) GetSembleBookmarksByTagAndAuthor(tag, authorDID string, limit, off
 	rows, err := db.Query(`
 		SELECT uri, author_did, source, source_hash, title, description, tags_json, created_at, indexed_at, cid
 		FROM bookmarks
-		WHERE author_did = $1 AND tags_json::jsonb ? $2 AND uri LIKE '%network.cosmik%'
+		WHERE author_did = $1 AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $2) AND uri LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $3 OFFSET $4
 	`, authorDID, tag, limit, offset)

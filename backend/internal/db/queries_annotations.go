@@ -217,7 +217,7 @@ func (db *DB) GetAnnotationsByTag(tag string, limit, offset int) ([]Annotation, 
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
 		FROM annotations
-		WHERE tags_json::jsonb ? $1
+		WHERE EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $1)
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`, tag, limit, offset)
@@ -233,7 +233,7 @@ func (db *DB) GetMarginAnnotationsByTag(tag string, limit, offset int) ([]Annota
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
 		FROM annotations
-		WHERE tags_json::jsonb ? $1 AND uri NOT LIKE '%network.cosmik%'
+		WHERE EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $1) AND uri NOT LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`, tag, limit, offset)
@@ -249,7 +249,7 @@ func (db *DB) GetSembleAnnotationsByTag(tag string, limit, offset int) ([]Annota
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
 		FROM annotations
-		WHERE tags_json::jsonb ? $1 AND uri LIKE '%network.cosmik%'
+		WHERE EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $1) AND uri LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`, tag, limit, offset)
@@ -279,7 +279,7 @@ func (db *DB) GetAnnotationsByTagAndAuthor(tag, authorDID string, limit, offset 
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
 		FROM annotations
-		WHERE author_did = $1 AND tags_json::jsonb ? $2
+		WHERE author_did = $1 AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $2)
 		ORDER BY created_at DESC
 		LIMIT $3 OFFSET $4
 	`, authorDID, tag, limit, offset)
@@ -295,7 +295,7 @@ func (db *DB) GetMarginAnnotationsByTagAndAuthor(tag, authorDID string, limit, o
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
 		FROM annotations
-		WHERE author_did = $1 AND tags_json::jsonb ? $2 AND uri NOT LIKE '%network.cosmik%'
+		WHERE author_did = $1 AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $2) AND uri NOT LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $3 OFFSET $4
 	`, authorDID, tag, limit, offset)
@@ -311,7 +311,7 @@ func (db *DB) GetSembleAnnotationsByTagAndAuthor(tag, authorDID string, limit, o
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
 		FROM annotations
-		WHERE author_did = $1 AND tags_json::jsonb ? $2 AND uri LIKE '%network.cosmik%'
+		WHERE author_did = $1 AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $2) AND uri LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $3 OFFSET $4
 	`, authorDID, tag, limit, offset)

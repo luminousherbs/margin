@@ -132,7 +132,7 @@ func (db *DB) GetHighlightsByTag(tag string, limit, offset int) ([]Highlight, er
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
 		FROM highlights
-		WHERE tags_json::jsonb ? $1
+		WHERE EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $1)
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`, tag, limit, offset)
@@ -148,7 +148,7 @@ func (db *DB) GetMarginHighlightsByTag(tag string, limit, offset int) ([]Highlig
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
 		FROM highlights
-		WHERE tags_json::jsonb ? $1 AND uri NOT LIKE '%network.cosmik%'
+		WHERE EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $1) AND uri NOT LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`, tag, limit, offset)
@@ -164,7 +164,7 @@ func (db *DB) GetSembleHighlightsByTag(tag string, limit, offset int) ([]Highlig
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
 		FROM highlights
-		WHERE tags_json::jsonb ? $1 AND uri LIKE '%network.cosmik%'
+		WHERE EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $1) AND uri LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`, tag, limit, offset)
@@ -180,7 +180,7 @@ func (db *DB) GetHighlightsByTagAndAuthor(tag, authorDID string, limit, offset i
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
 		FROM highlights
-		WHERE author_did = $1 AND tags_json::jsonb ? $2
+		WHERE author_did = $1 AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $2)
 		ORDER BY created_at DESC
 		LIMIT $3 OFFSET $4
 	`, authorDID, tag, limit, offset)
@@ -196,7 +196,7 @@ func (db *DB) GetMarginHighlightsByTagAndAuthor(tag, authorDID string, limit, of
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
 		FROM highlights
-		WHERE author_did = $1 AND tags_json::jsonb ? $2 AND uri NOT LIKE '%network.cosmik%'
+		WHERE author_did = $1 AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $2) AND uri NOT LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $3 OFFSET $4
 	`, authorDID, tag, limit, offset)
@@ -212,7 +212,7 @@ func (db *DB) GetSembleHighlightsByTagAndAuthor(tag, authorDID string, limit, of
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
 		FROM highlights
-		WHERE author_did = $1 AND tags_json::jsonb ? $2 AND uri LIKE '%network.cosmik%'
+		WHERE author_did = $1 AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $2) AND uri LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $3 OFFSET $4
 	`, authorDID, tag, limit, offset)

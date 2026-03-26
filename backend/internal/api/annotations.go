@@ -64,6 +64,10 @@ func (s *AnnotationService) CreateAnnotation(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	for i, t := range req.Tags {
+		req.Tags[i] = strings.ToLower(t)
+	}
+
 	urlHash := db.HashURL(req.URL)
 
 	motivation := "commenting"
@@ -329,6 +333,10 @@ func (s *AnnotationService) UpdateAnnotation(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	rkey := parts[2]
+
+	for i, t := range req.Tags {
+		req.Tags[i] = strings.ToLower(t)
+	}
 
 	tagsJSON := ""
 	if len(req.Tags) > 0 {
@@ -694,6 +702,10 @@ func (s *AnnotationService) CreateHighlight(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	for i, t := range req.Tags {
+		req.Tags[i] = strings.ToLower(t)
+	}
+
 	urlHash := db.HashURL(req.URL)
 	record := xrpc.NewHighlightRecord(req.URL, urlHash, req.Selector, req.Color, req.Tags)
 
@@ -804,6 +816,10 @@ func (s *AnnotationService) CreateBookmark(w http.ResponseWriter, r *http.Reques
 	if req.URL == "" {
 		http.Error(w, "URL is required", http.StatusBadRequest)
 		return
+	}
+
+	for i, t := range req.Tags {
+		req.Tags[i] = strings.ToLower(t)
 	}
 
 	urlHash := db.HashURL(req.URL)
@@ -960,6 +976,10 @@ func (s *AnnotationService) UpdateHighlight(w http.ResponseWriter, r *http.Reque
 	}
 	rkey := parts[2]
 
+	for i, t := range req.Tags {
+		req.Tags[i] = strings.ToLower(t)
+	}
+
 	var result *xrpc.PutRecordOutput
 	err = s.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
 		existing, getErr := client.GetRecord(r.Context(), did, xrpc.CollectionHighlight, rkey)
@@ -1066,6 +1086,10 @@ func (s *AnnotationService) UpdateBookmark(w http.ResponseWriter, r *http.Reques
 	rkey := parts[2]
 
 	var result *xrpc.PutRecordOutput
+	for i, t := range req.Tags {
+		req.Tags[i] = strings.ToLower(t)
+	}
+
 	err = s.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
 		existing, getErr := client.GetRecord(r.Context(), did, xrpc.CollectionBookmark, rkey)
 		if getErr != nil {

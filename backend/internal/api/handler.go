@@ -232,7 +232,7 @@ func (h *Handler) GetAnnotations(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetFeed(w http.ResponseWriter, r *http.Request) {
 	limit := parseIntParam(r, "limit", 50)
 	offset := parseIntParam(r, "offset", 0)
-	tag := r.URL.Query().Get("tag")
+	tag := strings.ToLower(r.URL.Query().Get("tag"))
 	creator := r.URL.Query().Get("creator")
 	feedType := r.URL.Query().Get("type")
 
