@@ -21,6 +21,7 @@ export default defineConfig({
   vite: {
     ssr: {
       external: ["@resvg/resvg-js"],
+      noExternal: ["piccolore"],
     },
     build: {
       commonjsOptions: {
