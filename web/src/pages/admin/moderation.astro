@@ -1,0 +1,14 @@
+---
+
+import AppLayout from '../../layouts/AppLayout.astro';
+import AdminModeration from '../../views/core/AdminModeration';
+
+const user = Astro.locals.user;
+if (!user) {
+	return Astro.redirect('/login');
+}
+---
+
+<AppLayout title="Admin - Margin" user={user}>
+	<AdminModeration client:load />
+</AppLayout>

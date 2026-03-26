@@ -765,9 +765,9 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
             const marginLeft = i === 0 ? '0' : '-8px';
 
             if (avatar) {
-              return `<img src="${avatar}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 2px solid #09090b; margin-left: ${marginLeft};">`;
+              return `<img src="${escapeHtml(avatar)}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 2px solid #09090b; margin-left: ${marginLeft};">`;
             } else {
-              return `<div style="width: 24px; height: 24px; border-radius: 50%; background: #3b82f6; color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; font-family: -apple-system, sans-serif; border: 2px solid #09090b; margin-left: ${marginLeft};">${handle[0]?.toUpperCase() || 'U'}</div>`;
+              return `<div style="width: 24px; height: 24px; border-radius: 50%; background: #3b82f6; color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; font-family: -apple-system, sans-serif; border: 2px solid #09090b; margin-left: ${marginLeft};">${escapeHtml(handle[0]?.toUpperCase() || 'U')}</div>`;
             }
           })
           .join('');
@@ -916,9 +916,9 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
         const isOwned = currentUserDid && author.did === currentUserDid;
         const createdAt = item.createdAt ? formatRelativeTime(item.createdAt) : '';
 
-        let avatarHtml = `<div class="comment-avatar">${handle[0]?.toUpperCase() || 'U'}</div>`;
+        let avatarHtml = `<div class="comment-avatar">${escapeHtml(handle[0]?.toUpperCase() || 'U')}</div>`;
         if (avatar) {
-          avatarHtml = `<img src="${avatar}" class="comment-avatar" style="object-fit: cover;">`;
+          avatarHtml = `<img src="${escapeHtml(avatar)}" class="comment-avatar" style="object-fit: cover;">`;
         }
 
         let bodyHtml = '';
@@ -928,25 +928,26 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
           bodyHtml = `<div class="comment-text">${escapeHtml(text)}</div>`;
         }
 
+        const safeId = escapeHtml(id || '');
         const addNoteBtn =
           isHighlight && isOwned
-            ? `<button class="comment-action-btn btn-add-note" data-id="${id}" data-uri="${id}">${Icons.message} Annotate</button>`
+            ? `<button class="comment-action-btn btn-add-note" data-id="${safeId}" data-uri="${safeId}">${Icons.message} Annotate</button>`
             : '';
 
         return `
-            <div class="comment-item" data-item-id="${id}">
+            <div class="comment-item" data-item-id="${safeId}">
               <div class="comment-header">
                 ${avatarHtml}
                 <div class="comment-meta">
-                  <span class="comment-handle">@${handle}</span>
-                  ${createdAt ? `<span class="comment-time">${createdAt}</span>` : ''}
+                  <span class="comment-handle">@${escapeHtml(handle)}</span>
+                  ${createdAt ? `<span class="comment-time">${escapeHtml(createdAt)}</span>` : ''}
                 </div>
               </div>
               ${bodyHtml}
               <div class="comment-actions">
                 ${addNoteBtn}
-                ${!isHighlight ? `<button class="comment-action-btn btn-reply" data-id="${id}">${Icons.reply} Reply</button>` : ''}
-                <button class="comment-action-btn btn-share" data-id="${id}" data-text="${escapeHtml(text)}">${Icons.share} Share</button>
+                ${!isHighlight ? `<button class="comment-action-btn btn-reply" data-id="${safeId}">${Icons.reply} Reply</button>` : ''}
+                <button class="comment-action-btn btn-share" data-id="${safeId}" data-text="${escapeHtml(text)}">${Icons.share} Share</button>
               </div>
             </div>
           `;

@@ -55,16 +55,11 @@ type UserProfile struct {
 }
 
 func (db *DB) MigrateRecommendations() error {
-	dateType := "TIMESTAMP"
-	if db.driver == "sqlite3" {
-		dateType = "DATETIME"
-	}
-
 	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS document_embeddings (
 			document_uri TEXT PRIMARY KEY,
 			embedding TEXT NOT NULL,
-			updated_at ` + dateType + ` NOT NULL
+			updated_at TIMESTAMP NOT NULL
 		)`)
 	if err != nil {
 		return fmt.Errorf("create document_embeddings table: %w", err)
@@ -76,7 +71,7 @@ func (db *DB) MigrateRecommendations() error {
 			author_did TEXT NOT NULL,
 			document_uri TEXT,
 			embedding TEXT NOT NULL,
-			updated_at ` + dateType + ` NOT NULL
+			updated_at TIMESTAMP NOT NULL
 		)`)
 	if err != nil {
 		return fmt.Errorf("create annotation_embeddings table: %w", err)
@@ -90,7 +85,7 @@ func (db *DB) MigrateRecommendations() error {
 			embedding TEXT NOT NULL,
 			tag_affinities TEXT DEFAULT '{}',
 			annotation_count INTEGER NOT NULL DEFAULT 0,
-			updated_at ` + dateType + ` NOT NULL
+			updated_at TIMESTAMP NOT NULL
 		)`)
 	if err != nil {
 		return fmt.Errorf("create user_profiles table: %w", err)
@@ -154,7 +149,7 @@ func (db *DB) DeleteDocument(uri string) error {
 func (db *DB) GetDocumentByCanonicalURL(canonicalURL string) (*Document, error) {
 	var d Document
 	err := db.QueryRow(
-		`SELECT uri, author_did, site, path, title, description, text_content, tags_json, canonical_url, published_at, indexed_at 
+		`SELECT uri, author_did, site, path, title, description, text_content, tags_json, canonical_url, published_at, indexed_at
 		 FROM documents WHERE canonical_url = $1`,
 		canonicalURL,
 	).Scan(&d.URI, &d.AuthorDID, &d.Site, &d.Path, &d.Title, &d.Description, &d.TextContent, &d.TagsJSON, &d.CanonicalURL, &d.PublishedAt, &d.IndexedAt)
@@ -167,7 +162,7 @@ func (db *DB) GetDocumentByCanonicalURL(canonicalURL string) (*Document, error) 
 func (db *DB) GetDocumentByURI(uri string) (*Document, error) {
 	var d Document
 	err := db.QueryRow(
-		`SELECT uri, author_did, site, path, title, description, text_content, tags_json, canonical_url, published_at, indexed_at 
+		`SELECT uri, author_did, site, path, title, description, text_content, tags_json, canonical_url, published_at, indexed_at
 		 FROM documents WHERE uri = $1`,
 		uri,
 	).Scan(&d.URI, &d.AuthorDID, &d.Site, &d.Path, &d.Title, &d.Description, &d.TextContent, &d.TagsJSON, &d.CanonicalURL, &d.PublishedAt, &d.IndexedAt)
@@ -178,14 +173,14 @@ func (db *DB) GetDocumentByURI(uri string) (*Document, error) {
 }
 
 func (db *DB) GetDocumentsWithoutEmbeddings(limit int) ([]Document, error) {
-	rows, err := db.Query(db.Rebind(`
+	rows, err := db.Query(`
 		SELECT d.uri, d.author_did, d.site, d.path, d.title, d.description, d.text_content, d.tags_json, d.canonical_url, d.published_at, d.indexed_at
 		FROM documents d
 		LEFT JOIN document_embeddings de ON d.uri = de.document_uri
 		WHERE de.document_uri IS NULL
 		ORDER BY d.indexed_at DESC
-		LIMIT ?
-	`), limit)
+		LIMIT $1
+	`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -194,14 +189,14 @@ func (db *DB) GetDocumentsWithoutEmbeddings(limit int) ([]Document, error) {
 }
 
 func (db *DB) GetAnnotationsWithoutEmbeddings(limit int) ([]Annotation, error) {
-	rows, err := db.Query(db.Rebind(`
+	rows, err := db.Query(`
 		SELECT a.uri, a.author_did, a.motivation, a.body_value, a.body_format, a.body_uri, a.target_source, a.target_hash, a.target_title, a.selector_json, a.tags_json, a.created_at, a.indexed_at, a.cid
 		FROM annotations a
 		LEFT JOIN annotation_embeddings ae ON a.uri = ae.annotation_uri
 		WHERE ae.annotation_uri IS NULL AND a.motivation IN ('commenting', 'highlighting')
 		ORDER BY a.created_at DESC
-		LIMIT ?
-	`), limit)
+		LIMIT $1
+	`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -219,14 +214,14 @@ type HighlightForEmbedding struct {
 }
 
 func (db *DB) GetHighlightsWithoutEmbeddings(limit int) ([]HighlightForEmbedding, error) {
-	rows, err := db.Query(db.Rebind(`
+	rows, err := db.Query(`
 		SELECT h.uri, h.author_did, h.target_source, h.target_title, h.selector_json, h.tags_json
 		FROM highlights h
 		LEFT JOIN annotation_embeddings ae ON h.uri = ae.annotation_uri
 		WHERE ae.annotation_uri IS NULL
 		ORDER BY h.created_at DESC
-		LIMIT ?
-	`), limit)
+		LIMIT $1
+	`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -276,12 +271,12 @@ func scanDocuments(rows interface {
 }
 
 func (db *DB) GetRecentDocuments(limit, offset int) ([]Document, error) {
-	rows, err := db.Query(db.Rebind(`
+	rows, err := db.Query(`
 		SELECT uri, author_did, site, path, title, description, text_content, tags_json, canonical_url, published_at, indexed_at
 		FROM documents
 		ORDER BY published_at DESC
-		LIMIT ? OFFSET ?
-	`), limit, offset)
+		LIMIT $1 OFFSET $2
+	`, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -290,14 +285,14 @@ func (db *DB) GetRecentDocuments(limit, offset int) ([]Document, error) {
 }
 
 func (db *DB) GetPopularDocuments(limit, offset int) ([]Document, error) {
-	rows, err := db.Query(db.Rebind(`
+	rows, err := db.Query(`
 		SELECT d.uri, d.author_did, d.site, d.path, d.title, d.description, d.text_content, d.tags_json, d.canonical_url, d.published_at, d.indexed_at
 		FROM documents d
 		LEFT JOIN annotations a ON a.target_source = d.canonical_url
 		GROUP BY d.uri
 		ORDER BY COUNT(a.uri) DESC, d.published_at DESC
-		LIMIT ? OFFSET ?
-	`), limit, offset)
+		LIMIT $1 OFFSET $2
+	`, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -386,7 +381,7 @@ func (db *DB) GetAnnotationEmbeddingsByAuthor(authorDID string) ([]AnnotationEmb
 
 func (db *DB) GetRecentAnnotationEmbeddingsByAuthor(authorDID string, limit int) ([]AnnotationEmbedding, error) {
 	rows, err := db.Query(
-		db.Rebind(`SELECT annotation_uri, author_did, document_uri, embedding, updated_at FROM annotation_embeddings WHERE author_did = ? ORDER BY updated_at DESC LIMIT ?`),
+		`SELECT annotation_uri, author_did, document_uri, embedding, updated_at FROM annotation_embeddings WHERE author_did = $1 ORDER BY updated_at DESC LIMIT $2`,
 		authorDID, limit,
 	)
 	if err != nil {
@@ -422,11 +417,8 @@ type CandidateDocument struct {
 }
 
 func (db *DB) GetCandidateDocuments(userDID string, limit int) ([]CandidateDocument, error) {
-	// Note: We use NOT LIKE instead of !~* for cross-database compatibility and performance.
-	// The engagement count sub-select is also constrained to recent elements if possible, but
-	// for now we just optimize the regex and exact grouping.
-	rows, err := db.Query(db.Rebind(`
-		SELECT 
+	rows, err := db.Query(`
+		SELECT
 			d.uri, d.author_did, d.site, d.path, d.title, d.description, d.tags_json,
 			d.canonical_url, d.published_at, de.embedding,
 			COALESCE(eng.cnt, 0) AS engagement
@@ -439,7 +431,7 @@ func (db *DB) GetCandidateDocuments(userDID string, limit int) ([]CandidateDocum
 			GROUP BY document_uri
 		) eng ON eng.document_uri = d.uri
 		LEFT JOIN publications p ON d.site = p.uri OR d.site = p.url
-		WHERE d.author_did != ?
+		WHERE d.author_did != $1
 		  AND (p.show_in_discover IS NULL OR p.show_in_discover = true)
 		  AND LENGTH(d.title) > 15
 		  AND (LENGTH(COALESCE(d.description, '')) >= 30 OR LENGTH(COALESCE(d.text_content, '')) >= 100)
@@ -453,11 +445,11 @@ func (db *DB) GetCandidateDocuments(userDID string, limit int) ([]CandidateDocum
 		  AND LOWER(d.title) NOT LIKE '%placeholder%'
 		  AND d.uri NOT IN (
 		    SELECT DISTINCT document_uri FROM annotation_embeddings
-		    WHERE author_did = ? AND document_uri IS NOT NULL
+		    WHERE author_did = $2 AND document_uri IS NOT NULL
 		  )
 		ORDER BY d.published_at DESC
-		LIMIT ?
-	`), userDID, userDID, limit)
+		LIMIT $3
+	`, userDID, userDID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("candidate query: %w", err)
 	}

@@ -482,13 +482,13 @@ func (h *APIKeyHandler) authenticateAPIKey(r *http.Request) (*db.APIKey, error) 
 }
 
 func (h *APIKeyHandler) getSessionByDID(did string) (*SessionData, error) {
-	rows, err := h.db.Query(h.db.Rebind(`
+	rows, err := h.db.Query(`
 		SELECT id, did, handle, access_token, refresh_token, COALESCE(dpop_key, '')
 		FROM sessions
-		WHERE did = ? AND expires_at > ?
+		WHERE did = $1 AND expires_at > $2
 		ORDER BY created_at DESC
 		LIMIT 1
-	`), did, time.Now())
+	`, did, time.Now())
 	if err != nil {
 		return nil, err
 	}

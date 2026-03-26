@@ -77,7 +77,7 @@ export default function Discover() {
 
   return (
     <div className="mx-auto max-w-2xl xl:max-w-none">
-      <div className="sticky top-0 z-10 bg-white/95 dark:bg-surface-800/95 backdrop-blur-sm pb-3 mb-2 -mx-1 px-1 pt-1 space-y-2">
+      <div className="sticky top-0 z-10 bg-white/90 dark:bg-surface-800/90 backdrop-blur-md pb-3 mb-2 -mx-1 px-1 pt-2 space-y-2">
         <div className="flex items-center gap-2">
           <Tabs tabs={tabs} activeTab={activeTab} onChange={handleTabChange} />
           <LayoutToggle className="hidden sm:inline-flex ml-auto" />

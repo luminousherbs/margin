@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
 import Avatar from "../ui/Avatar";
 import RichText from "./RichText";
 import { getProfile } from "../../api/client";
@@ -114,8 +113,8 @@ export default function ProfileHoverCard({
             </div>
           ) : profile ? (
             <div className="space-y-3">
-              <Link
-                to={`/profile/${profile.did}`}
+              <a
+                href={`/profile/${profile.did}`}
                 className="flex items-start gap-3 group"
               >
                 <Avatar
@@ -132,7 +131,7 @@ export default function ProfileHoverCard({
                     @{profile.handle}
                   </p>
                 </div>
-              </Link>
+              </a>
 
               {profile.description && (
                 <p className="text-sm text-surface-600 dark:text-surface-300 whitespace-pre-line line-clamp-3">
@@ -140,12 +139,12 @@ export default function ProfileHoverCard({
                 </p>
               )}
 
-              <Link
-                to={`/profile/${profile.did}`}
+              <a
+                href={`/profile/${profile.did}`}
                 className="block w-full text-center py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors"
               >
                 View Profile
-              </Link>
+              </a>
             </div>
           ) : (
             <p className="text-sm text-surface-500 text-center py-2">

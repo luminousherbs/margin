@@ -1,0 +1,8 @@
+---
+
+const user = Astro.locals.user;
+if (user) {
+	return Astro.redirect(`/profile/${user.did}`);
+}
+return Astro.redirect('/login');
+---

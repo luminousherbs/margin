@@ -25,7 +25,6 @@ import {
   EyeOff,
 } from "lucide-react";
 import { Avatar, EmptyState, Skeleton, Button } from "../../components/ui";
-import { Link } from "react-router-dom";
 
 const STATUS_COLORS: Record<string, string> = {
   pending:
@@ -302,23 +301,23 @@ export default function AdminModeration() {
                           <span className="text-surface-400 dark:text-surface-500 text-xs uppercase tracking-wider">
                             Reported User
                           </span>
-                          <Link
-                            to={`/profile/${report.subject.did}`}
+                          <a
+                            href={`/profile/${report.subject.did}`}
                             className="block mt-1 text-primary-600 dark:text-primary-400 hover:underline font-medium"
                           >
                             @{report.subject.handle || report.subject.did}
-                          </Link>
+                          </a>
                         </div>
                         <div>
                           <span className="text-surface-400 dark:text-surface-500 text-xs uppercase tracking-wider">
                             Reporter
                           </span>
-                          <Link
-                            to={`/profile/${report.reporter.did}`}
+                          <a
+                            href={`/profile/${report.reporter.did}`}
                             className="block mt-1 text-primary-600 dark:text-primary-400 hover:underline font-medium"
                           >
                             @{report.reporter.handle || report.reporter.did}
-                          </Link>
+                          </a>
                         </div>
                       </div>
 
@@ -509,12 +508,12 @@ export default function AdminModeration() {
                         {label.val}
                       </span>
                       {label.subject && (
-                        <Link
-                          to={`/profile/${label.subject.did}`}
+                        <a
+                          href={`/profile/${label.subject.did}`}
                           className="text-sm font-medium text-surface-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 truncate"
                         >
                           @{label.subject.handle || label.subject.did}
-                        </Link>
+                        </a>
                       )}
                     </div>
                     <p className="text-xs text-surface-500 dark:text-surface-400 truncate">

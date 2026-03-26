@@ -1,4 +1,5 @@
 ---
+import { ClientRouter } from 'astro:transitions';
 import '../styles/global.css';
 
 interface Props {
@@ -33,6 +34,29 @@ const { title = 'Margin', description = 'Annotate the web', image = 'https://mar
 		<meta name="twitter:image" content={image} />
 
 		<title>{title}</title>
+
+		<ClientRouter />
+
+		<script is:inline>
+			(function() {
+				function applyTheme() {
+					var theme = localStorage.getItem('theme') || 'system';
+					var root = document.documentElement;
+					if (theme === 'system') {
+						root.dataset.theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+					} else {
+						root.dataset.theme = theme;
+					}
+				}
+				applyTheme();
+				document.addEventListener('astro:before-swap', function(e) {
+					var theme = localStorage.getItem('theme') || 'system';
+					var dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+					e.newDocument.documentElement.dataset.theme = dark ? 'dark' : 'light';
+				});
+				document.addEventListener('astro:after-swap', applyTheme);
+			})();
+		</script>
 	</head>
 	<body class="bg-surface-50 dark:bg-surface-950 min-h-screen text-surface-900 dark:text-white">
 		<slot />

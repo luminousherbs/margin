@@ -1,0 +1,11 @@
+---
+
+import AppLayout from '../layouts/AppLayout.astro';
+import Discover from '../views/core/Discover';
+
+const user = Astro.locals.user;
+---
+
+<AppLayout title="Discover - Margin" user={user}>
+	<Discover client:load />
+</AppLayout>

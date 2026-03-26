@@ -1,6 +1,7 @@
 import type { APIContext } from "astro";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { getSession } from "./lib/api";
 
 const API_PORT = process.env.API_PORT || 8081;
 const API_URL = process.env.API_URL || `http://localhost:${API_PORT}`;
@@ -26,9 +27,11 @@ function isExtensionOrigin(origin: string | null): origin is string {
 }
 
 export async function onRequest(
-  { request, url }: APIContext,
+  context: APIContext,
   next: () => Promise<Response>,
 ): Promise<Response> {
+  const { request, url, locals } = context;
+
   if (url.pathname === "/favicon.ico") {
     try {
       const file = await readFile(
@@ -49,10 +52,21 @@ export async function onRequest(
     (p) => url.pathname.startsWith(p) || url.pathname === p.replace(/\/$/, ""),
   );
 
-  if (!shouldProxy) {
-    return next();
+  if (shouldProxy) {
+    return proxyToBackend(request, url);
   }
 
+  const cookie = request.headers.get("cookie") || "";
+  if (cookie.includes("margin_session")) {
+    locals.user = await getSession(cookie);
+  } else {
+    locals.user = null;
+  }
+
+  return next();
+}
+
+async function proxyToBackend(request: Request, url: URL): Promise<Response> {
   const origin = request.headers.get("origin");
 
   if (request.method === "OPTIONS" && isExtensionOrigin(origin)) {

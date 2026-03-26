@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Search, Coffee } from "lucide-react";
 import {
   getTrendingTags,
@@ -18,8 +17,11 @@ function looksLikeUrl(query: string): boolean {
   );
 }
 
+function navigate(path: string) {
+  window.location.href = path;
+}
+
 export default function RightSidebar() {
-  const navigate = useNavigate();
   const [tags, setTags] = useState<Tag[]>([]);
   const [browser] = useState<"chrome" | "firefox" | "edge" | "other">(() => {
     if (typeof navigator === "undefined") return "other";
@@ -82,16 +84,13 @@ export default function RightSidebar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const selectSuggestion = useCallback(
-    (actor: ActorSearchItem) => {
-      isSelectionRef.current = true;
-      setSearchQuery("");
-      setSuggestions([]);
-      setShowSuggestions(false);
-      navigate(`/profile/${encodeURIComponent(actor.handle)}`);
-    },
-    [navigate],
-  );
+  const selectSuggestion = useCallback((actor: ActorSearchItem) => {
+    isSelectionRef.current = true;
+    setSearchQuery("");
+    setSuggestions([]);
+    setShowSuggestions(false);
+    navigate(`/profile/${encodeURIComponent(actor.handle)}`);
+  }, []);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -135,7 +134,6 @@ export default function RightSidebar() {
       suggestions,
       selectedIndex,
       searchQuery,
-      navigate,
       selectSuggestion,
     ],
   );
@@ -178,8 +176,8 @@ export default function RightSidebar() {
               suggestions.length > 0 &&
               setShowSuggestions(true)
             }
-            placeholder="Search..."
-            className="w-full bg-surface-100 dark:bg-surface-800/80 rounded-lg pl-9 pr-4 py-2 text-sm text-surface-900 dark:text-white placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:bg-white dark:focus:bg-surface-800 transition-all border border-surface-200/60 dark:border-surface-700/60"
+            placeholder="Search people, tags, URLs..."
+            className="w-full bg-surface-100 dark:bg-surface-800/80 rounded-lg pl-9 pr-4 py-2 text-sm text-surface-900 dark:text-white placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:bg-white dark:focus:bg-surface-800 transition-all border border-transparent focus:border-surface-200 dark:focus:border-surface-700"
           />
 
           {showSuggestions && suggestions.length > 0 && (

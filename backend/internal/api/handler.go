@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -22,6 +23,59 @@ import (
 	"margin.at/internal/xrpc"
 )
 
+type urlMetaCacheEntry struct {
+	data      map[string]string
+	expiresAt time.Time
+}
+
+type urlMetaCache struct {
+	mu       sync.RWMutex
+	entries  map[string]urlMetaCacheEntry
+	inflight sync.Map
+}
+
+type singleflight struct {
+	wg   sync.WaitGroup
+	data map[string]string
+	err  error
+}
+
+func newURLMetaCache() *urlMetaCache {
+	c := &urlMetaCache{entries: make(map[string]urlMetaCacheEntry)}
+	go c.evictLoop()
+	return c
+}
+
+func (c *urlMetaCache) get(key string) (map[string]string, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	e, ok := c.entries[key]
+	if !ok || time.Now().After(e.expiresAt) {
+		return nil, false
+	}
+	return e.data, true
+}
+
+func (c *urlMetaCache) set(key string, data map[string]string, ttl time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.entries[key] = urlMetaCacheEntry{data: data, expiresAt: time.Now().Add(ttl)}
+}
+
+func (c *urlMetaCache) evictLoop() {
+	ticker := time.NewTicker(5 * time.Minute)
+	for range ticker.C {
+		c.mu.Lock()
+		now := time.Now()
+		for k, e := range c.entries {
+			if now.After(e.expiresAt) {
+				delete(c.entries, k)
+			}
+		}
+		c.mu.Unlock()
+	}
+}
+
 type Handler struct {
 	db                *db.DB
 	annotationService *AnnotationService
@@ -30,6 +84,8 @@ type Handler struct {
 	syncService       *internal_sync.Service
 	moderation        *ModerationHandler
 	recommendations   *recommendations.Service
+	metaCache         *urlMetaCache
+	metaSem           chan struct{}
 }
 
 func NewHandler(database *db.DB, annotationService *AnnotationService, refresher *TokenRefresher, syncService *internal_sync.Service, recService *recommendations.Service) *Handler {
@@ -41,6 +97,8 @@ func NewHandler(database *db.DB, annotationService *AnnotationService, refresher
 		syncService:       syncService,
 		moderation:        NewModerationHandler(database, refresher),
 		recommendations:   recService,
+		metaCache:         newURLMetaCache(),
+		metaSem:           make(chan struct{}, 5),
 	}
 }
 
@@ -346,9 +404,47 @@ func (h *Handler) GetFeed(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	authAnnos, _ := hydrateAnnotations(h.db, annotations, viewerDID)
-	authHighs, _ := hydrateHighlights(h.db, highlights, viewerDID)
-	authBooks, _ := hydrateBookmarks(h.db, bookmarks, viewerDID)
+	allDIDs := make(map[string]bool)
+	for _, a := range annotations {
+		allDIDs[a.AuthorDID] = true
+	}
+	for _, h := range highlights {
+		allDIDs[h.AuthorDID] = true
+	}
+	for _, b := range bookmarks {
+		allDIDs[b.AuthorDID] = true
+	}
+	for _, ci := range collectionItems {
+		allDIDs[ci.AuthorDID] = true
+	}
+	didSlice := make([]string, 0, len(allDIDs))
+	for did := range allDIDs {
+		didSlice = append(didSlice, did)
+	}
+	profiles := fetchProfilesForDIDs(h.db, didSlice)
+	shared := &hydrationData{profiles: profiles}
+
+	var (
+		authAnnos           []APIAnnotation
+		authHighs           []APIHighlight
+		authBooks           []APIBookmark
+		authCollectionItems []APICollectionItem
+		wg                  sync.WaitGroup
+	)
+
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		authAnnos, _ = hydrateAnnotationsWithData(h.db, annotations, viewerDID, shared)
+	}()
+	go func() {
+		defer wg.Done()
+		authHighs, _ = hydrateHighlightsWithData(h.db, highlights, viewerDID, shared)
+	}()
+	go func() {
+		defer wg.Done()
+		authBooks, _ = hydrateBookmarksWithData(h.db, bookmarks, viewerDID, shared)
+	}()
 
 	if len(collectionItems) > 0 {
 		var sembleURIs []string
@@ -362,9 +458,14 @@ func (h *Handler) GetFeed(w http.ResponseWriter, r *http.Request) {
 			defer cancel()
 			ensureSembleCardsIndexed(ctx, h.db, sembleURIs)
 		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			authCollectionItems, _ = hydrateCollectionItemsWithData(h.db, collectionItems, viewerDID, shared)
+		}()
 	}
 
-	authCollectionItems, _ := hydrateCollectionItems(h.db, collectionItems, viewerDID)
+	wg.Wait()
 
 	collectionItemURIs := make(map[string]string)
 	for _, ci := range authCollectionItems {
@@ -1194,20 +1295,90 @@ func (h *Handler) GetURLMetadata(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get(targetURL)
-	if err != nil {
+	if cached, ok := h.metaCache.get(targetURL); ok {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"title": "", "error": "failed to fetch"})
+		w.Header().Set("X-Cache", "HIT")
+		json.NewEncoder(w).Encode(cached)
 		return
+	}
+
+	sfVal, loaded := h.metaCache.inflight.LoadOrStore(targetURL, &singleflight{})
+	sf := sfVal.(*singleflight)
+	if loaded {
+		sf.wg.Wait()
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Cache", "DEDUP")
+		if sf.data != nil {
+			json.NewEncoder(w).Encode(sf.data)
+		} else {
+			json.NewEncoder(w).Encode(map[string]string{"title": "", "error": "failed to fetch"})
+		}
+		return
+	}
+
+	sf.wg.Add(1)
+	defer func() {
+		sf.wg.Done()
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			h.metaCache.inflight.Delete(targetURL)
+		}()
+	}()
+
+	select {
+	case h.metaSem <- struct{}{}:
+		defer func() { <-h.metaSem }()
+	case <-r.Context().Done():
+		sf.data = map[string]string{"title": "", "error": "timeout"}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(sf.data)
+		return
+	}
+
+	data := h.fetchURLMetadata(r.Context(), targetURL)
+	sf.data = data
+
+	ttl := 1 * time.Hour
+	if data["title"] == "" && data["error"] != "" {
+		ttl = 2 * time.Minute
+	}
+	h.metaCache.set(targetURL, data, ttl)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	json.NewEncoder(w).Encode(data)
+}
+
+func (h *Handler) fetchURLMetadata(ctx context.Context, targetURL string) map[string]string {
+	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
+	if err != nil {
+		return map[string]string{"title": "", "error": "invalid url"}
+	}
+	req.Header.Set("User-Agent", "Margin/1.0 (metadata fetcher)")
+	req.Header.Set("Accept", "text/html")
+
+	client := &http.Client{
+		Timeout: 4 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 3 {
+				return fmt.Errorf("too many redirects")
+			}
+			return nil
+		},
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return map[string]string{"title": "", "error": "failed to fetch"}
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 500*1024))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 256*1024))
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"title": ""})
-		return
+		return map[string]string{"title": ""}
 	}
 
 	content := string(body)
@@ -1310,15 +1481,12 @@ func (h *Handler) GetURLMetadata(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	data := map[string]string{
+	return map[string]string{
 		"title":       title,
 		"description": description,
 		"image":       image,
 		"icon":        favicon,
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
 }
 
 func (h *Handler) GetNotifications(w http.ResponseWriter, r *http.Request) {

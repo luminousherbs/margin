@@ -1,5 +1,4 @@
 import React from "react";
-import { Link } from "react-router-dom";
 import ExternalLinkModal from "../modals/ExternalLinkModal";
 import { useStore } from "@nanostores/react";
 import { $preferences } from "../../store/preferences";
@@ -138,14 +137,14 @@ export default function RichText({ text, className }: RichTextProps) {
           }
 
           finalParts.push(
-            <Link
+            <a
               key={`mention-${partIndex}-${startIndex}`}
-              to={`/profile/${handle}`}
+              href={`/profile/${handle}`}
               className="text-primary-600 dark:text-primary-400 hover:underline"
               onClick={(e) => e.stopPropagation()}
             >
               @{handle}
-            </Link>,
+            </a>,
           );
 
           lastMentionIndex = startIndex + fullMatch.length;

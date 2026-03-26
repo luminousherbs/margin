@@ -19,6 +19,8 @@ import (
 var (
 	Cache               ProfileCache          = NewInMemoryCache(5 * time.Minute)
 	ConstellationClient *constellation.Client = constellation.NewClient() // Enabled by default
+
+	bskyHTTPClient = &http.Client{Timeout: 5 * time.Second}
 )
 
 func init() {
@@ -168,6 +170,11 @@ type APINotification struct {
 	ReadAt     *time.Time  `json:"readAt,omitempty"`
 }
 
+type hydrationData struct {
+	profiles           map[string]Author
+	subscribedLabelers []string
+}
+
 func fetchCounts(ctx context.Context, database *db.DB, uris []string, viewerDID string) (likeCounts, replyCounts map[string]int, viewerLikes map[string]bool) {
 	likeCounts = make(map[string]int)
 	replyCounts = make(map[string]int)
@@ -177,12 +184,39 @@ func fetchCounts(ctx context.Context, database *db.DB, uris []string, viewerDID 
 		return
 	}
 
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
 	if database != nil {
-		likeCounts, _ = database.GetLikeCounts(uris)
-		replyCounts, _ = database.GetReplyCounts(uris)
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			if lc, err := database.GetLikeCounts(uris); err == nil {
+				mu.Lock()
+				likeCounts = lc
+				mu.Unlock()
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			if rc, err := database.GetReplyCounts(uris); err == nil {
+				mu.Lock()
+				replyCounts = rc
+				mu.Unlock()
+			}
+		}()
 		if viewerDID != "" {
-			viewerLikes, _ = database.GetViewerLikes(viewerDID, uris)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if vl, err := database.GetViewerLikes(viewerDID, uris); err == nil {
+					mu.Lock()
+					viewerLikes = vl
+					mu.Unlock()
+				}
+			}()
 		}
+		wg.Wait()
 	}
 
 	if ConstellationClient != nil && len(uris) <= 5 {
@@ -205,28 +239,99 @@ func fetchCounts(ctx context.Context, database *db.DB, uris []string, viewerDID 
 	return
 }
 
+func fetchEngagementData(database *db.DB, uris []string, authorDIDs []string, viewerDID string) (
+	likeCounts, replyCounts map[string]int,
+	viewerLikes map[string]bool,
+	uriLabels, didLabels map[string][]db.ContentLabel,
+	editTimes map[string]time.Time,
+) {
+	likeCounts = make(map[string]int)
+	replyCounts = make(map[string]int)
+	viewerLikes = make(map[string]bool)
+	uriLabels = make(map[string][]db.ContentLabel)
+	didLabels = make(map[string][]db.ContentLabel)
+	editTimes = make(map[string]time.Time)
+
+	if len(uris) == 0 {
+		return
+	}
+
+	subscribedLabelers := getSubscribedLabelers(database, viewerDID)
+	labelerDIDs := appendUnique(subscribedLabelers, authorDIDs)
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		lc, rc, vl := fetchCounts(ctx, database, uris, viewerDID)
+		mu.Lock()
+		likeCounts = lc
+		replyCounts = rc
+		viewerLikes = vl
+		mu.Unlock()
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if ul, err := database.GetContentLabelsForURIs(uris, labelerDIDs); err == nil {
+			mu.Lock()
+			uriLabels = ul
+			mu.Unlock()
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if dl, err := database.GetContentLabelsForDIDs(authorDIDs, labelerDIDs); err == nil {
+			mu.Lock()
+			didLabels = dl
+			mu.Unlock()
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if et, err := database.GetLatestEditTimes(uris); err == nil {
+			mu.Lock()
+			editTimes = et
+			mu.Unlock()
+		}
+	}()
+
+	wg.Wait()
+	return
+}
+
 func hydrateAnnotations(database *db.DB, annotations []db.Annotation, viewerDID string) ([]APIAnnotation, error) {
+	return hydrateAnnotationsWithData(database, annotations, viewerDID, nil)
+}
+
+func hydrateAnnotationsWithData(database *db.DB, annotations []db.Annotation, viewerDID string, shared *hydrationData) ([]APIAnnotation, error) {
 	if len(annotations) == 0 {
 		return []APIAnnotation{}, nil
 	}
 
-	profiles := fetchProfilesForDIDs(database, collectDIDs(annotations, func(a db.Annotation) string { return a.AuthorDID }))
+	var profiles map[string]Author
+	if shared != nil && shared.profiles != nil {
+		profiles = shared.profiles
+	} else {
+		profiles = fetchProfilesForDIDs(database, collectDIDs(annotations, func(a db.Annotation) string { return a.AuthorDID }))
+	}
 
 	uris := make([]string, len(annotations))
 	for i, a := range annotations {
 		uris[i] = a.URI
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	likeCounts, replyCounts, viewerLikes := fetchCounts(ctx, database, uris, viewerDID)
-
-	subscribedLabelers := getSubscribedLabelers(database, viewerDID)
 	authorDIDs := collectDIDs(annotations, func(a db.Annotation) string { return a.AuthorDID })
-	labelerDIDs := appendUnique(subscribedLabelers, authorDIDs)
-	uriLabels, _ := database.GetContentLabelsForURIs(uris, labelerDIDs)
-	didLabels, _ := database.GetContentLabelsForDIDs(authorDIDs, labelerDIDs)
-	editTimes, _ := database.GetLatestEditTimes(uris)
+
+	likeCounts, replyCounts, viewerLikes, uriLabels, didLabels, editTimes := fetchEngagementData(database, uris, authorDIDs, viewerDID)
 
 	result := make([]APIAnnotation, len(annotations))
 	for i, a := range annotations {
@@ -303,27 +408,28 @@ func hydrateAnnotations(database *db.DB, annotations []db.Annotation, viewerDID 
 }
 
 func hydrateHighlights(database *db.DB, highlights []db.Highlight, viewerDID string) ([]APIHighlight, error) {
+	return hydrateHighlightsWithData(database, highlights, viewerDID, nil)
+}
+
+func hydrateHighlightsWithData(database *db.DB, highlights []db.Highlight, viewerDID string, shared *hydrationData) ([]APIHighlight, error) {
 	if len(highlights) == 0 {
 		return []APIHighlight{}, nil
 	}
 
-	profiles := fetchProfilesForDIDs(database, collectDIDs(highlights, func(h db.Highlight) string { return h.AuthorDID }))
+	var profiles map[string]Author
+	if shared != nil && shared.profiles != nil {
+		profiles = shared.profiles
+	} else {
+		profiles = fetchProfilesForDIDs(database, collectDIDs(highlights, func(h db.Highlight) string { return h.AuthorDID }))
+	}
 
 	uris := make([]string, len(highlights))
 	for i, h := range highlights {
 		uris[i] = h.URI
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	likeCounts, replyCounts, viewerLikes := fetchCounts(ctx, database, uris, viewerDID)
-
-	subscribedLabelers := getSubscribedLabelers(database, viewerDID)
 	authorDIDs := collectDIDs(highlights, func(h db.Highlight) string { return h.AuthorDID })
-	labelerDIDs := appendUnique(subscribedLabelers, authorDIDs)
-	uriLabels, _ := database.GetContentLabelsForURIs(uris, labelerDIDs)
-	didLabels, _ := database.GetContentLabelsForDIDs(authorDIDs, labelerDIDs)
-	editTimes, _ := database.GetLatestEditTimes(uris)
+
+	likeCounts, replyCounts, viewerLikes, uriLabels, didLabels, editTimes := fetchEngagementData(database, uris, authorDIDs, viewerDID)
 
 	result := make([]APIHighlight, len(highlights))
 	for i, h := range highlights {
@@ -385,27 +491,28 @@ func hydrateHighlights(database *db.DB, highlights []db.Highlight, viewerDID str
 }
 
 func hydrateBookmarks(database *db.DB, bookmarks []db.Bookmark, viewerDID string) ([]APIBookmark, error) {
+	return hydrateBookmarksWithData(database, bookmarks, viewerDID, nil)
+}
+
+func hydrateBookmarksWithData(database *db.DB, bookmarks []db.Bookmark, viewerDID string, shared *hydrationData) ([]APIBookmark, error) {
 	if len(bookmarks) == 0 {
 		return []APIBookmark{}, nil
 	}
 
-	profiles := fetchProfilesForDIDs(database, collectDIDs(bookmarks, func(b db.Bookmark) string { return b.AuthorDID }))
+	var profiles map[string]Author
+	if shared != nil && shared.profiles != nil {
+		profiles = shared.profiles
+	} else {
+		profiles = fetchProfilesForDIDs(database, collectDIDs(bookmarks, func(b db.Bookmark) string { return b.AuthorDID }))
+	}
 
 	uris := make([]string, len(bookmarks))
 	for i, b := range bookmarks {
 		uris[i] = b.URI
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	likeCounts, replyCounts, viewerLikes := fetchCounts(ctx, database, uris, viewerDID)
-
-	subscribedLabelers := getSubscribedLabelers(database, viewerDID)
 	authorDIDs := collectDIDs(bookmarks, func(b db.Bookmark) string { return b.AuthorDID })
-	labelerDIDs := appendUnique(subscribedLabelers, authorDIDs)
-	uriLabels, _ := database.GetContentLabelsForURIs(uris, labelerDIDs)
-	didLabels, _ := database.GetContentLabelsForDIDs(authorDIDs, labelerDIDs)
-	editTimes, _ := database.GetLatestEditTimes(uris)
+
+	likeCounts, replyCounts, viewerLikes, uriLabels, didLabels, editTimes := fetchEngagementData(database, uris, authorDIDs, viewerDID)
 
 	result := make([]APIBookmark, len(bookmarks))
 	for i, b := range bookmarks {
@@ -504,14 +611,46 @@ func collectDIDs[T any](items []T, getDID func(T) string) []string {
 
 func fetchProfilesForDIDs(database *db.DB, dids []string) map[string]Author {
 	profiles := make(map[string]Author)
-	missingDIDs := make([]string, 0)
+	if len(dids) == 0 {
+		return profiles
+	}
 
+	missingDIDs := make([]string, 0)
 	for _, did := range dids {
 		if author, ok := Cache.Get(did); ok {
 			profiles[did] = author
 		} else {
 			missingDIDs = append(missingDIDs, did)
 		}
+	}
+
+	if len(missingDIDs) == 0 {
+		return profiles
+	}
+
+	if database != nil {
+		marginProfiles, err := database.GetProfilesByDIDs(missingDIDs)
+		if err == nil {
+			for did, mp := range marginProfiles {
+				author := Author{DID: did}
+				if mp.DisplayName != nil && *mp.DisplayName != "" {
+					author.DisplayName = *mp.DisplayName
+				}
+				if mp.Avatar != nil && *mp.Avatar != "" {
+					author.Avatar = getProxiedAvatarURL(did, *mp.Avatar)
+				}
+				profiles[did] = author
+				Cache.Set(did, author)
+			}
+		}
+
+		stillMissing := make([]string, 0)
+		for _, did := range missingDIDs {
+			if _, ok := profiles[did]; !ok {
+				stillMissing = append(stillMissing, did)
+			}
+		}
+		missingDIDs = stillMissing
 	}
 
 	if len(missingDIDs) > 0 {
@@ -532,10 +671,11 @@ func fetchProfilesForDIDs(database *db.DB, dids []string) map[string]Author {
 				fetched, err := fetchProfiles(actors)
 				if err == nil {
 					mu.Lock()
-					defer mu.Unlock()
 					for k, v := range fetched {
 						profiles[k] = v
+						Cache.Set(k, v)
 					}
+					mu.Unlock()
 				}
 			}(batch)
 		}
@@ -548,11 +688,8 @@ func fetchProfilesForDIDs(database *db.DB, dids []string) map[string]Author {
 			for did, mp := range marginProfiles {
 				author, exists := profiles[did]
 				if !exists {
-					author = Author{
-						DID: did,
-					}
+					author = Author{DID: did}
 				}
-
 				if mp.DisplayName != nil && *mp.DisplayName != "" {
 					author.DisplayName = *mp.DisplayName
 				}
@@ -560,7 +697,6 @@ func fetchProfilesForDIDs(database *db.DB, dids []string) map[string]Author {
 					author.Avatar = getProxiedAvatarURL(did, *mp.Avatar)
 				}
 				profiles[did] = author
-
 				Cache.Set(did, author)
 			}
 		}
@@ -579,7 +715,7 @@ func fetchProfiles(dids []string) (map[string]Author, error) {
 		q.Add("actors", did)
 	}
 
-	resp, err := http.Get(config.Get().BskyGetProfilesURL() + "?" + q.Encode())
+	resp, err := bskyHTTPClient.Get(config.Get().BskyGetProfilesURL() + "?" + q.Encode())
 	if err != nil {
 		logger.Error("Hydration fetch error: %v", err)
 		return nil, err
@@ -618,11 +754,20 @@ func fetchProfiles(dids []string) (map[string]Author, error) {
 }
 
 func hydrateCollectionItems(database *db.DB, items []db.CollectionItem, viewerDID string) ([]APICollectionItem, error) {
+	return hydrateCollectionItemsWithData(database, items, viewerDID, nil)
+}
+
+func hydrateCollectionItemsWithData(database *db.DB, items []db.CollectionItem, viewerDID string, shared *hydrationData) ([]APICollectionItem, error) {
 	if len(items) == 0 {
 		return []APICollectionItem{}, nil
 	}
 
-	profiles := fetchProfilesForDIDs(database, collectDIDs(items, func(i db.CollectionItem) string { return i.AuthorDID }))
+	var profiles map[string]Author
+	if shared != nil && shared.profiles != nil {
+		profiles = shared.profiles
+	} else {
+		profiles = fetchProfilesForDIDs(database, collectDIDs(items, func(i db.CollectionItem) string { return i.AuthorDID }))
+	}
 
 	var collectionURIs []string
 	var annotationURIs []string
@@ -647,7 +792,6 @@ func hydrateCollectionItems(database *db.DB, items []db.CollectionItem, viewerDI
 	if len(collectionURIs) > 0 {
 		colls, err := database.GetCollectionsByURIs(collectionURIs)
 		if err == nil {
-			collProfiles := fetchProfilesForDIDs(database, collectDIDs(colls, func(c db.Collection) string { return c.AuthorDID }))
 			for _, coll := range colls {
 				icon := ""
 				if coll.Icon != nil {
@@ -662,7 +806,7 @@ func hydrateCollectionItems(database *db.DB, items []db.CollectionItem, viewerDI
 					Name:        coll.Name,
 					Description: desc,
 					Icon:        icon,
-					Creator:     collProfiles[coll.AuthorDID],
+					Creator:     profiles[coll.AuthorDID],
 					CreatedAt:   coll.CreatedAt,
 					IndexedAt:   coll.IndexedAt,
 				}
@@ -670,38 +814,65 @@ func hydrateCollectionItems(database *db.DB, items []db.CollectionItem, viewerDI
 		}
 	}
 
-	annotationsMap := make(map[string]APIAnnotation)
+	var (
+		annotationsMap = make(map[string]APIAnnotation)
+		highlightsMap  = make(map[string]APIHighlight)
+		bookmarksMap   = make(map[string]APIBookmark)
+		wg             sync.WaitGroup
+		mu             sync.Mutex
+	)
+
+	nestedShared := &hydrationData{profiles: profiles}
+
 	if len(annotationURIs) > 0 {
-		rawAnnos, err := database.GetAnnotationsByURIs(annotationURIs)
-		if err == nil {
-			hydrated, _ := hydrateAnnotations(database, rawAnnos, viewerDID)
-			for _, a := range hydrated {
-				annotationsMap[a.ID] = a
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			rawAnnos, err := database.GetAnnotationsByURIs(annotationURIs)
+			if err == nil {
+				hydrated, _ := hydrateAnnotationsWithData(database, rawAnnos, viewerDID, nestedShared)
+				mu.Lock()
+				for _, a := range hydrated {
+					annotationsMap[a.ID] = a
+				}
+				mu.Unlock()
 			}
-		}
+		}()
 	}
 
-	highlightsMap := make(map[string]APIHighlight)
 	if len(highlightURIs) > 0 {
-		rawHighlights, err := database.GetHighlightsByURIs(highlightURIs)
-		if err == nil {
-			hydrated, _ := hydrateHighlights(database, rawHighlights, viewerDID)
-			for _, h := range hydrated {
-				highlightsMap[h.ID] = h
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			rawHighlights, err := database.GetHighlightsByURIs(highlightURIs)
+			if err == nil {
+				hydrated, _ := hydrateHighlightsWithData(database, rawHighlights, viewerDID, nestedShared)
+				mu.Lock()
+				for _, h := range hydrated {
+					highlightsMap[h.ID] = h
+				}
+				mu.Unlock()
 			}
-		}
+		}()
 	}
 
-	bookmarksMap := make(map[string]APIBookmark)
 	if len(bookmarkURIs) > 0 {
-		rawBookmarks, err := database.GetBookmarksByURIs(bookmarkURIs)
-		if err == nil {
-			hydrated, _ := hydrateBookmarks(database, rawBookmarks, viewerDID)
-			for _, b := range hydrated {
-				bookmarksMap[b.ID] = b
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			rawBookmarks, err := database.GetBookmarksByURIs(bookmarkURIs)
+			if err == nil {
+				hydrated, _ := hydrateBookmarksWithData(database, rawBookmarks, viewerDID, nestedShared)
+				mu.Lock()
+				for _, b := range hydrated {
+					bookmarksMap[b.ID] = b
+				}
+				mu.Unlock()
 			}
-		}
+		}()
 	}
+
+	wg.Wait()
 
 	var result []APICollectionItem
 	for _, item := range items {

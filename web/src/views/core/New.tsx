@@ -1,32 +1,37 @@
 import React, { useState } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useStore } from "@nanostores/react";
 import { $user } from "../../store/auth";
 import Composer from "../../components/feed/Composer";
 import type { Selector } from "../../types";
 
-export default function NewAnnotationPage() {
-  const user = useStore($user);
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+interface NewAnnotationProps {
+  initialUrl?: string;
+  initialSelectorJson?: string;
+  initialQuote?: string;
+}
 
-  const initialUrl = searchParams.get("url") || "";
+export default function NewAnnotationPage({
+  initialUrl: propUrl,
+  initialSelectorJson,
+  initialQuote,
+}: NewAnnotationProps) {
+  const user = useStore($user);
+
+  const initialUrl = propUrl || "";
 
   let initialSelector: Selector | null = null;
-  const selectorParam = searchParams.get("selector");
-  if (selectorParam) {
+  if (initialSelectorJson) {
     try {
-      initialSelector = JSON.parse(selectorParam);
+      initialSelector = JSON.parse(initialSelectorJson);
     } catch (e) {
       console.error("Failed to parse selector:", e);
     }
   }
 
-  const legacyQuote = searchParams.get("quote") || "";
-  if (legacyQuote && !initialSelector) {
+  if (initialQuote && !initialSelector) {
     initialSelector = {
       type: "TextQuoteSelector",
-      exact: legacyQuote,
+      exact: initialQuote,
     };
   }
 
@@ -42,19 +47,19 @@ export default function NewAnnotationPage() {
           <p className="text-surface-500 dark:text-surface-400 text-sm mb-5">
             You need a Bluesky account
           </p>
-          <Link
-            to="/login"
+          <a
+            href="/login"
             className="block w-full py-2.5 px-4 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
           >
             Sign in with Bluesky
-          </Link>
+          </a>
         </div>
       </div>
     );
   }
 
   const handleSuccess = () => {
-    navigate("/home");
+    window.location.href = "/home";
   };
 
   return (
@@ -97,7 +102,7 @@ export default function NewAnnotationPage() {
           }
           selector={initialSelector}
           onSuccess={handleSuccess}
-          onCancel={() => navigate(-1)}
+          onCancel={() => window.history.back()}
         />
       </div>
     </div>

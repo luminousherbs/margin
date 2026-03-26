@@ -8,12 +8,10 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 type DB struct {
 	*sql.DB
-	driver string
 }
 
 type Annotation struct {
@@ -204,48 +202,28 @@ type ContentLabel struct {
 }
 
 func New(dsn string) (*DB, error) {
-	driver := "sqlite3"
-	if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
-		driver = "postgres"
+	if !strings.HasPrefix(dsn, "postgres://") && !strings.HasPrefix(dsn, "postgresql://") {
+		return nil, fmt.Errorf("only PostgreSQL is supported, DSN must start with postgres:// or postgresql://")
 	}
 
-	db, err := sql.Open(driver, dsn)
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database connection: %w", err)
 	}
 
-	if driver == "sqlite3" {
-		if _, err := db.Exec("PRAGMA journal_mode=WAL;"); err != nil {
-			return nil, fmt.Errorf("failed to set WAL mode: %w", err)
-		}
-		db.Exec("PRAGMA synchronous=NORMAL;")
-		db.Exec("PRAGMA busy_timeout=5000;")
-		db.Exec("PRAGMA cache_size=-2000;")
-		db.Exec("PRAGMA foreign_keys=ON;")
-
-		db.SetMaxOpenConns(25)
-		db.SetMaxIdleConns(25)
-		db.SetConnMaxLifetime(5 * time.Minute)
-	} else {
-		db.SetMaxOpenConns(50)
-		db.SetMaxIdleConns(25)
-		db.SetConnMaxLifetime(10 * time.Minute)
-	}
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxIdleTime(2 * time.Minute)
 
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	return &DB{DB: db, driver: driver}, nil
+	return &DB{DB: db}, nil
 }
 
 func (db *DB) Migrate() error {
-
-	dateType := "DATETIME"
-	if db.driver == "postgres" {
-		dateType = "TIMESTAMP"
-	}
-
 	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS annotations (
 			uri TEXT PRIMARY KEY,
@@ -259,8 +237,8 @@ func (db *DB) Migrate() error {
 			target_title TEXT,
 			selector_json TEXT,
 			tags_json TEXT,
-			created_at ` + dateType + ` NOT NULL,
-			indexed_at ` + dateType + ` NOT NULL,
+			created_at TIMESTAMP NOT NULL,
+			indexed_at TIMESTAMP NOT NULL,
 			cid TEXT
 		)`)
 	if err != nil {
@@ -272,6 +250,8 @@ func (db *DB) Migrate() error {
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_annotations_author_did ON annotations(author_did)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_annotations_motivation ON annotations(motivation)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_annotations_created_at ON annotations(created_at DESC)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_annotations_author_created ON annotations(author_did, created_at DESC)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_annotations_uri_pattern ON annotations(uri text_pattern_ops)`)
 
 	db.Exec(`CREATE TABLE IF NOT EXISTS highlights (
 		uri TEXT PRIMARY KEY,
@@ -282,13 +262,15 @@ func (db *DB) Migrate() error {
 		selector_json TEXT,
 		color TEXT,
 		tags_json TEXT,
-		created_at ` + dateType + ` NOT NULL,
-		indexed_at ` + dateType + ` NOT NULL,
+		created_at TIMESTAMP NOT NULL,
+		indexed_at TIMESTAMP NOT NULL,
 		cid TEXT
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_highlights_target_hash ON highlights(target_hash)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_highlights_author_did ON highlights(author_did)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_highlights_created_at ON highlights(created_at DESC)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_highlights_author_created ON highlights(author_did, created_at DESC)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_highlights_uri_pattern ON highlights(uri text_pattern_ops)`)
 
 	db.Exec(`CREATE TABLE IF NOT EXISTS bookmarks (
 		uri TEXT PRIMARY KEY,
@@ -298,13 +280,15 @@ func (db *DB) Migrate() error {
 		title TEXT,
 		description TEXT,
 		tags_json TEXT,
-		created_at ` + dateType + ` NOT NULL,
-		indexed_at ` + dateType + ` NOT NULL,
+		created_at TIMESTAMP NOT NULL,
+		indexed_at TIMESTAMP NOT NULL,
 		cid TEXT
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_bookmarks_source_hash ON bookmarks(source_hash)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_bookmarks_author_did ON bookmarks(author_did)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_bookmarks_created_at ON bookmarks(created_at DESC)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_bookmarks_author_created ON bookmarks(author_did, created_at DESC)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_bookmarks_uri_pattern ON bookmarks(uri text_pattern_ops)`)
 
 	db.Exec(`CREATE TABLE IF NOT EXISTS replies (
 		uri TEXT PRIMARY KEY,
@@ -313,20 +297,21 @@ func (db *DB) Migrate() error {
 		root_uri TEXT NOT NULL,
 		text TEXT NOT NULL,
 		format TEXT DEFAULT 'text/plain',
-		created_at ` + dateType + ` NOT NULL,
-		indexed_at ` + dateType + ` NOT NULL,
+		created_at TIMESTAMP NOT NULL,
+		indexed_at TIMESTAMP NOT NULL,
 		cid TEXT
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_replies_parent_uri ON replies(parent_uri)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_replies_root_uri ON replies(root_uri)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_replies_created_at ON replies(created_at DESC)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_replies_author_did ON replies(author_did)`)
 
 	db.Exec(`CREATE TABLE IF NOT EXISTS likes (
 		uri TEXT PRIMARY KEY,
 		author_did TEXT NOT NULL,
 		subject_uri TEXT NOT NULL,
-		created_at ` + dateType + ` NOT NULL,
-		indexed_at ` + dateType + ` NOT NULL
+		created_at TIMESTAMP NOT NULL,
+		indexed_at TIMESTAMP NOT NULL
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_likes_subject_uri ON likes(subject_uri)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_likes_author_did ON likes(author_did)`)
@@ -338,8 +323,8 @@ func (db *DB) Migrate() error {
 		name TEXT NOT NULL,
 		description TEXT,
 		icon TEXT,
-		created_at ` + dateType + ` NOT NULL,
-		indexed_at ` + dateType + ` NOT NULL
+		created_at TIMESTAMP NOT NULL,
+		indexed_at TIMESTAMP NOT NULL
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_collections_author_did ON collections(author_did)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_collections_created_at ON collections(created_at DESC)`)
@@ -350,8 +335,8 @@ func (db *DB) Migrate() error {
 		collection_uri TEXT NOT NULL,
 		annotation_uri TEXT NOT NULL,
 		position INTEGER DEFAULT 0,
-		created_at ` + dateType + ` NOT NULL,
-		indexed_at ` + dateType + ` NOT NULL
+		created_at TIMESTAMP NOT NULL,
+		indexed_at TIMESTAMP NOT NULL
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_collection_items_collection ON collection_items(collection_uri)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_collection_items_annotation ON collection_items(annotation_uri)`)
@@ -364,49 +349,46 @@ func (db *DB) Migrate() error {
 		access_token TEXT NOT NULL,
 		refresh_token TEXT NOT NULL,
 		dpop_key TEXT,
-		created_at ` + dateType + ` NOT NULL,
-		expires_at ` + dateType + ` NOT NULL
+		created_at TIMESTAMP NOT NULL,
+		expires_at TIMESTAMP NOT NULL
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_sessions_did ON sessions(did)`)
-
-	autoInc := "INTEGER PRIMARY KEY AUTOINCREMENT"
-	if db.driver == "postgres" {
-		autoInc = "SERIAL PRIMARY KEY"
-	}
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)`)
 
 	db.Exec(`CREATE TABLE IF NOT EXISTS edit_history (
-		id ` + autoInc + `,
+		id SERIAL PRIMARY KEY,
 		uri TEXT NOT NULL,
 		record_type TEXT NOT NULL,
 		previous_content TEXT NOT NULL,
 		previous_cid TEXT,
-		edited_at ` + dateType + ` NOT NULL
+		edited_at TIMESTAMP NOT NULL
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_edit_history_uri ON edit_history(uri)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_edit_history_edited_at ON edit_history(edited_at DESC)`)
 
 	db.Exec(`CREATE TABLE IF NOT EXISTS notifications (
-		id ` + autoInc + `,
+		id SERIAL PRIMARY KEY,
 		recipient_did TEXT NOT NULL,
 		actor_did TEXT NOT NULL,
 		type TEXT NOT NULL,
 		subject_uri TEXT NOT NULL,
-		created_at ` + dateType + ` NOT NULL,
-		read_at ` + dateType + `
+		created_at TIMESTAMP NOT NULL,
+		read_at TIMESTAMP
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_notifications_recipient ON notifications(recipient_did)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(recipient_did) WHERE read_at IS NULL`)
 
 	db.Exec(`CREATE TABLE IF NOT EXISTS api_keys (
 		id TEXT PRIMARY KEY,
 		owner_did TEXT NOT NULL,
 		name TEXT NOT NULL,
 		key_hash TEXT NOT NULL,
-		created_at ` + dateType + ` NOT NULL,
-		last_used_at ` + dateType + `,
+		created_at TIMESTAMP NOT NULL,
+		last_used_at TIMESTAMP,
 		uri TEXT,
 		cid TEXT,
-		indexed_at ` + dateType + ` DEFAULT CURRENT_TIMESTAMP
+		indexed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_api_keys_owner ON api_keys(owner_did)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(key_hash)`)
@@ -419,8 +401,8 @@ func (db *DB) Migrate() error {
 		bio TEXT,
 		website TEXT,
 		links_json TEXT,
-		created_at ` + dateType + ` NOT NULL,
-		indexed_at ` + dateType + ` NOT NULL,
+		created_at TIMESTAMP NOT NULL,
+		indexed_at TIMESTAMP NOT NULL,
 		cid TEXT
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_profiles_author_did ON profiles(author_did)`)
@@ -432,8 +414,8 @@ func (db *DB) Migrate() error {
 		subscribed_labelers TEXT,
 		label_preferences TEXT,
 		disable_external_link_warning BOOLEAN,
-		created_at ` + dateType + ` NOT NULL,
-		indexed_at ` + dateType + ` NOT NULL,
+		created_at TIMESTAMP NOT NULL,
+		indexed_at TIMESTAMP NOT NULL,
 		cid TEXT
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_preferences_author_did ON preferences(author_did)`)
@@ -443,39 +425,39 @@ func (db *DB) Migrate() error {
 	db.Exec(`CREATE TABLE IF NOT EXISTS cursors (
 		id TEXT PRIMARY KEY,
 		last_cursor BIGINT NOT NULL,
-		updated_at ` + dateType + ` NOT NULL
+		updated_at TIMESTAMP NOT NULL
 	)`)
 
 	db.Exec(`CREATE TABLE IF NOT EXISTS blocks (
-		id ` + autoInc + `,
+		id SERIAL PRIMARY KEY,
 		actor_did TEXT NOT NULL,
 		subject_did TEXT NOT NULL,
-		created_at ` + dateType + ` NOT NULL,
+		created_at TIMESTAMP NOT NULL,
 		UNIQUE(actor_did, subject_did)
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_blocks_actor ON blocks(actor_did)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_blocks_subject ON blocks(subject_did)`)
 
 	db.Exec(`CREATE TABLE IF NOT EXISTS mutes (
-		id ` + autoInc + `,
+		id SERIAL PRIMARY KEY,
 		actor_did TEXT NOT NULL,
 		subject_did TEXT NOT NULL,
-		created_at ` + dateType + ` NOT NULL,
+		created_at TIMESTAMP NOT NULL,
 		UNIQUE(actor_did, subject_did)
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_mutes_actor ON mutes(actor_did)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_mutes_subject ON mutes(subject_did)`)
 
 	db.Exec(`CREATE TABLE IF NOT EXISTS moderation_reports (
-		id ` + autoInc + `,
+		id SERIAL PRIMARY KEY,
 		reporter_did TEXT NOT NULL,
 		subject_did TEXT NOT NULL,
 		subject_uri TEXT,
 		reason_type TEXT NOT NULL,
 		reason_text TEXT,
 		status TEXT NOT NULL DEFAULT 'pending',
-		created_at ` + dateType + ` NOT NULL,
-		resolved_at ` + dateType + `,
+		created_at TIMESTAMP NOT NULL,
+		resolved_at TIMESTAMP,
 		resolved_by TEXT
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_mod_reports_status ON moderation_reports(status)`)
@@ -483,23 +465,23 @@ func (db *DB) Migrate() error {
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_mod_reports_reporter ON moderation_reports(reporter_did)`)
 
 	db.Exec(`CREATE TABLE IF NOT EXISTS moderation_actions (
-		id ` + autoInc + `,
+		id SERIAL PRIMARY KEY,
 		report_id INTEGER NOT NULL,
 		actor_did TEXT NOT NULL,
 		action TEXT NOT NULL,
 		comment TEXT,
-		created_at ` + dateType + ` NOT NULL
+		created_at TIMESTAMP NOT NULL
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_mod_actions_report ON moderation_actions(report_id)`)
 
 	db.Exec(`CREATE TABLE IF NOT EXISTS content_labels (
-		id ` + autoInc + `,
+		id SERIAL PRIMARY KEY,
 		src TEXT NOT NULL,
 		uri TEXT NOT NULL,
 		val TEXT NOT NULL,
 		neg INTEGER NOT NULL DEFAULT 0,
 		created_by TEXT NOT NULL,
-		created_at ` + dateType + ` NOT NULL
+		created_at TIMESTAMP NOT NULL
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_content_labels_uri ON content_labels(uri)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_content_labels_src ON content_labels(src)`)
@@ -511,7 +493,7 @@ func (db *DB) Migrate() error {
 		name TEXT NOT NULL,
 		description TEXT,
 		show_in_discover BOOLEAN NOT NULL DEFAULT true,
-		indexed_at ` + dateType + ` NOT NULL
+		indexed_at TIMESTAMP NOT NULL
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_publications_author ON publications(author_did)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_publications_url ON publications(url)`)
@@ -526,8 +508,8 @@ func (db *DB) Migrate() error {
 		text_content TEXT,
 		tags_json TEXT,
 		canonical_url TEXT,
-		published_at ` + dateType + ` NOT NULL,
-		indexed_at ` + dateType + ` NOT NULL
+		published_at TIMESTAMP NOT NULL,
+		indexed_at TIMESTAMP NOT NULL
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_documents_author ON documents(author_did)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_documents_site ON documents(site)`)
@@ -544,26 +526,14 @@ func (db *DB) GetProfilesByDIDs(dids []string) (map[string]*Profile, error) {
 		return nil, nil
 	}
 
-	query := `SELECT uri, author_did, display_name, bio, avatar, website, links_json, created_at, indexed_at FROM profiles WHERE author_did IN (`
-	args := make([]interface{}, len(dids))
 	placeholders := make([]string, len(dids))
-
+	args := make([]interface{}, len(dids))
 	for i, did := range dids {
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = did
 	}
 
-	query += strings.Join(placeholders, ",") + ")"
-
-	if db.driver == "sqlite3" {
-		query = strings.ReplaceAll(query, "$", "?")
-
-		placeholders = make([]string, len(dids))
-		for i := range dids {
-			placeholders[i] = "?"
-		}
-		query = `SELECT uri, author_did, display_name, bio, avatar, website, links_json, created_at, indexed_at FROM profiles WHERE author_did IN (` + strings.Join(placeholders, ",") + ")"
-	}
+	query := `SELECT uri, author_did, display_name, bio, avatar, website, links_json, created_at, indexed_at FROM profiles WHERE author_did IN (` + strings.Join(placeholders, ",") + ")"
 
 	rows, err := db.Query(query, args...)
 	if err != nil {
@@ -597,10 +567,10 @@ func (db *DB) GetCursor(id string) (int64, error) {
 
 func (db *DB) SetCursor(id string, cursor int64) error {
 	query := `
-		INSERT INTO cursors (id, last_cursor, updated_at) 
-		VALUES ($1, $2, $3) 
-		ON CONFLICT(id) DO UPDATE SET 
-			last_cursor = EXCLUDED.last_cursor, 
+		INSERT INTO cursors (id, last_cursor, updated_at)
+		VALUES ($1, $2, $3)
+		ON CONFLICT(id) DO UPDATE SET
+			last_cursor = EXCLUDED.last_cursor,
 			updated_at = EXCLUDED.updated_at
 	`
 	_, err := db.Exec(query, id, cursor, time.Now())
@@ -623,17 +593,17 @@ func (db *DB) GetProfile(did string) (*Profile, error) {
 
 func (db *DB) UpsertProfile(p *Profile) error {
 	query := `
-		INSERT INTO profiles (uri, author_did, display_name, avatar, bio, website, links_json, created_at, indexed_at) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
-		ON CONFLICT(uri) DO UPDATE SET 
+		INSERT INTO profiles (uri, author_did, display_name, avatar, bio, website, links_json, created_at, indexed_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		ON CONFLICT(uri) DO UPDATE SET
 			display_name = EXCLUDED.display_name,
 			avatar = EXCLUDED.avatar,
-			bio = EXCLUDED.bio, 
+			bio = EXCLUDED.bio,
 			website = EXCLUDED.website,
 			links_json = EXCLUDED.links_json,
 			indexed_at = EXCLUDED.indexed_at
 	`
-	_, err := db.Exec(db.Rebind(query), p.URI, p.AuthorDID, p.DisplayName, p.Avatar, p.Bio, p.Website, p.LinksJSON, p.CreatedAt, p.IndexedAt)
+	_, err := db.Exec(query, p.URI, p.AuthorDID, p.DisplayName, p.Avatar, p.Bio, p.Website, p.LinksJSON, p.CreatedAt, p.IndexedAt)
 	return err
 }
 
@@ -672,9 +642,9 @@ func (db *DB) GetPreferences(did string) (*Preferences, error) {
 
 func (db *DB) UpsertPreferences(p *Preferences) error {
 	query := `
-		INSERT INTO preferences (uri, author_did, external_link_skipped_hostnames, subscribed_labelers, label_preferences, disable_external_link_warning, created_at, indexed_at, cid) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
-		ON CONFLICT(uri) DO UPDATE SET 
+		INSERT INTO preferences (uri, author_did, external_link_skipped_hostnames, subscribed_labelers, label_preferences, disable_external_link_warning, created_at, indexed_at, cid)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		ON CONFLICT(uri) DO UPDATE SET
 			external_link_skipped_hostnames = EXCLUDED.external_link_skipped_hostnames,
 			subscribed_labelers = EXCLUDED.subscribed_labelers,
 			label_preferences = EXCLUDED.label_preferences,
@@ -682,7 +652,7 @@ func (db *DB) UpsertPreferences(p *Preferences) error {
 			indexed_at = EXCLUDED.indexed_at,
 			cid = EXCLUDED.cid
 	`
-	_, err := db.Exec(db.Rebind(query), p.URI, p.AuthorDID, p.ExternalLinkSkippedHostnames, p.SubscribedLabelers, p.LabelPreferences, p.DisableExternalLinkWarning, p.CreatedAt, p.IndexedAt, p.CID)
+	_, err := db.Exec(query, p.URI, p.AuthorDID, p.ExternalLinkSkippedHostnames, p.SubscribedLabelers, p.LabelPreferences, p.DisableExternalLinkWarning, p.CreatedAt, p.IndexedAt, p.CID)
 	return err
 }
 
@@ -697,7 +667,7 @@ func (db *DB) DeletePreferences(uri string) error {
 }
 
 func (db *DB) GetAPIKeyURIs(ownerDID string) ([]string, error) {
-	rows, err := db.Query(db.Rebind("SELECT uri FROM api_keys WHERE owner_did = ? AND uri IS NOT NULL AND uri != ''"), ownerDID)
+	rows, err := db.Query("SELECT uri FROM api_keys WHERE owner_did = $1 AND uri IS NOT NULL AND uri != ''", ownerDID)
 	if err != nil {
 		return nil, err
 	}
@@ -714,7 +684,7 @@ func (db *DB) GetAPIKeyURIs(ownerDID string) ([]string, error) {
 }
 
 func (db *DB) GetPreferenceURIs(did string) ([]string, error) {
-	rows, err := db.Query(db.Rebind("SELECT uri FROM preferences WHERE author_did = ? AND uri IS NOT NULL AND uri != ''"), did)
+	rows, err := db.Query("SELECT uri FROM preferences WHERE author_did = $1 AND uri IS NOT NULL AND uri != ''", did)
 	if err != nil {
 		return nil, err
 	}
@@ -731,22 +701,18 @@ func (db *DB) GetPreferenceURIs(did string) ([]string, error) {
 }
 
 func (db *DB) runMigrations() {
-	dateType := "DATETIME"
-	if db.driver == "postgres" {
-		dateType = "TIMESTAMP"
-	}
-	db.Exec(`ALTER TABLE sessions ADD COLUMN dpop_key TEXT`)
+	db.Exec(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS dpop_key TEXT`)
 
-	db.Exec(`ALTER TABLE annotations ADD COLUMN motivation TEXT`)
-	db.Exec(`ALTER TABLE annotations ADD COLUMN body_value TEXT`)
-	db.Exec(`ALTER TABLE annotations ADD COLUMN body_format TEXT DEFAULT 'text/plain'`)
-	db.Exec(`ALTER TABLE annotations ADD COLUMN body_uri TEXT`)
-	db.Exec(`ALTER TABLE annotations ADD COLUMN target_source TEXT`)
-	db.Exec(`ALTER TABLE annotations ADD COLUMN target_hash TEXT`)
-	db.Exec(`ALTER TABLE annotations ADD COLUMN target_title TEXT`)
-	db.Exec(`ALTER TABLE annotations ADD COLUMN selector_json TEXT`)
-	db.Exec(`ALTER TABLE annotations ADD COLUMN tags_json TEXT`)
-	db.Exec(`ALTER TABLE annotations ADD COLUMN cid TEXT`)
+	db.Exec(`ALTER TABLE annotations ADD COLUMN IF NOT EXISTS motivation TEXT`)
+	db.Exec(`ALTER TABLE annotations ADD COLUMN IF NOT EXISTS body_value TEXT`)
+	db.Exec(`ALTER TABLE annotations ADD COLUMN IF NOT EXISTS body_format TEXT DEFAULT 'text/plain'`)
+	db.Exec(`ALTER TABLE annotations ADD COLUMN IF NOT EXISTS body_uri TEXT`)
+	db.Exec(`ALTER TABLE annotations ADD COLUMN IF NOT EXISTS target_source TEXT`)
+	db.Exec(`ALTER TABLE annotations ADD COLUMN IF NOT EXISTS target_hash TEXT`)
+	db.Exec(`ALTER TABLE annotations ADD COLUMN IF NOT EXISTS target_title TEXT`)
+	db.Exec(`ALTER TABLE annotations ADD COLUMN IF NOT EXISTS selector_json TEXT`)
+	db.Exec(`ALTER TABLE annotations ADD COLUMN IF NOT EXISTS tags_json TEXT`)
+	db.Exec(`ALTER TABLE annotations ADD COLUMN IF NOT EXISTS cid TEXT`)
 
 	db.Exec(`UPDATE annotations SET target_source = url WHERE target_source IS NULL AND url IS NOT NULL`)
 	db.Exec(`UPDATE annotations SET target_hash = url_hash WHERE target_hash IS NULL AND url_hash IS NOT NULL`)
@@ -754,46 +720,39 @@ func (db *DB) runMigrations() {
 	db.Exec(`UPDATE annotations SET target_title = title WHERE target_title IS NULL AND title IS NOT NULL`)
 	db.Exec(`UPDATE annotations SET motivation = 'commenting' WHERE motivation IS NULL`)
 
-	db.Exec(`ALTER TABLE profiles ADD COLUMN website TEXT`)
-	db.Exec(`ALTER TABLE profiles ADD COLUMN display_name TEXT`)
-	db.Exec(`ALTER TABLE profiles ADD COLUMN avatar TEXT`)
+	db.Exec(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS website TEXT`)
+	db.Exec(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS display_name TEXT`)
+	db.Exec(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar TEXT`)
 
-	if db.driver == "postgres" {
-		db.Exec(`ALTER TABLE cursors ALTER COLUMN last_cursor TYPE BIGINT`)
-	}
+	db.Exec(`ALTER TABLE cursors ALTER COLUMN last_cursor TYPE BIGINT`)
 
-	db.Exec(`ALTER TABLE api_keys ADD COLUMN uri TEXT`)
-	db.Exec(`ALTER TABLE api_keys ADD COLUMN cid TEXT`)
-	db.Exec(`ALTER TABLE api_keys ADD COLUMN indexed_at ` + dateType + ` DEFAULT CURRENT_TIMESTAMP`)
+	db.Exec(`ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS uri TEXT`)
+	db.Exec(`ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS cid TEXT`)
+	db.Exec(`ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS indexed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`)
 
-	db.migrateModeration(dateType)
+	db.migrateModeration()
 
-	db.Exec(`ALTER TABLE preferences ADD COLUMN subscribed_labelers TEXT`)
-	db.Exec(`ALTER TABLE preferences ADD COLUMN label_preferences TEXT`)
-	db.Exec(`ALTER TABLE preferences ADD COLUMN disable_external_link_warning BOOLEAN`)
+	db.Exec(`ALTER TABLE preferences ADD COLUMN IF NOT EXISTS subscribed_labelers TEXT`)
+	db.Exec(`ALTER TABLE preferences ADD COLUMN IF NOT EXISTS label_preferences TEXT`)
+	db.Exec(`ALTER TABLE preferences ADD COLUMN IF NOT EXISTS disable_external_link_warning BOOLEAN`)
 }
 
-func (db *DB) migrateModeration(dateType string) {
+func (db *DB) migrateModeration() {
 	_, err := db.Exec(`SELECT subject_did FROM moderation_reports LIMIT 0`)
 	if err != nil {
 		db.Exec(`DROP TABLE IF EXISTS moderation_reports`)
 		db.Exec(`DROP TABLE IF EXISTS moderation_actions`)
 
-		autoInc := "INTEGER PRIMARY KEY AUTOINCREMENT"
-		if db.driver == "postgres" {
-			autoInc = "SERIAL PRIMARY KEY"
-		}
-
 		db.Exec(`CREATE TABLE IF NOT EXISTS moderation_reports (
-			id ` + autoInc + `,
+			id SERIAL PRIMARY KEY,
 			reporter_did TEXT NOT NULL,
 			subject_did TEXT NOT NULL,
 			subject_uri TEXT,
 			reason_type TEXT NOT NULL,
 			reason_text TEXT,
 			status TEXT NOT NULL DEFAULT 'pending',
-			created_at ` + dateType + ` NOT NULL,
-			resolved_at ` + dateType + `,
+			created_at TIMESTAMP NOT NULL,
+			resolved_at TIMESTAMP,
 			resolved_by TEXT
 		)`)
 		db.Exec(`CREATE INDEX IF NOT EXISTS idx_mod_reports_status ON moderation_reports(status)`)
@@ -801,28 +760,24 @@ func (db *DB) migrateModeration(dateType string) {
 		db.Exec(`CREATE INDEX IF NOT EXISTS idx_mod_reports_reporter ON moderation_reports(reporter_did)`)
 
 		db.Exec(`CREATE TABLE IF NOT EXISTS moderation_actions (
-			id ` + autoInc + `,
+			id SERIAL PRIMARY KEY,
 			report_id INTEGER NOT NULL,
 			actor_did TEXT NOT NULL,
 			action TEXT NOT NULL,
 			comment TEXT,
-			created_at ` + dateType + ` NOT NULL
+			created_at TIMESTAMP NOT NULL
 		)`)
 		db.Exec(`CREATE INDEX IF NOT EXISTS idx_mod_actions_report ON moderation_actions(report_id)`)
 	}
 
-	autoInc := "INTEGER PRIMARY KEY AUTOINCREMENT"
-	if db.driver == "postgres" {
-		autoInc = "SERIAL PRIMARY KEY"
-	}
 	db.Exec(`CREATE TABLE IF NOT EXISTS content_labels (
-		id ` + autoInc + `,
+		id SERIAL PRIMARY KEY,
 		src TEXT NOT NULL,
 		uri TEXT NOT NULL,
 		val TEXT NOT NULL,
 		neg INTEGER NOT NULL DEFAULT 0,
 		created_by TEXT NOT NULL,
-		created_at ` + dateType + ` NOT NULL
+		created_at TIMESTAMP NOT NULL
 	)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_content_labels_uri ON content_labels(uri)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_content_labels_src ON content_labels(src)`)
@@ -830,30 +785,6 @@ func (db *DB) migrateModeration(dateType string) {
 
 func (db *DB) Close() error {
 	return db.DB.Close()
-}
-
-func (db *DB) Rebind(query string) string {
-	if db.driver != "postgres" {
-		return query
-	}
-
-	if !strings.Contains(query, "?") {
-		return query
-	}
-
-	var builder strings.Builder
-	builder.Grow(len(query) + 20)
-
-	paramCount := 1
-	for _, r := range query {
-		if r == '?' {
-			fmt.Fprintf(&builder, "$%d", paramCount)
-			paramCount++
-		} else {
-			builder.WriteRune(r)
-		}
-	}
-	return builder.String()
 }
 
 func ParseSelector(selectorJSON *string) (*Selector, error) {

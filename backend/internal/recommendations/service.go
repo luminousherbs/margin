@@ -374,6 +374,8 @@ func (s *Service) BackfillDocumentEmbeddings(batchSize int) error {
 		if len(docs) < batchSize {
 			break
 		}
+
+		time.Sleep(2 * time.Second)
 	}
 
 	if total > 0 {
@@ -429,6 +431,8 @@ func (s *Service) BackfillAnnotationEmbeddings(batchSize int) (int, error) {
 		if len(anns) < batchSize {
 			break
 		}
+
+		time.Sleep(2 * time.Second)
 	}
 
 	if total > 0 {
@@ -484,6 +488,8 @@ func (s *Service) BackfillHighlightEmbeddings(batchSize int) (int, error) {
 		if len(highlights) < batchSize {
 			break
 		}
+
+		time.Sleep(2 * time.Second)
 	}
 
 	if total > 0 {

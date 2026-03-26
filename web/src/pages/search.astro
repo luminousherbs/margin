@@ -1,0 +1,12 @@
+---
+
+import AppLayout from '../layouts/AppLayout.astro';
+import Search from '../views/core/Search';
+
+const user = Astro.locals.user;
+const q = Astro.url.searchParams.get('q') || undefined;
+---
+
+<AppLayout title={q ? `Search: ${q} - Margin` : 'Search - Margin'} user={user}>
+	<Search client:load initialQuery={q} />
+</AppLayout>

@@ -1,0 +1,12 @@
+---
+
+import AppLayout from '../../layouts/AppLayout.astro';
+import CollectionDetail from '../../views/collections/CollectionDetail';
+
+const { rkey } = Astro.params;
+const user = Astro.locals.user;
+---
+
+<AppLayout title="Collection - Margin" user={user}>
+	<CollectionDetail client:load rkey={rkey} />
+</AppLayout>

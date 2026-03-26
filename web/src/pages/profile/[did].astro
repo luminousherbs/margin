@@ -1,0 +1,16 @@
+---
+
+import AppLayout from '../../layouts/AppLayout.astro';
+import Profile from '../../views/profile/Profile';
+
+const { did } = Astro.params;
+const user = Astro.locals.user;
+
+if (!did) {
+	return Astro.redirect('/home');
+}
+---
+
+<AppLayout title="Profile - Margin" user={user}>
+	<Profile client:load did={did} />
+</AppLayout>

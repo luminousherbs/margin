@@ -7,17 +7,18 @@ import {
   Search,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
 import { getUserTargetItems } from "../../api/client";
 import Card from "../../components/common/Card";
 import Avatar from "../../components/ui/Avatar";
 import { EmptyState, Tabs } from "../../components/ui";
 import type { AnnotationItem, UserProfile } from "../../types";
 
-export default function UserUrlPage() {
-  const params = useParams();
-  const handle = params.handle;
-  const urlPath = params["*"];
+interface UserUrlPageProps {
+  handle?: string;
+  urlPath?: string;
+}
+
+export default function UserUrlPage({ handle, urlPath }: UserUrlPageProps) {
   const targetUrl = urlPath || "";
 
   const [profile, setProfile] = useState<UserProfile | null>(null);

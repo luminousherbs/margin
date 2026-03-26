@@ -6,18 +6,20 @@ import node from "@astrojs/node";
 
 const API_PORT = process.env.API_PORT || 8081;
 
-const isDev = process.env.NODE_ENV === "development";
-
 // https://astro.build/config
 export default defineConfig({
+  output: "server",
   adapter: node({ mode: "standalone" }),
   integrations: [react(), tailwind()],
+  prefetch: {
+    prefetchAll: false,
+    defaultStrategy: "hover",
+  },
   security: {
-    checkOrigin: false,
+    checkOrigin: true,
   },
   vite: {
     ssr: {
-      noExternal: isDev ? /^(?!react|react-dom|react-router-dom|cookie)/ : true,
       external: ["@resvg/resvg-js"],
     },
     build: {

@@ -1,0 +1,12 @@
+---
+
+import AppLayout from '../layouts/AppLayout.astro';
+import Feed from '../views/core/Feed';
+
+const user = Astro.locals.user;
+const tag = Astro.url.searchParams.get('tag') || undefined;
+---
+
+<AppLayout title="Bookmarks - Margin" user={user}>
+	<Feed client:load initialType="all" motivation="bookmarking" showTabs={false} initialTag={tag} initialUser={user} />
+</AppLayout>

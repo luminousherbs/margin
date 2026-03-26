@@ -15,22 +15,43 @@ import {
   X,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
 import { getUnreadNotificationCount } from "../../api/client";
 import { $user, logout } from "../../store/auth";
+import type { UserProfile } from "../../types";
 import { AppleIcon } from "../common/Icons";
 
-export default function MobileNav() {
-  const user = useStore($user);
-  const location = useLocation();
+interface MobileNavProps {
+  initialUser?: UserProfile | null;
+  currentPath?: string;
+}
+
+export default function MobileNav({
+  initialUser,
+  currentPath: initialPath,
+}: MobileNavProps) {
+  const storeUser = useStore($user);
+  const user = storeUser || initialUser || null;
+  const [currentPath, setCurrentPath] = useState(initialPath || "/");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const isAuthenticated = !!user;
 
+  useEffect(() => {
+    if (initialUser && !storeUser) {
+      $user.set(initialUser);
+    }
+  }, [initialUser, storeUser]);
+
+  useEffect(() => {
+    const handler = () => setCurrentPath(window.location.pathname);
+    document.addEventListener("astro:page-load", handler);
+    return () => document.removeEventListener("astro:page-load", handler);
+  }, []);
+
   const isActive = (path: string) => {
-    if (path === "/") return location.pathname === "/";
-    return location.pathname.startsWith(path);
+    if (path === "/") return currentPath === "/";
+    return currentPath.startsWith(path);
   };
 
   useEffect(() => {
@@ -57,8 +78,8 @@ export default function MobileNav() {
           <div className="p-4 space-y-1">
             {isAuthenticated && user ? (
               <>
-                <Link
-                  to={`/profile/${user.did}`}
+                <a
+                  href={`/profile/${user.did}`}
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
                   onClick={closeMenu}
                 >
@@ -81,54 +102,54 @@ export default function MobileNav() {
                       @{user.handle}
                     </span>
                   </div>
-                </Link>
+                </a>
 
                 <div className="h-px bg-surface-200 dark:bg-surface-700 my-2" />
 
-                <Link
-                  to="/annotations"
+                <a
+                  href="/annotations"
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
                   onClick={closeMenu}
                 >
                   <MessageSquareText size={20} />
                   <span>Annotations</span>
-                </Link>
+                </a>
 
-                <Link
-                  to="/highlights"
+                <a
+                  href="/highlights"
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
                   onClick={closeMenu}
                 >
                   <Highlighter size={20} />
                   <span>Highlights</span>
-                </Link>
+                </a>
 
-                <Link
-                  to="/bookmarks"
+                <a
+                  href="/bookmarks"
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
                   onClick={closeMenu}
                 >
                   <Bookmark size={20} />
                   <span>Bookmarks</span>
-                </Link>
+                </a>
 
-                <Link
-                  to="/collections"
+                <a
+                  href="/collections"
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
                   onClick={closeMenu}
                 >
                   <Folder size={20} />
                   <span>Collections</span>
-                </Link>
+                </a>
 
-                <Link
-                  to="/settings"
+                <a
+                  href="/settings"
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
                   onClick={closeMenu}
                 >
                   <Settings size={20} />
                   <span>Settings</span>
-                </Link>
+                </a>
 
                 <div className="h-px bg-surface-200 dark:bg-surface-700 my-2" />
 
@@ -158,30 +179,30 @@ export default function MobileNav() {
               </>
             ) : (
               <>
-                <Link
-                  to="/login"
+                <a
+                  href="/login"
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
                   onClick={closeMenu}
                 >
                   <User size={20} />
                   <span>Sign In</span>
-                </Link>
-                <Link
-                  to="/collections"
+                </a>
+                <a
+                  href="/collections"
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
                   onClick={closeMenu}
                 >
                   <Folder size={20} />
                   <span>Collections</span>
-                </Link>
-                <Link
-                  to="/settings"
+                </a>
+                <a
+                  href="/settings"
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
                   onClick={closeMenu}
                 >
                   <Settings size={20} />
                   <span>Settings</span>
-                </Link>
+                </a>
 
                 <div className="h-px bg-surface-200 dark:bg-surface-700 my-2" />
 
@@ -201,64 +222,80 @@ export default function MobileNav() {
         </div>
       )}
 
-      <nav className="fixed bottom-0 left-0 right-0 h-14 bg-white dark:bg-surface-900 border-t border-surface-200 dark:border-surface-700 flex items-center justify-around px-2 z-50 md:hidden safe-area-bottom">
-        <Link
-          to="/home"
+      <nav className="fixed bottom-0 left-0 right-0 h-14 bg-white/90 dark:bg-surface-900/90 backdrop-blur-md border-t border-surface-200 dark:border-surface-700 flex items-center justify-around px-2 z-50 md:hidden safe-area-bottom">
+        <a
+          href="/home"
+          data-astro-prefetch="viewport"
           className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-colors ${
             isActive("/home")
               ? "text-primary-600"
               : "text-surface-500 hover:text-surface-700"
           }`}
-          onClick={closeMenu}
+          onClick={() => {
+            setCurrentPath("/home");
+            closeMenu();
+          }}
         >
           <Home size={24} strokeWidth={1.5} />
-        </Link>
+        </a>
 
-        <Link
-          to="/search"
+        <a
+          href="/search"
+          data-astro-prefetch="viewport"
           className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-colors ${
             isActive("/search")
               ? "text-primary-600"
               : "text-surface-500 hover:text-surface-700"
           }`}
-          onClick={closeMenu}
+          onClick={() => {
+            setCurrentPath("/search");
+            closeMenu();
+          }}
         >
           <Search size={24} strokeWidth={1.5} />
-        </Link>
+        </a>
 
         {isAuthenticated ? (
           <>
-            <Link
-              to="/new"
+            <a
+              href="/new"
+              data-astro-prefetch="viewport"
               className="flex items-center justify-center w-12 h-12 rounded-full bg-primary-600 text-white shadow-lg hover:bg-primary-500 transition-colors -mt-4"
-              onClick={closeMenu}
+              onClick={() => {
+                setCurrentPath("/new");
+                closeMenu();
+              }}
             >
               <PenSquare size={20} strokeWidth={2} />
-            </Link>
+            </a>
 
-            <Link
-              to="/notifications"
+            <a
+              href="/notifications"
+              data-astro-prefetch="viewport"
               className={`relative flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-colors ${
                 isActive("/notifications")
                   ? "text-primary-600"
                   : "text-surface-500 hover:text-surface-700"
               }`}
-              onClick={closeMenu}
+              onClick={() => {
+                setCurrentPath("/notifications");
+                closeMenu();
+              }}
             >
               <Bell size={24} strokeWidth={1.5} />
               {unreadCount > 0 && (
                 <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />
               )}
-            </Link>
+            </a>
           </>
         ) : (
-          <Link
-            to="/login"
+          <a
+            href="/login"
             className="flex items-center justify-center w-12 h-12 rounded-full bg-primary-600 text-white shadow-lg hover:bg-primary-500 transition-colors -mt-4"
             onClick={closeMenu}
           >
             <User size={20} strokeWidth={2} />
-          </Link>
+          </a>
         )}
 
         <button

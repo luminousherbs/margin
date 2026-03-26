@@ -195,6 +195,9 @@ export default function SignUpModal({ onClose }: SignUpModalProps) {
     try {
       const result = await startSignup(serviceUrl);
       if (result.authorizationUrl) {
+        const url = new URL(result.authorizationUrl);
+        if (url.protocol !== "https:")
+          throw new Error("Invalid authorization URL");
         window.location.href = result.authorizationUrl;
       }
     } catch (err) {

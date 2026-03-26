@@ -19,15 +19,39 @@ import { useStore } from "@nanostores/react";
 import { $user, logout } from "../../store/auth";
 import { $theme, cycleTheme } from "../../store/theme";
 import { getUnreadNotificationCount } from "../../api/client";
-import { Link, useLocation } from "react-router-dom";
 import { Avatar, CountBadge } from "../ui";
+import type { UserProfile } from "../../types";
 
-export default function Sidebar() {
-  const user = useStore($user);
+interface SidebarProps {
+  initialUser?: UserProfile | null;
+  currentPath?: string;
+}
+
+export default function Sidebar({
+  initialUser,
+  currentPath: initialPath,
+}: SidebarProps) {
+  const storeUser = useStore($user);
+  const user = storeUser || initialUser || null;
   const theme = useStore($theme);
-  const location = useLocation();
-  const currentPath = location.pathname;
+  const [currentPath, setCurrentPath] = useState(initialPath || "/");
   const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (initialUser && !storeUser) {
+      $user.set(initialUser);
+    }
+  }, [initialUser, storeUser]);
+
+  useEffect(() => {
+    const handler = () => setCurrentPath(window.location.pathname);
+    document.addEventListener("astro:page-load", handler);
+    return () => document.removeEventListener("astro:page-load", handler);
+  }, []);
+
+  const handleNav = (href: string) => () => {
+    setCurrentPath(href);
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -85,12 +109,12 @@ export default function Sidebar() {
   return (
     <aside className="sticky top-0 h-screen hidden md:flex flex-col justify-between py-6 px-2 lg:px-4 z-50 w-[68px] lg:w-[260px] transition-all duration-200">
       <div className="flex flex-col gap-6">
-        <Link
-          to="/home"
+        <a
+          href="/home"
           className="px-3 hover:opacity-80 transition-opacity w-fit flex items-center gap-2.5"
         >
           <img src="/logo.svg" alt="Margin" className="w-8 h-8" />
-        </Link>
+        </a>
 
         <nav className="flex flex-col gap-0.5">
           {navItems.map((item) => {
@@ -98,10 +122,12 @@ export default function Sidebar() {
               currentPath === item.href ||
               (item.href !== "/home" && currentPath.startsWith(item.href));
             return (
-              <Link
+              <a
                 key={item.href}
-                to={item.href}
+                href={item.href}
                 title={item.label}
+                onClick={handleNav(item.href)}
+                data-astro-prefetch="viewport"
                 className={`flex items-center justify-center lg:justify-start gap-3 px-0 lg:px-3 py-2.5 rounded-lg transition-all duration-150 text-[14px] group ${
                   isActive
                     ? "font-semibold text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-950/40"
@@ -117,19 +143,19 @@ export default function Sidebar() {
                 {(item.badge ?? 0) > 0 && (
                   <CountBadge count={item.badge ?? 0} />
                 )}
-              </Link>
+              </a>
             );
           })}
 
           {user && (
-            <Link
-              to="/new"
+            <a
+              href="/new"
               title="New annotation"
               className="flex items-center justify-center lg:justify-start gap-3 px-0 lg:px-3 py-2.5 mt-2 rounded-lg bg-primary-600 dark:bg-primary-500 text-white hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors text-[14px] font-semibold"
             >
               <PenSquare size={20} strokeWidth={1.75} />
               <span className="hidden lg:inline">New</span>
-            </Link>
+            </a>
           )}
         </nav>
       </div>
@@ -156,19 +182,19 @@ export default function Sidebar() {
 
         {user ? (
           <>
-            <Link
-              to="/settings"
+            <a
+              href="/settings"
               title="Settings"
               className="flex items-center justify-center lg:justify-start gap-3 px-0 lg:px-3 py-2.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 text-[13px] font-medium text-surface-500 dark:text-surface-400 transition-colors"
             >
               <Settings size={18} />
               <span className="hidden lg:inline">Settings</span>
-            </Link>
+            </a>
 
             <div className="h-px bg-surface-200/60 dark:bg-surface-800/60 my-2" />
 
-            <Link
-              to={`/profile/${user.did}`}
+            <a
+              href={`/profile/${user.did}`}
               title={user.displayName || user.handle}
               className="flex items-center justify-center lg:justify-start gap-2.5 p-2 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors w-full"
             >
@@ -181,7 +207,7 @@ export default function Sidebar() {
                   @{user.handle}
                 </p>
               </div>
-            </Link>
+            </a>
 
             <button
               onClick={logout}
@@ -196,14 +222,14 @@ export default function Sidebar() {
           <>
             <div className="h-px bg-surface-200/60 dark:bg-surface-800/60 my-2" />
 
-            <Link
-              to="/login"
+            <a
+              href="/login"
               title="Sign in"
               className="flex items-center justify-center lg:justify-start gap-3 px-0 lg:px-3 py-2.5 rounded-lg bg-primary-50 dark:bg-primary-950/40 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-950/60 text-[13px] font-semibold transition-colors"
             >
               <LogIn size={18} />
               <span className="hidden lg:inline">Sign in</span>
-            </Link>
+            </a>
           </>
         )}
       </div>

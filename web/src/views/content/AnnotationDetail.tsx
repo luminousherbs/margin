@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useParams, Link, useLocation, useNavigate } from "react-router-dom";
 import { useStore } from "@nanostores/react";
 import { $user } from "../../store/auth";
 import {
@@ -21,10 +20,21 @@ import {
 } from "lucide-react";
 import { getAvatarUrl } from "../../api/client";
 
-export default function AnnotationDetail() {
-  const { uri, did, rkey, handle, type } = useParams();
-  const location = useLocation();
-  const navigate = useNavigate();
+interface AnnotationDetailProps {
+  handle?: string;
+  rkey?: string;
+  type?: string;
+  uri?: string;
+  did?: string;
+}
+
+export default function AnnotationDetail({
+  handle,
+  rkey,
+  type,
+  uri,
+  did,
+}: AnnotationDetailProps) {
   const user = useStore($user);
 
   const [annotation, setAnnotation] = useState<AnnotationItem | null>(null);
@@ -47,10 +57,8 @@ export default function AnnotationDetail() {
 
       if (handle && rkey) {
         let collection = "at.margin.annotation";
-        if (type === "highlight" || location.pathname.includes("/highlight/"))
-          collection = "at.margin.highlight";
-        if (type === "bookmark" || location.pathname.includes("/bookmark/"))
-          collection = "at.margin.bookmark";
+        if (type === "highlight") collection = "at.margin.highlight";
+        if (type === "bookmark") collection = "at.margin.bookmark";
 
         try {
           const resolvedDid = await resolveHandle(handle);
@@ -68,22 +76,10 @@ export default function AnnotationDetail() {
         }
       } else if (did && rkey) {
         setTargetUri(`at://${did}/at.margin.annotation/${rkey}`);
-      } else {
-        const pathParts = (location.pathname || "").split("/");
-        const atIndex = pathParts.indexOf("at");
-        if (
-          atIndex !== -1 &&
-          pathParts[atIndex + 1] &&
-          pathParts[atIndex + 2]
-        ) {
-          setTargetUri(
-            `at://${pathParts[atIndex + 1]}/at.margin.annotation/${pathParts[atIndex + 2]}`,
-          );
-        }
       }
     }
     resolve();
-  }, [uri, did, rkey, handle, type, location.pathname]);
+  }, [uri, did, rkey, handle, type]);
 
   const refreshReplies = async () => {
     if (!targetUri) return;
@@ -190,12 +186,12 @@ export default function AnnotationDetail() {
         <p className="text-surface-500 dark:text-surface-400 text-sm mb-6">
           {error || "This may have been deleted."}
         </p>
-        <Link
-          to="/home"
+        <a
+          href="/home"
           className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
         >
           Back to Feed
-        </Link>
+        </a>
       </div>
     );
   }
@@ -203,16 +199,21 @@ export default function AnnotationDetail() {
   return (
     <div className="max-w-2xl mx-auto pb-20">
       <div className="mb-4">
-        <Link
-          to="/home"
+        <a
+          href="/home"
           className="inline-flex items-center gap-1.5 text-sm font-medium text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors"
         >
           <ArrowLeft size={16} />
           Back
-        </Link>
+        </a>
       </div>
 
-      <Card item={annotation} onDelete={() => navigate("/home")} />
+      <Card
+        item={annotation}
+        onDelete={() => {
+          window.location.href = "/home";
+        }}
+      />
 
       {annotation.type !== "Bookmark" &&
         annotation.type !== "Highlight" &&
@@ -282,12 +283,12 @@ export default function AnnotationDetail() {
                 <p className="text-surface-500 dark:text-surface-400 text-sm mb-2">
                   Sign in to reply
                 </p>
-                <Link
-                  to="/login"
+                <a
+                  href="/login"
                   className="text-primary-600 dark:text-primary-400 font-medium hover:underline text-sm"
                 >
                   Log in
-                </Link>
+                </a>
               </div>
             )}
 

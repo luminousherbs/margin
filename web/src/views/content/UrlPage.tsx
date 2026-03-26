@@ -13,17 +13,17 @@ import {
   Users,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
 import { getByTarget } from "../../api/client";
 import Card from "../../components/common/Card";
 import { Button, EmptyState, Input, Tabs } from "../../components/ui";
 import { $user } from "../../store/auth";
 import type { AnnotationItem } from "../../types";
 
-export default function UrlPage() {
-  const params = useParams();
-  const navigate = useNavigate();
-  const urlPath = params["*"];
+interface UrlPageProps {
+  urlPath?: string;
+}
+
+export default function UrlPage({ urlPath }: UrlPageProps) {
   const targetUrl = urlPath ? decodeURIComponent(urlPath) : "";
 
   const [annotations, setAnnotations] = useState<AnnotationItem[]>([]);
@@ -113,8 +113,8 @@ export default function UrlPage() {
 
   const handleNavigateMyAnnotations = useCallback(async () => {
     if (!user?.handle || !targetUrl) return;
-    navigate(`/${user.handle}/url/${encodeURIComponent(targetUrl)}`);
-  }, [user?.handle, targetUrl, navigate]);
+    window.location.href = `/${user.handle}/url/${encodeURIComponent(targetUrl)}`;
+  }, [user?.handle, targetUrl]);
 
   const totalItems = annotations.length + highlights.length;
 
@@ -167,7 +167,7 @@ export default function UrlPage() {
               const q = (formData.get("q") as string)?.trim();
               if (q) {
                 const encoded = encodeURIComponent(q);
-                navigate(`/url/${encoded}`);
+                window.location.href = `/url/${encoded}`;
               }
             }}
             className="max-w-md mx-auto flex gap-2"

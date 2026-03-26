@@ -57,15 +57,26 @@ type Ingester struct {
 	currentRelayIdx int
 	onAnnotation    AnnotationCallback
 	onDocument      DocumentCallback
+	workerPool      chan func()
 }
 
 type RecordHandler func(event *FirehoseEvent)
 
 func NewIngester(database *db.DB, syncService *internal_sync.Service) *Ingester {
+	pool := make(chan func(), 256)
+	for range 10 {
+		go func() {
+			for fn := range pool {
+				fn()
+			}
+		}()
+	}
+
 	i := &Ingester{
-		db:       database,
-		sync:     syncService,
-		handlers: make(map[string]RecordHandler),
+		db:         database,
+		sync:       syncService,
+		handlers:   make(map[string]RecordHandler),
+		workerPool: pool,
 	}
 
 	i.RegisterHandler(CollectionAnnotation, i.handleAnnotation)
@@ -237,7 +248,11 @@ func (i *Ingester) handleCommit(event JetstreamEvent) {
 
 			i.dispatchToHandler(firehoseEvent)
 
-			go i.triggerLazySync(event.Did)
+			did := event.Did
+		select {
+		case i.workerPool <- func() { i.triggerLazySync(did) }:
+		default:
+		}
 		}
 	case "delete":
 		i.handleDelete(commit.Collection, uri)
@@ -266,7 +281,9 @@ func (i *Ingester) triggerLazySync(did string) {
 		return
 	}
 
-	_, err = i.sync.PerformSync(context.Background(), did, func(ctx context.Context, _ string) (*xrpc.Client, error) {
+	syncCtx, syncCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer syncCancel()
+	_, err = i.sync.PerformSync(syncCtx, did, func(ctx context.Context, _ string) (*xrpc.Client, error) {
 		return &xrpc.Client{
 			PDS: pds,
 		}, nil
@@ -434,7 +451,11 @@ func (i *Ingester) handleAnnotation(event *FirehoseEvent) {
 	} else {
 		logger.Info("Indexed annotation from %s on %s", event.Repo, targetSource)
 		if i.onAnnotation != nil {
-			go i.onAnnotation(uri, event.Repo, targetSource, bodyValuePtr, selectorJSONPtr, targetTitlePtr, tagsJSONPtr)
+			cb := i.onAnnotation
+			select {
+			case i.workerPool <- func() { cb(uri, event.Repo, targetSource, bodyValuePtr, selectorJSONPtr, targetTitlePtr, tagsJSONPtr) }:
+			default:
+			}
 		}
 	}
 }

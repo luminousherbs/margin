@@ -23,7 +23,7 @@ export default function Tabs({
   return (
     <div
       className={clsx(
-        "flex max-w-full overflow-x-auto gap-1 bg-surface-100 dark:bg-surface-800 p-1 rounded-lg w-fit",
+        "flex max-w-full overflow-x-auto gap-0.5 bg-surface-100 dark:bg-surface-800 p-1 rounded-lg w-fit",
         className,
       )}
     >
@@ -32,7 +32,7 @@ export default function Tabs({
           key={tab.id}
           onClick={() => onChange(tab.id)}
           className={clsx(
-            "px-3 py-1.5 text-sm font-medium rounded-md transition-all relative",
+            "px-3 py-1.5 text-[13px] font-medium rounded-md transition-all relative whitespace-nowrap",
             activeTab === tab.id
               ? "bg-white dark:bg-surface-700 text-surface-900 dark:text-white shadow-sm"
               : "text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200",

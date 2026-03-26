@@ -1,0 +1,14 @@
+---
+
+import AppLayout from '../layouts/AppLayout.astro';
+import Notifications from '../views/core/Notifications';
+
+const user = Astro.locals.user;
+if (!user) {
+	return Astro.redirect('/login');
+}
+---
+
+<AppLayout title="Notifications - Margin" user={user}>
+	<Notifications client:load />
+</AppLayout>

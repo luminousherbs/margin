@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -27,7 +28,11 @@ import (
 func main() {
 	godotenv.Load("../.env", ".env")
 
-	database, err := db.New(getEnv("DATABASE_URL", "margin.db"))
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		logger.Fatal("DATABASE_URL environment variable is required")
+	}
+	database, err := db.New(dsn)
 	if err != nil {
 		logger.Fatal("Failed to connect to database: %v", err)
 	}
@@ -70,29 +75,51 @@ func main() {
 	firehose.RelayURL = getEnv("BLOCK_RELAY_URL", "wss://jetstream2.us-east.bsky.network/subscribe")
 	logger.Info("Firehose URL: %s", firehose.RelayURL)
 
+	backfillCtx, backfillCancel := context.WithCancel(context.Background())
+	defer backfillCancel()
+
 	if recService.IsEnabled() {
 		ingester.SetOnAnnotation(recService.OnAnnotation)
 		ingester.SetOnDocument(recService.OnDocument)
 
-		go func() {
-			logger.Info("Starting recommendation backfill...")
-			if err := recService.BackfillDocumentEmbeddings(200); err != nil {
-				logger.Error("Document embedding backfill error: %v", err)
-			}
-			annCount, err := recService.BackfillAnnotationEmbeddings(200)
-			if err != nil {
-				logger.Error("Annotation embedding backfill error: %v", err)
-			}
-			hlCount, err := recService.BackfillHighlightEmbeddings(200)
-			if err != nil {
-				logger.Error("Highlight embedding backfill error: %v", err)
-			}
-			profileCount, err := recService.RebuildAllProfiles()
-			if err != nil {
-				logger.Error("Profile rebuild error: %v", err)
-			}
-			logger.Info("Recommendation backfill complete (annotations: %d, highlights: %d, profiles: %d)", annCount, hlCount, profileCount)
-		}()
+		if getEnv("DISABLE_BACKFILL", "") == "" {
+			go func() {
+				time.Sleep(5 * time.Second)
+				select {
+				case <-backfillCtx.Done():
+					return
+				default:
+				}
+				logger.Info("Starting recommendation backfill...")
+				if err := recService.BackfillDocumentEmbeddings(200); err != nil {
+					logger.Error("Document embedding backfill error: %v", err)
+				}
+				if backfillCtx.Err() != nil {
+					return
+				}
+				annCount, err := recService.BackfillAnnotationEmbeddings(200)
+				if err != nil {
+					logger.Error("Annotation embedding backfill error: %v", err)
+				}
+				if backfillCtx.Err() != nil {
+					return
+				}
+				hlCount, err := recService.BackfillHighlightEmbeddings(200)
+				if err != nil {
+					logger.Error("Highlight embedding backfill error: %v", err)
+				}
+				if backfillCtx.Err() != nil {
+					return
+				}
+				profileCount, err := recService.RebuildAllProfiles()
+				if err != nil {
+					logger.Error("Profile rebuild error: %v", err)
+				}
+				logger.Info("Recommendation backfill complete (annotations: %d, highlights: %d, profiles: %d)", annCount, hlCount, profileCount)
+			}()
+		} else {
+			logger.Info("Recommendation backfill disabled (DISABLE_BACKFILL is set)")
+		}
 	}
 
 	go func() {
@@ -111,7 +138,17 @@ func main() {
 	r.Use(middleware.Throttle(100))
 
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"https://*", "http://*", "chrome-extension://*"},
+		AllowOriginFunc: func(r *http.Request, origin string) bool {
+			if strings.HasPrefix(origin, "chrome-extension://") ||
+				strings.HasPrefix(origin, "moz-extension://") ||
+				strings.HasPrefix(origin, "safari-web-extension://") {
+				return true
+			}
+			if baseURL := os.Getenv("BASE_URL"); baseURL != "" {
+				return origin == baseURL
+			}
+			return false
+		},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-Session-Token"},
 		ExposedHeaders:   []string{"Link"},
@@ -174,6 +211,7 @@ func main() {
 	<-quit
 
 	logger.Infoln("Shutting down server...")
+	backfillCancel()
 	ingester.Stop()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

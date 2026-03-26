@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+
 import { getNotifications, markNotificationsRead } from "../../api/client";
 import type { NotificationItem, AnnotationItem } from "../../types";
 import {
@@ -192,13 +192,13 @@ function SubjectPreview({
         {parentUri && (
           <p className="text-surface-400 dark:text-surface-500 text-xs mt-1">
             in reply to{" "}
-            <Link
-              to={`/annotation/${encodeURIComponent(parentUri)}`}
+            <a
+              href={`/annotation/${encodeURIComponent(parentUri)}`}
               className="hover:underline text-primary-500"
               onClick={(e) => e.stopPropagation()}
             >
               {parentIsReply ? "a reply" : "an annotation"}
-            </Link>
+            </a>
           </p>
         )}
       </>
@@ -208,12 +208,12 @@ function SubjectPreview({
   if (!preview) return null;
 
   return (
-    <Link
-      to={href}
+    <a
+      href={href}
       className="block mt-2 pl-3 border-l-2 border-surface-200 dark:border-surface-700 hover:border-primary-400 dark:hover:border-primary-500 transition-colors group"
     >
       {preview}
-    </Link>
+    </a>
   );
 }
 
@@ -300,24 +300,24 @@ export default function Notifications() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start gap-2 flex-wrap">
-                    <Link to={`/profile/${n.actor.did}`} className="shrink-0">
+                    <a href={`/profile/${n.actor.did}`} className="shrink-0">
                       <Avatar src={n.actor.avatar} size="xs" />
-                    </Link>
+                    </a>
                     <div className="flex-1 min-w-0">
                       <span className="text-surface-500 dark:text-surface-400 text-sm">
-                        <Link
-                          to={`/profile/${n.actor.did}`}
+                        <a
+                          href={`/profile/${n.actor.did}`}
                           className="font-semibold text-surface-900 dark:text-white hover:underline"
                         >
                           {n.actor.displayName || `@${n.actor.handle}`}
-                        </Link>{" "}
+                        </a>{" "}
                         {n.type !== "follow" && n.subjectUri ? (
-                          <Link
-                            to={`/annotation/${encodeURIComponent(n.subjectUri)}`}
+                          <a
+                            href={`/annotation/${encodeURIComponent(n.subjectUri)}`}
                             className="hover:underline"
                           >
                             {verb}
-                          </Link>
+                          </a>
                         ) : (
                           verb
                         )}

@@ -1,12 +1,13 @@
 ---
-export const prerender = false;
 
-import OGLayout from '../../../layouts/OGLayout.astro';
+import AppLayout from '../../../layouts/AppLayout.astro';
+import CollectionDetail from '../../../views/collections/CollectionDetail';
 import { resolveHandle, fetchCollectionOG } from '../../../lib/og';
 
 const { handle, rkey } = Astro.params;
+const user = Astro.locals.user;
 
-let title = 'Margin';
+let title = 'Collection - Margin';
 let description = 'Annotate the web';
 let image = 'https://margin.at/og.png';
 
@@ -28,4 +29,6 @@ if (handle && rkey) {
 }
 ---
 
-<OGLayout title={title} description={description} image={image} />
+<AppLayout title={title} description={description} image={image} user={user}>
+	<CollectionDetail client:load handle={handle} rkey={rkey} />
+</AppLayout>

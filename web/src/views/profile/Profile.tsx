@@ -16,7 +16,6 @@ import {
   VolumeX,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   blockUser,
   getCollections,
@@ -607,9 +606,9 @@ export default function Profile({ did }: ProfileProps) {
           ) : (
             <div className="grid grid-cols-1 gap-2">
               {collections.map((collection) => (
-                <Link
+                <a
                   key={collection.id}
-                  to={`/${collection.creator?.handle || profile.handle}/collection/${(collection.uri || "").split("/").pop()}`}
+                  href={`/${collection.creator?.handle || profile.handle}/collection/${(collection.uri || "").split("/").pop()}`}
                   className="group card p-4 hover:ring-primary-300 dark:hover:ring-primary-600 transition-all flex items-center gap-4"
                 >
                   <div className="p-2.5 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-xl">
@@ -624,7 +623,7 @@ export default function Profile({ did }: ProfileProps) {
                       {collection.itemCount === 1 ? "item" : "items"}
                     </p>
                   </div>
-                </Link>
+                </a>
               ))}
             </div>
           )

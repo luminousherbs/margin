@@ -1,6 +1,6 @@
 import React from "react";
 import { useStore } from "@nanostores/react";
-import { Link } from "react-router-dom";
+
 import { $theme, cycleTheme } from "../store/theme";
 import { $user } from "../store/auth";
 import {
@@ -118,13 +118,21 @@ export default function About() {
   const ExtensionIcon =
     browser === "firefox" ? FaFirefox : browser === "edge" ? FaEdge : Chrome;
   const extensionLabel =
-    browser === "firefox" ? "Firefox" : browser === "edge" ? "Edge" : "Chrome";
+    browser === "firefox"
+      ? "Firefox"
+      : browser === "edge"
+        ? "Edge"
+        : browser === "safari"
+          ? "Chrome"
+          : "Chrome";
 
   const [isScrolled, setIsScrolled] = React.useState(false);
 
   React.useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+      setIsScrolled((prev) =>
+        prev ? window.scrollY > 10 : window.scrollY > 50,
+      );
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
@@ -135,48 +143,57 @@ export default function About() {
       <nav
         className={`sticky top-0 z-50 transition-all duration-300 ${
           isScrolled
-            ? "bg-white/80 dark:bg-surface-900/80 backdrop-blur-xl border-b border-surface-200/50 dark:border-surface-800/50 shadow-sm"
+            ? "bg-white/80 dark:bg-surface-950/80 backdrop-blur-xl border-b border-surface-200/40 dark:border-surface-800/40"
             : "bg-transparent border-b border-transparent"
         }`}
       >
         <div
           className={`max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between transition-all duration-300 ${
-            isScrolled ? "h-14" : "h-24"
+            isScrolled ? "h-14" : "h-16"
           }`}
         >
-          <div className="flex items-center gap-2.5">
-            <img src="/logo.svg" alt="Margin" className="w-7 h-7" />
-            <span className="font-display font-bold text-lg tracking-tight text-surface-900 dark:text-white">
-              Margin
-            </span>
-          </div>
-          <div className="flex items-center gap-1 sm:gap-2">
-            <div className="hidden md:flex items-center gap-1 mr-2">
-              {user && (
-                <Link
-                  to="/home"
-                  className="text-[13px] font-medium text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800"
-                >
-                  Feed
-                </Link>
-              )}
+          <div className="flex items-center gap-6">
+            <a
+              href="/"
+              className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+            >
+              <img src="/logo.svg" alt="Margin" className="w-7 h-7" />
+              <span className="font-display font-bold text-lg tracking-tight text-surface-900 dark:text-white">
+                Margin
+              </span>
+            </a>
+            <div className="hidden md:flex items-center gap-0.5">
+              <a
+                href="/home"
+                className="text-[13px] font-medium text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800"
+              >
+                Feed
+              </a>
+              <a
+                href="/discover"
+                className="text-[13px] font-medium text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800"
+              >
+                Discover
+              </a>
             </div>
-
+          </div>
+          <div className="flex items-center gap-2">
             {!user && (
-              <Link
-                to="/login"
+              <a
+                href="/login"
                 className="text-[13px] font-medium text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800"
               >
                 Sign in
-              </Link>
+              </a>
             )}
 
             <a
               href={extensionLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[13px] font-semibold px-3 sm:px-4 py-1.5 bg-surface-900 dark:bg-white text-white dark:text-surface-900 rounded-lg hover:bg-surface-800 dark:hover:bg-surface-100 transition-colors"
+              className="inline-flex items-center gap-1.5 text-[13px] font-semibold px-3.5 py-1.5 bg-surface-900 dark:bg-white text-white dark:text-surface-900 rounded-lg hover:bg-surface-800 dark:hover:bg-surface-100 transition-colors"
             >
+              <ExtensionIcon size={14} />
               <span className="hidden sm:inline">Get Extension</span>
               <span className="sm:hidden">Install</span>
             </a>
@@ -243,8 +260,8 @@ export default function About() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-4">
-            <Link
-              to={user ? "/home" : "/login"}
+            <a
+              href={user ? "/home" : "/login"}
               className="group inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-surface-900 dark:bg-white text-white dark:text-surface-900 rounded-[14px] font-semibold hover:bg-surface-800 dark:hover:bg-surface-200 hover:scale-[1.02] shadow-sm transition-all duration-200 w-full sm:w-auto"
             >
               {user ? "Open App" : "Get Started"}
@@ -252,7 +269,7 @@ export default function About() {
                 size={18}
                 className="transition-transform group-hover:translate-x-1"
               />
-            </Link>
+            </a>
             <a
               href={extensionLink}
               target="_blank"
@@ -600,13 +617,13 @@ export default function About() {
             identity and install the extension to get started.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link
-              to={user ? "/home" : "/login"}
+            <a
+              href={user ? "/home" : "/login"}
               className="inline-flex items-center gap-2 px-7 py-3 bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-400 text-white rounded-xl font-semibold transition-colors"
             >
               {user ? "Open App" : "Sign in"}
               <ArrowRight size={16} />
-            </Link>
+            </a>
             <a
               href="https://github.com/margin-at"
               target="_blank"
@@ -655,12 +672,12 @@ export default function About() {
             </div>
             <div className="flex items-center gap-5 text-sm text-surface-400 dark:text-surface-500">
               {user && (
-                <Link
-                  to="/home"
+                <a
+                  href="/home"
                   className="hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
                 >
                   Feed
-                </Link>
+                </a>
               )}
               <a
                 href="/privacy"

@@ -1,0 +1,16 @@
+---
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Login from '../views/auth/Login';
+
+const user = Astro.locals.user;
+if (user) {
+	return Astro.redirect('/home');
+}
+
+const error = Astro.url.searchParams.get('error') || undefined;
+---
+
+<BaseLayout title="Sign In - Margin" description="Sign in to Margin">
+	<Login client:load initialError={error} />
+</BaseLayout>

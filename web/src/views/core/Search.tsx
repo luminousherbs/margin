@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
 import {
   Search as SearchIcon,
   Loader2,
@@ -18,9 +17,11 @@ import LayoutToggle from "../../components/ui/LayoutToggle";
 import { $user } from "../../store/auth";
 import { $feedLayout } from "../../store/feedLayout";
 
-export default function Search() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const initialQuery = searchParams.get("q") || "";
+interface SearchProps {
+  initialQuery?: string;
+}
+
+export default function Search({ initialQuery = "" }: SearchProps) {
   const user = useStore($user);
   const layout = useStore($feedLayout);
 
@@ -85,7 +86,9 @@ export default function Search() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      setSearchParams({ q: query.trim() });
+      const url = new URL(window.location.href);
+      url.searchParams.set("q", query.trim());
+      window.history.replaceState({}, "", url.toString());
       doSearch(query.trim());
     }
   };
@@ -130,7 +133,7 @@ export default function Search() {
       </form>
 
       {initialQuery && (
-        <div className="sticky top-0 z-10 bg-white/95 dark:bg-surface-800/95 backdrop-blur-sm pb-3 mb-2 -mx-1 px-1 pt-1 space-y-2">
+        <div className="sticky top-0 z-10 bg-white/90 dark:bg-surface-800/90 backdrop-blur-md pb-3 mb-2 -mx-1 px-1 pt-2 space-y-2">
           <div className="flex items-center gap-1.5 flex-wrap">
             {filters.map((f) => {
               const isActive =

@@ -1,0 +1,42 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Sidebar from '../components/navigation/Sidebar';
+import RightSidebar from '../components/navigation/RightSidebar';
+import MobileNav from '../components/navigation/MobileNav';
+import type { UserProfile } from '../types';
+
+interface Props {
+	title?: string;
+	description?: string;
+	image?: string;
+	user?: UserProfile | null;
+}
+
+const { title, description, image, user = Astro.locals.user } = Astro.props;
+---
+
+<BaseLayout title={title} description={description} image={image}>
+	<div class="min-h-screen bg-surface-100 dark:bg-surface-900 flex">
+		<div transition:persist="sidebar">
+			<Sidebar client:load initialUser={user} currentPath={Astro.url.pathname} />
+		</div>
+
+		<div class="flex-1 min-w-0 transition-all duration-200">
+			<div class="flex w-full max-w-[1800px] mx-auto">
+				<main class="flex-1 w-full min-w-0 py-2 md:py-3">
+					<div class="bg-white dark:bg-surface-800 rounded-2xl min-h-[calc(100vh-16px)] md:min-h-[calc(100vh-24px)] py-6 px-4 md:px-6 lg:px-8 pb-20 md:pb-6">
+						<slot />
+					</div>
+				</main>
+
+				<div transition:persist="right-sidebar">
+					<RightSidebar client:visible />
+				</div>
+			</div>
+		</div>
+
+		<div transition:persist="mobile-nav">
+			<MobileNav client:load initialUser={user} currentPath={Astro.url.pathname} />
+		</div>
+	</div>
+</BaseLayout>

@@ -2,15 +2,17 @@ import { useStore } from "@nanostores/react";
 import { clsx } from "clsx";
 import { Bookmark, Highlighter, MessageSquareText } from "lucide-react";
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
 import FeedItems from "../../components/feed/FeedItems";
 import { Button, Tabs } from "../../components/ui";
 import LayoutToggle from "../../components/ui/LayoutToggle";
 import { $user } from "../../store/auth";
 import { $feedLayout } from "../../store/feedLayout";
+import type { UserProfile } from "../../types";
 
 interface FeedProps {
   initialType?: string;
+  initialTag?: string;
+  initialUser?: UserProfile | null;
   motivation?: string;
   showTabs?: boolean;
   emptyMessage?: string;
@@ -18,27 +20,37 @@ interface FeedProps {
 
 export default function Feed({
   initialType = "all",
+  initialTag,
+  initialUser,
   motivation,
   showTabs = true,
   emptyMessage = "No items found.",
 }: FeedProps) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tag = searchParams.get("tag") || undefined;
-  const user = useStore($user);
+  const [tag, setTag] = useState<string | undefined>(
+    initialTag ||
+      (typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("tag") || undefined
+        : undefined),
+  );
+  const storeUser = useStore($user);
+  const user = storeUser || initialUser || null;
   const layout = useStore($feedLayout);
   const [activeTab, setActiveTab] = useState(initialType);
   const [activeFilter, setActiveFilter] = useState<string | undefined>(
     motivation,
   );
 
+  const clearTag = () => {
+    setTag(undefined);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("tag");
+    window.history.replaceState({}, "", url.toString());
+  };
+
   const handleTabChange = (id: string) => {
     if (id === activeTab) return;
     setActiveTab(id);
-    setSearchParams((prev) => {
-      const newParams = new URLSearchParams(prev);
-      newParams.delete("tag");
-      return newParams;
-    });
+    clearTag();
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -46,11 +58,7 @@ export default function Feed({
     const next = id === "all" ? undefined : id;
     if (next === activeFilter) return;
     setActiveFilter(next);
-    setSearchParams((prev) => {
-      const newParams = new URLSearchParams(prev);
-      newParams.delete("tag");
-      return newParams;
-    });
+    clearTag();
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -94,7 +102,7 @@ export default function Feed({
       )}
 
       {showTabs && (
-        <div className="sticky top-0 z-10 bg-white/95 dark:bg-surface-800/95 backdrop-blur-sm pb-3 mb-2 -mx-1 px-1 pt-1 space-y-2">
+        <div className="sticky top-0 z-10 bg-white/90 dark:bg-surface-800/90 backdrop-blur-md pb-3 mb-2 -mx-1 px-1 pt-2 space-y-2">
           {!tag && (
             <Tabs
               tabs={tabs}
@@ -113,13 +121,7 @@ export default function Feed({
                 </span>
               </h2>
               <button
-                onClick={() => {
-                  setSearchParams((prev) => {
-                    const newParams = new URLSearchParams(prev);
-                    newParams.delete("tag");
-                    return newParams;
-                  });
-                }}
+                onClick={clearTag}
                 className="text-sm text-surface-500 hover:text-surface-900 dark:hover:text-white"
               >
                 Clear filter

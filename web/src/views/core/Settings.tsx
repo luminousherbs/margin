@@ -59,7 +59,6 @@ import {
   Switch,
 } from "../../components/ui";
 import { AppleIcon } from "../../components/common/Icons";
-import { Link } from "react-router-dom";
 import { HighlightImporter } from "./HighlightImporter";
 import IOSShortcutModal from "../../components/modals/IOSShortcutModal";
 
@@ -364,8 +363,8 @@ export default function Settings() {
                         key={b.did}
                         className="flex items-center justify-between p-3 bg-surface-50 dark:bg-surface-800 rounded-xl group hover:bg-surface-100 dark:hover:bg-surface-700 transition-all"
                       >
-                        <Link
-                          to={`/profile/${b.did}`}
+                        <a
+                          href={`/profile/${b.did}`}
                           className="flex items-center gap-3 min-w-0 flex-1"
                         >
                           <Avatar
@@ -385,7 +384,7 @@ export default function Settings() {
                               </p>
                             )}
                           </div>
-                        </Link>
+                        </a>
                         <button
                           onClick={async () => {
                             await unblockUser(b.did);
@@ -420,8 +419,8 @@ export default function Settings() {
                         key={m.did}
                         className="flex items-center justify-between p-3 bg-surface-50 dark:bg-surface-800 rounded-xl group hover:bg-surface-100 dark:hover:bg-surface-700 transition-all"
                       >
-                        <Link
-                          to={`/profile/${m.did}`}
+                        <a
+                          href={`/profile/${m.did}`}
                           className="flex items-center gap-3 min-w-0 flex-1"
                         >
                           <Avatar
@@ -441,7 +440,7 @@ export default function Settings() {
                               </p>
                             )}
                           </div>
-                        </Link>
+                        </a>
                         <button
                           onClick={async () => {
                             await unmuteUser(m.did);

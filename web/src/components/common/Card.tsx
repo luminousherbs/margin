@@ -43,7 +43,7 @@ import type {
   ContentLabel,
   LabelVisibility,
 } from "../../types";
-import { Link } from "react-router-dom";
+
 import { Avatar } from "../ui";
 import CollectionIcon from "./CollectionIcon";
 import ProfileHoverCard from "./ProfileHoverCard";
@@ -318,9 +318,20 @@ export default function Card({
     : null;
 
   const decodeHTMLEntities = (text: string) => {
-    const textarea = document.createElement("textarea");
-    textarea.innerHTML = text;
-    return textarea.value;
+    const entities: Record<string, string> = {
+      "&amp;": "&",
+      "&lt;": "<",
+      "&gt;": ">",
+      "&quot;": '"',
+      "&#39;": "'",
+      "&#x27;": "'",
+      "&#x2F;": "/",
+      "&nbsp;": " ",
+    };
+    return text.replace(
+      /&(?:amp|lt|gt|quot|nbsp|#39|#x27|#x2F);/g,
+      (match) => entities[match] || match,
+    );
   };
 
   const displayTitle = decodeHTMLEntities(
@@ -339,8 +350,8 @@ export default function Card({
           {item.addedBy && item.addedBy.did !== item.author?.did ? (
             <>
               <ProfileHoverCard did={item.addedBy.did}>
-                <Link
-                  to={`/profile/${item.addedBy.did}`}
+                <a
+                  href={`/profile/${item.addedBy.did}`}
                   className="flex items-center gap-1.5 font-medium hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                 >
                   <Avatar
@@ -351,7 +362,7 @@ export default function Card({
                   <span>
                     {item.addedBy.displayName || `@${item.addedBy.handle}`}
                   </span>
-                </Link>
+                </a>
               </ProfileHoverCard>
               <span>added to</span>
             </>
@@ -370,30 +381,30 @@ export default function Card({
                 {index > 0 && index === item.context!.length - 1 && (
                   <span>and</span>
                 )}
-                <Link
-                  to={`/${item.addedBy?.handle || ""}/collection/${(col.uri || "").split("/").pop()}`}
+                <a
+                  href={`/${item.addedBy?.handle || ""}/collection/${(col.uri || "").split("/").pop()}`}
                   className="inline-flex items-center gap-1 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                 >
                   <CollectionIcon icon={col.icon} size={14} />
                   <span className="font-medium">{col.name}</span>
-                </Link>
+                </a>
               </React.Fragment>
             ))
           ) : (
-            <Link
-              to={`/${item.addedBy?.handle || ""}/collection/${(item.collection!.uri || "").split("/").pop()}`}
+            <a
+              href={`/${item.addedBy?.handle || ""}/collection/${(item.collection!.uri || "").split("/").pop()}`}
               className="inline-flex items-center gap-1 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
             >
               <CollectionIcon icon={item.collection!.icon} size={14} />
               <span className="font-medium">{item.collection!.name}</span>
-            </Link>
+            </a>
           )}
         </div>
       )}
 
       <div className="flex items-start gap-3">
         <ProfileHoverCard did={item.author?.did}>
-          <Link to={`/profile/${item.author?.did}`} className="shrink-0">
+          <a href={`/profile/${item.author?.did}`} className="shrink-0">
             <div className="rounded-full overflow-hidden">
               <div
                 className={clsx(
@@ -410,18 +421,18 @@ export default function Card({
                 />
               </div>
             </div>
-          </Link>
+          </a>
         </ProfileHoverCard>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <ProfileHoverCard did={item.author?.did}>
-              <Link
-                to={`/profile/${item.author?.did}`}
+              <a
+                href={`/profile/${item.author?.did}`}
                 className="font-semibold text-surface-900 dark:text-white text-[15px] hover:underline"
               >
                 {item.author?.displayName || item.author?.handle}
-              </Link>
+              </a>
             </ProfileHoverCard>
             <span className="text-surface-400 dark:text-surface-500 text-sm">
               @{item.author?.handle}
@@ -652,15 +663,15 @@ export default function Card({
         {item.tags && item.tags.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-3">
             {item.tags.map((tag) => (
-              <Link
+              <a
                 key={tag}
-                to={`/home?tag=${encodeURIComponent(tag)}`}
+                href={`/home?tag=${encodeURIComponent(tag)}`}
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-surface-100 dark:bg-surface-800 text-xs font-medium text-surface-600 dark:text-surface-400 hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                 onClick={(e) => e.stopPropagation()}
               >
                 <Tag size={10} />
                 <span>{tag}</span>
-              </Link>
+              </a>
             ))}
           </div>
         )}
@@ -681,15 +692,15 @@ export default function Card({
         </button>
 
         {type === "annotation" && (
-          <Link
-            to={detailUrl}
+          <a
+            href={detailUrl}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-surface-400 dark:text-surface-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
           >
             <MessageSquare size={16} />
             {(item.replyCount || 0) > 0 && (
               <span className="text-xs font-medium">{item.replyCount}</span>
             )}
-          </Link>
+          </a>
         )}
 
         {user && (

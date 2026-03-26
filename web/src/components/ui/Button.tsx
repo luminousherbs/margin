@@ -40,9 +40,9 @@ export default function Button({
   return (
     <button
       className={clsx(
-        "inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200",
+        "inline-flex items-center justify-center font-medium rounded-lg transition-all duration-150",
         "focus:outline-none focus:ring-2 focus:ring-primary-500/20",
-        "disabled:opacity-50 disabled:cursor-not-allowed",
+        "active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed",
         variants[variant],
         sizes[size],
         className,

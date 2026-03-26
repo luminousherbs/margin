@@ -22,6 +22,8 @@ var client = &http.Client{
 	},
 }
 
+var verifySem = make(chan struct{}, 3)
+
 var linkTagPattern = regexp.MustCompile(`<link[^>]+rel=["']site\.standard\.document["'][^>]+href=["']([^"']+)["'][^>]*/?>|<link[^>]+href=["']([^"']+)["'][^>]+rel=["']site\.standard\.document["'][^>]*/?>`)
 
 func VerifyPublication(pubURL, expectedURI string) error {
@@ -84,7 +86,7 @@ func VerifyDocument(docURL, expectedURI string) error {
 		return fmt.Errorf("document URL returned %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 256*1024))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 16*1024))
 	if err != nil {
 		return fmt.Errorf("failed to read document: %w", err)
 	}
@@ -107,6 +109,9 @@ func VerifyDocument(docURL, expectedURI string) error {
 
 func VerifyPublicationAsync(pubURL, uri string, onVerified func(string)) {
 	go func() {
+		verifySem <- struct{}{}
+		defer func() { <-verifySem }()
+
 		if err := VerifyPublication(pubURL, uri); err != nil {
 			return
 		}
@@ -119,6 +124,9 @@ func VerifyPublicationAsync(pubURL, uri string, onVerified func(string)) {
 
 func VerifyDocumentAsync(docURL, uri string, onVerified func(string)) {
 	go func() {
+		verifySem <- struct{}{}
+		defer func() { <-verifySem }()
+
 		if err := VerifyDocument(docURL, uri); err != nil {
 			return
 		}

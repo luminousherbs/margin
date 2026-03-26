@@ -1,8 +1,14 @@
 ---
+
 import BaseLayout from '../layouts/BaseLayout.astro';
-import App from '../App';
+import About from '../views/About';
+
+const user = Astro.locals.user;
+if (user) {
+	return Astro.redirect('/home');
+}
 ---
 
 <BaseLayout title="Margin" description="Annotate the web using the AT Protocol">
-	<App client:only="react" />
+	<About client:load />
 </BaseLayout>

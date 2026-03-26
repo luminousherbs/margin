@@ -35,9 +35,9 @@ func scanAnnotations(rows interface {
 }
 
 func (db *DB) AnnotationExists(uri string) bool {
-	var count int
-	db.QueryRow(db.Rebind(`SELECT COUNT(*) FROM annotations WHERE uri = ?`), uri).Scan(&count)
-	return count > 0
+	var exists bool
+	db.QueryRow(`SELECT EXISTS(SELECT 1 FROM annotations WHERE uri = $1)`, uri).Scan(&exists)
+	return exists
 }
 
 func HashURL(rawURL string) string {
@@ -71,17 +71,17 @@ func ToJSON(v interface{}) string {
 
 func (db *DB) GetAuthorByURI(uri string) (string, error) {
 	var authorDID string
-	err := db.QueryRow(db.Rebind(`SELECT author_did FROM annotations WHERE uri = ?`), uri).Scan(&authorDID)
+	err := db.QueryRow(`SELECT author_did FROM annotations WHERE uri = $1`, uri).Scan(&authorDID)
 	if err == nil {
 		return authorDID, nil
 	}
 
-	err = db.QueryRow(db.Rebind(`SELECT author_did FROM highlights WHERE uri = ?`), uri).Scan(&authorDID)
+	err = db.QueryRow(`SELECT author_did FROM highlights WHERE uri = $1`, uri).Scan(&authorDID)
 	if err == nil {
 		return authorDID, nil
 	}
 
-	err = db.QueryRow(db.Rebind(`SELECT author_did FROM bookmarks WHERE uri = ?`), uri).Scan(&authorDID)
+	err = db.QueryRow(`SELECT author_did FROM bookmarks WHERE uri = $1`, uri).Scan(&authorDID)
 	if err == nil {
 		return authorDID, nil
 	}
@@ -89,13 +89,13 @@ func (db *DB) GetAuthorByURI(uri string) (string, error) {
 	return "", fmt.Errorf("uri not found or no author")
 }
 
-func buildPlaceholders(n int) string {
+func buildPlaceholders(n, startAt int) string {
 	if n == 0 {
 		return ""
 	}
 	placeholders := make([]string, n)
 	for i := range placeholders {
-		placeholders[i] = "?"
+		placeholders[i] = fmt.Sprintf("$%d", startAt+i)
 	}
 	return strings.Join(placeholders, ", ")
 }

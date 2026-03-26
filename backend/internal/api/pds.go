@@ -11,6 +11,8 @@ import (
 	"margin.at/internal/xrpc"
 )
 
+var pdsClient = &http.Client{Timeout: 10 * time.Second}
+
 func (h *Handler) FetchLatestUserRecords(r *http.Request, did string, collection string, limit int) ([]interface{}, error) {
 	session, err := h.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
@@ -25,7 +27,7 @@ func (h *Handler) FetchLatestUserRecords(r *http.Request, did string, collection
 		req, _ := http.NewRequestWithContext(r.Context(), "GET", url, nil)
 		req.Header.Set("Authorization", "Bearer "+client.AccessToken)
 
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := pdsClient.Do(req)
 		if err != nil {
 			return fmt.Errorf("failed to fetch %s: %w", collection, err)
 		}

@@ -1,10 +1,11 @@
 ---
-export const prerender = false;
 
-import OGLayout from '../../../layouts/OGLayout.astro';
+import AppLayout from '../../../layouts/AppLayout.astro';
+import AnnotationDetail from '../../../views/content/AnnotationDetail';
 import { fetchOGForRoute } from '../../../lib/og';
 
 const { did, rkey } = Astro.params;
+const user = Astro.locals.user;
 
 let title = 'Margin';
 let description = 'Annotate the web';
@@ -20,4 +21,6 @@ if (did && rkey) {
 }
 ---
 
-<OGLayout title={title} description={description} image={image} />
+<AppLayout title={title} description={description} image={image} user={user}>
+	<AnnotationDetail client:load did={did} rkey={rkey} />
+</AppLayout>

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useSearchParams, Navigate } from "react-router-dom";
 import { AtSign } from "lucide-react";
 import SignUpModal from "../../components/modals/SignUpModal";
 import {
@@ -10,19 +9,18 @@ import {
 import { Avatar } from "../../components/ui";
 import { useStore } from "@nanostores/react";
 import { $theme } from "../../store/theme";
-import { $user } from "../../store/auth";
 
-export default function Login() {
+interface LoginProps {
+  initialError?: string;
+}
+
+export default function Login({ initialError }: LoginProps) {
   useStore($theme); // ensure theme is applied on this page
-  const user = useStore($user);
-  const [searchParams] = useSearchParams();
   const [handle, setHandle] = useState("");
   const [suggestions, setSuggestions] = useState<ActorSearchItem[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(
-    searchParams.get("error") || null,
-  );
+  const [error, setError] = useState<string | null>(initialError || null);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [showSignUp, setShowSignUp] = useState(false);
 
@@ -139,6 +137,9 @@ export default function Login() {
     try {
       const result = await startLogin(handle.trim());
       if (result.authorizationUrl) {
+        const url = new URL(result.authorizationUrl);
+        if (url.protocol !== "https:")
+          throw new Error("Invalid authorization URL");
         window.location.href = result.authorizationUrl;
       }
     } catch (err) {
@@ -147,10 +148,6 @@ export default function Login() {
       setLoading(false);
     }
   };
-
-  if (user) {
-    return <Navigate to="/home" replace />;
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-surface-100 dark:bg-surface-800 p-4">

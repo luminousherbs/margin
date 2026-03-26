@@ -1,26 +1,28 @@
 package db
 
+import "fmt"
+
 func (db *DB) CreateLike(l *Like) error {
-	_, err := db.Exec(db.Rebind(`
+	_, err := db.Exec(`
 		INSERT INTO likes (uri, author_did, subject_uri, created_at, indexed_at)
-		VALUES (?, ?, ?, ?, ?)
+		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT(uri) DO NOTHING
-	`), l.URI, l.AuthorDID, l.SubjectURI, l.CreatedAt, l.IndexedAt)
+	`, l.URI, l.AuthorDID, l.SubjectURI, l.CreatedAt, l.IndexedAt)
 	return err
 }
 
 func (db *DB) DeleteLike(uri string) error {
-	_, err := db.Exec(db.Rebind(`DELETE FROM likes WHERE uri = ?`), uri)
+	_, err := db.Exec(`DELETE FROM likes WHERE uri = $1`, uri)
 	return err
 }
 
 func (db *DB) GetLikesByAuthor(authorDID string) ([]Like, error) {
-	rows, err := db.Query(db.Rebind(`
+	rows, err := db.Query(`
 		SELECT uri, author_did, subject_uri, created_at, indexed_at
 		FROM likes
-		WHERE author_did = ?
+		WHERE author_did = $1
 		ORDER BY created_at DESC
-	`), authorDID)
+	`, authorDID)
 	if err != nil {
 		return nil, err
 	}
@@ -39,17 +41,17 @@ func (db *DB) GetLikesByAuthor(authorDID string) ([]Like, error) {
 
 func (db *DB) GetLikeCount(subjectURI string) (int, error) {
 	var count int
-	err := db.QueryRow(db.Rebind(`SELECT COUNT(*) FROM likes WHERE subject_uri = ?`), subjectURI).Scan(&count)
+	err := db.QueryRow(`SELECT COUNT(*) FROM likes WHERE subject_uri = $1`, subjectURI).Scan(&count)
 	return count, err
 }
 
 func (db *DB) GetLikeByUserAndSubject(userDID, subjectURI string) (*Like, error) {
 	var like Like
-	err := db.QueryRow(db.Rebind(`
+	err := db.QueryRow(`
 		SELECT uri, author_did, subject_uri, created_at, indexed_at
 		FROM likes
-		WHERE author_did = ? AND subject_uri = ?
-	`), userDID, subjectURI).Scan(&like.URI, &like.AuthorDID, &like.SubjectURI, &like.CreatedAt, &like.IndexedAt)
+		WHERE author_did = $1 AND subject_uri = $2
+	`, userDID, subjectURI).Scan(&like.URI, &like.AuthorDID, &like.SubjectURI, &like.CreatedAt, &like.IndexedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -61,12 +63,12 @@ func (db *DB) GetLikeCounts(subjectURIs []string) (map[string]int, error) {
 		return map[string]int{}, nil
 	}
 
-	query := db.Rebind(`
-		SELECT subject_uri, COUNT(*) 
-		FROM likes 
-		WHERE subject_uri IN (` + buildPlaceholders(len(subjectURIs)) + `) 
+	query := `
+		SELECT subject_uri, COUNT(*)
+		FROM likes
+		WHERE subject_uri IN (` + buildPlaceholders(len(subjectURIs), 1) + `)
 		GROUP BY subject_uri
-	`)
+	`
 
 	args := make([]interface{}, len(subjectURIs))
 	for i, uri := range subjectURIs {
@@ -97,11 +99,11 @@ func (db *DB) GetViewerLikes(viewerDID string, subjectURIs []string) (map[string
 		return map[string]bool{}, nil
 	}
 
-	query := db.Rebind(`
-		SELECT subject_uri 
-		FROM likes 
-		WHERE author_did = ? AND subject_uri IN (` + buildPlaceholders(len(subjectURIs)) + `)
-	`)
+	query := fmt.Sprintf(`
+		SELECT subject_uri
+		FROM likes
+		WHERE author_did = $1 AND subject_uri IN (%s)
+	`, buildPlaceholders(len(subjectURIs), 2))
 
 	args := make([]interface{}, len(subjectURIs)+1)
 	args[0] = viewerDID
