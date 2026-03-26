@@ -1,5 +1,6 @@
 import { atom } from "nanostores";
 import { checkSession } from "../api/client";
+import { loadPreferences } from "./preferences";
 import type { UserProfile } from "../types";
 
 export const $user = atom<UserProfile | null>(null);
@@ -10,6 +11,9 @@ export async function initAuth() {
   const session = await checkSession();
   $user.set(session);
   $isLoading.set(false);
+  if (session) {
+    loadPreferences();
+  }
 }
 
 export function logout() {

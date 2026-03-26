@@ -49,10 +49,6 @@ export default function Sidebar({
     return () => document.removeEventListener("astro:page-load", handler);
   }, []);
 
-  const handleNav = (href: string) => () => {
-    setCurrentPath(href);
-  };
-
   useEffect(() => {
     if (!user) return;
 
@@ -126,7 +122,6 @@ export default function Sidebar({
                 key={item.href}
                 href={item.href}
                 title={item.label}
-                onClick={handleNav(item.href)}
                 data-astro-prefetch="viewport"
                 className={`flex items-center justify-center lg:justify-start gap-3 px-0 lg:px-3 py-2.5 rounded-lg transition-all duration-150 text-[14px] group ${
                   isActive

@@ -140,19 +140,18 @@ export default function About() {
 
   return (
     <div className="min-h-screen bg-surface-100 dark:bg-surface-900">
-      <nav
-        className={`sticky top-0 z-50 transition-all duration-300 ${
-          isScrolled
-            ? "bg-white/80 dark:bg-surface-950/80 backdrop-blur-xl border-b border-surface-200/40 dark:border-surface-800/40"
-            : "bg-transparent border-b border-transparent"
-        }`}
-      >
+      <nav className="sticky top-0 z-50 pt-3 pb-1 px-4 sm:px-6 mx-auto max-w-5xl">
         <div
-          className={`max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between transition-all duration-300 ${
-            isScrolled ? "h-14" : "h-16"
+          className={`relative flex items-center justify-between rounded-2xl px-4 sm:px-5 transition-all duration-300 ease-out ${
+            isScrolled ? "h-12" : "h-14"
           }`}
         >
-          <div className="flex items-center gap-6">
+          <div
+            className={`absolute inset-0 rounded-2xl bg-white/75 dark:bg-surface-900/75 backdrop-blur-lg border border-surface-200/40 dark:border-surface-700/40 shadow-sm transition-opacity duration-300 ease-out ${
+              isScrolled ? "opacity-100" : "opacity-0"
+            }`}
+          />
+          <div className="relative flex items-center gap-6">
             <a
               href="/"
               className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
@@ -177,7 +176,7 @@ export default function About() {
               </a>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="relative flex items-center gap-2">
             {!user && (
               <a
                 href="/login"
