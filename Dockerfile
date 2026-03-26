@@ -26,8 +26,7 @@ WORKDIR /app
 COPY --from=backend-builder /app/margin-server ./margin-server
 
 COPY --from=frontend-builder /app/web/dist ./dist
-
-RUN npm install @resvg/resvg-js@2.6.2 --no-save
+COPY --from=frontend-builder /app/web/node_modules ./node_modules
 
 ENV PORT=8080
 ENV API_PORT=8081
