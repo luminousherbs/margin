@@ -51,18 +51,33 @@ export default function FeedItems({
       setOffset(cached.offset);
       setLoading(false);
 
-      getFeed({ type, motivation, tag, creator, source, limit: LIMIT, offset: 0 })
+      getFeed({
+        type,
+        motivation,
+        tag,
+        creator,
+        source,
+        limit: LIMIT,
+        offset: 0,
+      })
         .then((data) => {
           if (cancelled) return;
           const fetched = data.items;
           setItems(fetched);
           setHasMore(data.hasMore);
           setOffset(data.fetchedCount);
-          feedCache.set(cacheKey, { items: fetched, hasMore: data.hasMore, offset: data.fetchedCount, timestamp: Date.now() });
+          feedCache.set(cacheKey, {
+            items: fetched,
+            hasMore: data.hasMore,
+            offset: data.fetchedCount,
+            timestamp: Date.now(),
+          });
         })
         .catch(console.error);
-        
-      return () => { cancelled = true; };
+
+      return () => {
+        cancelled = true;
+      };
     }
 
     setLoading(true);
@@ -74,7 +89,12 @@ export default function FeedItems({
         setHasMore(data.hasMore);
         setOffset(data.fetchedCount);
         setLoading(false);
-        feedCache.set(cacheKey, { items: fetched, hasMore: data.hasMore, offset: data.fetchedCount, timestamp: Date.now() });
+        feedCache.set(cacheKey, {
+          items: fetched,
+          hasMore: data.hasMore,
+          offset: data.fetchedCount,
+          timestamp: Date.now(),
+        });
       })
       .catch((e) => {
         if (cancelled) return;
@@ -92,7 +112,13 @@ export default function FeedItems({
   const loadMore = useCallback(async () => {
     setLoadingMore(true);
     try {
-      const cacheKey = JSON.stringify({ type, motivation, tag, creator, source });
+      const cacheKey = JSON.stringify({
+        type,
+        motivation,
+        tag,
+        creator,
+        source,
+      });
       const data = await getFeed({
         type,
         motivation,
@@ -108,7 +134,12 @@ export default function FeedItems({
       setHasMore(data.hasMore);
       const newOffset = offset + data.fetchedCount;
       setOffset(newOffset);
-      feedCache.set(cacheKey, { items: newItems, hasMore: data.hasMore, offset: newOffset, timestamp: Date.now() });
+      feedCache.set(cacheKey, {
+        items: newItems,
+        hasMore: data.hasMore,
+        offset: newOffset,
+        timestamp: Date.now(),
+      });
     } catch (e) {
       console.error(e);
     } finally {

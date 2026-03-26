@@ -34,15 +34,20 @@ export default function Collections() {
   const [creating, setCreating] = useState(false);
 
   const fetchCollections = async () => {
-    if (collectionsCache.data && Date.now() - collectionsCache.timestamp < 5 * 60 * 1000) {
+    if (
+      collectionsCache.data &&
+      Date.now() - collectionsCache.timestamp < 5 * 60 * 1000
+    ) {
       setCollections(collectionsCache.data);
       setLoading(false);
-      
-      getCollections().then(data => {
-        setCollections(data);
-        collectionsCache.data = data;
-        collectionsCache.timestamp = Date.now();
-      }).catch(console.error);
+
+      getCollections()
+        .then((data) => {
+          setCollections(data);
+          collectionsCache.data = data;
+          collectionsCache.timestamp = Date.now();
+        })
+        .catch(console.error);
       return;
     }
 

@@ -228,16 +228,21 @@ export default function Notifications() {
 
   useEffect(() => {
     const load = async () => {
-      if (notificationsCache.data && Date.now() - notificationsCache.timestamp < 5 * 60 * 1000) {
+      if (
+        notificationsCache.data &&
+        Date.now() - notificationsCache.timestamp < 5 * 60 * 1000
+      ) {
         setNotifications(notificationsCache.data);
         setLoading(false);
-        
-        getNotifications().then(data => {
-          setNotifications(data);
-          notificationsCache.data = data;
-          notificationsCache.timestamp = Date.now();
-        }).catch(console.error);
-        
+
+        getNotifications()
+          .then((data) => {
+            setNotifications(data);
+            notificationsCache.data = data;
+            notificationsCache.timestamp = Date.now();
+          })
+          .catch(console.error);
+
         markNotificationsRead();
         return;
       }

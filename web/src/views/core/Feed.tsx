@@ -65,6 +65,7 @@ export default function Feed({
   const tabs = [
     { id: "all", label: "Recent" },
     { id: "popular", label: "Popular" },
+    { id: "atmosphereconf", label: "ATmosphereConf" },
     { id: "shelved", label: "Shelved" },
     { id: "margin", label: "Margin" },
     { id: "semble", label: "Semble" },
@@ -157,11 +158,16 @@ export default function Feed({
 
       <FeedItems
         key={`${activeTab}-${activeFilter || "all"}-${tag || ""}`}
-        type={activeTab}
+        type={activeTab === "atmosphereconf" ? "all" : activeTab}
         motivation={activeFilter}
         emptyMessage={emptyMessage}
         layout={layout}
-        tag={tag}
+        tag={
+          activeTab === "atmosphereconf" ||
+          tag?.toLowerCase() === "atmosphereconf"
+            ? "ATmosphereConf"
+            : tag
+        }
       />
     </div>
   );

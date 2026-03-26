@@ -186,12 +186,27 @@ export default function Profile({ did }: ProfileProps) {
           try {
             const rel = await getModerationRelationship(did);
             setModRelation(rel);
-            profileCache.set(did, { profile: merged, labels: marginData?.labels || [], relation: rel, timestamp: Date.now() });
+            profileCache.set(did, {
+              profile: merged,
+              labels: marginData?.labels || [],
+              relation: rel,
+              timestamp: Date.now(),
+            });
           } catch {
-            profileCache.set(did, { profile: merged, labels: marginData?.labels || [], relation: modRelation, timestamp: Date.now() });
+            profileCache.set(did, {
+              profile: merged,
+              labels: marginData?.labels || [],
+              relation: modRelation,
+              timestamp: Date.now(),
+            });
           }
         } else {
-          profileCache.set(did, { profile: merged, labels: marginData?.labels || [], relation: modRelation, timestamp: Date.now() });
+          profileCache.set(did, {
+            profile: merged,
+            labels: marginData?.labels || [],
+            relation: modRelation,
+            timestamp: Date.now(),
+          });
         }
       } catch (e) {
         console.error("Profile load failed", e);
@@ -233,7 +248,10 @@ export default function Profile({ did }: ProfileProps) {
           }
           const res = await getCollections(resolvedDid);
           setCollections(res);
-          profileCollectionsCache.set(resolvedDid, { collections: res, timestamp: Date.now() });
+          profileCollectionsCache.set(resolvedDid, {
+            collections: res,
+            timestamp: Date.now(),
+          });
         }
       } catch (e) {
         console.error(e);

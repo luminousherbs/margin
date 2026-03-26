@@ -66,9 +66,12 @@ export default function Search({ initialQuery = "" }: SearchProps) {
         setResults([]);
         return;
       }
-      
-      const cacheKey = JSON.stringify({ q: q.trim(), myItemsOnly: myItemsRef.current });
-      
+
+      const cacheKey = JSON.stringify({
+        q: q.trim(),
+        myItemsOnly: myItemsRef.current,
+      });
+
       if (!append && newOffset === 0) {
         const cached = searchCache.get(cacheKey);
         if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) {
@@ -76,20 +79,27 @@ export default function Search({ initialQuery = "" }: SearchProps) {
           setHasMore(cached.hasMore);
           setOffset(cached.offset);
           setLoading(false);
-          
+
           const id = ++fetchIdRef.current;
           searchItems(q.trim(), {
             creator: myItemsRef.current && user ? user.did : undefined,
             limit: 30,
             offset: newOffset,
-          }).then(data => {
-            if (id !== fetchIdRef.current) return;
-            setResults(data.items);
-            setHasMore(data.hasMore);
-            setOffset(newOffset + data.items.length);
-            searchCache.set(cacheKey, { results: data.items, hasMore: data.hasMore, offset: newOffset + data.items.length, timestamp: Date.now() });
-          }).catch(console.error);
-          
+          })
+            .then((data) => {
+              if (id !== fetchIdRef.current) return;
+              setResults(data.items);
+              setHasMore(data.hasMore);
+              setOffset(newOffset + data.items.length);
+              searchCache.set(cacheKey, {
+                results: data.items,
+                hasMore: data.hasMore,
+                offset: newOffset + data.items.length,
+                timestamp: Date.now(),
+              });
+            })
+            .catch(console.error);
+
           return;
         }
       }
@@ -105,12 +115,22 @@ export default function Search({ initialQuery = "" }: SearchProps) {
       if (append) {
         setResults((prev) => {
           const newResults = [...prev, ...data.items];
-          searchCache.set(cacheKey, { results: newResults, hasMore: data.hasMore, offset: newOffset + data.items.length, timestamp: Date.now() });
+          searchCache.set(cacheKey, {
+            results: newResults,
+            hasMore: data.hasMore,
+            offset: newOffset + data.items.length,
+            timestamp: Date.now(),
+          });
           return newResults;
         });
       } else {
         setResults(data.items);
-        searchCache.set(cacheKey, { results: data.items, hasMore: data.hasMore, offset: newOffset + data.items.length, timestamp: Date.now() });
+        searchCache.set(cacheKey, {
+          results: data.items,
+          hasMore: data.hasMore,
+          offset: newOffset + data.items.length,
+          timestamp: Date.now(),
+        });
       }
       setHasMore(data.hasMore);
       setOffset(newOffset + data.items.length);

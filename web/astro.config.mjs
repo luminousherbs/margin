@@ -12,8 +12,8 @@ export default defineConfig({
   adapter: node({ mode: "standalone" }),
   integrations: [react(), tailwind()],
   prefetch: {
-    prefetchAll: false,
-    defaultStrategy: "hover",
+    prefetchAll: true,
+    defaultStrategy: "viewport",
   },
   security: {
     checkOrigin: true,
