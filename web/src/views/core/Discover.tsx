@@ -10,14 +10,22 @@ import { $user } from "../../store/auth";
 import { $feedLayout } from "../../store/feedLayout";
 import { formatDistanceToNow } from "date-fns";
 
-export default function Discover() {
+interface DiscoverProps {
+  initialDocuments?: DocumentItem[];
+  initialHasMore?: boolean;
+}
+
+export default function Discover({
+  initialDocuments,
+  initialHasMore,
+}: DiscoverProps) {
   const user = useStore($user);
   const layout = useStore($feedLayout);
   const [activeTab, setActiveTab] = useState("new");
-  const [items, setItems] = useState<DocumentItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [hasMore, setHasMore] = useState(false);
-  const [offset, setOffset] = useState(0);
+  const [items, setItems] = useState<DocumentItem[]>(initialDocuments || []);
+  const [loading, setLoading] = useState(!initialDocuments);
+  const [hasMore, setHasMore] = useState(initialHasMore ?? false);
+  const [offset, setOffset] = useState(initialDocuments?.length ?? 0);
   const [recommendationsUnavailable, setRecommendationsUnavailable] =
     useState(false);
   const fetchIdRef = useRef(0);
@@ -61,7 +69,12 @@ export default function Discover() {
     [limit],
   );
 
+  const skipInitialFetch = useRef(!!initialDocuments);
   useEffect(() => {
+    if (skipInitialFetch.current) {
+      skipInitialFetch.current = false;
+      return;
+    }
     queueMicrotask(() => fetchItems(activeTab, 0));
   }, [activeTab, fetchItems]);
 

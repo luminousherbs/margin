@@ -52,15 +52,16 @@ export default function ShareMenu({
     if (customUrl) return customUrl;
     if (!uri) return "";
 
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
     const uriParts = uri.split("/");
     const rkey = uriParts[uriParts.length - 1];
     const did = uriParts[2];
 
     if (uri.includes("network.cosmik.card"))
-      return `${window.location.origin}/at/${did}/${rkey}`;
+      return `${origin}/at/${did}/${rkey}`;
     if (handle && type)
-      return `${window.location.origin}/${handle}/${type.toLowerCase()}/${rkey}`;
-    return `${window.location.origin}/at/${did}/${rkey}`;
+      return `${origin}/${handle}/${type.toLowerCase()}/${rkey}`;
+    return `${origin}/at/${did}/${rkey}`;
   };
 
   const shareUrl = getShareUrl();
@@ -277,7 +278,8 @@ export default function ShareMenu({
               copied === "aturi",
             )}
 
-            {navigator.share &&
+            {typeof navigator !== "undefined" &&
+              navigator.share &&
               renderMenuItem(
                 "More Options...",
                 <MoreHorizontal size={16} />,

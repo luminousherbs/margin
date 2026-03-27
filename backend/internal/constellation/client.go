@@ -55,13 +55,12 @@ type LinksResponse struct {
 	Cursor string `json:"cursor,omitempty"`
 }
 
-func (c *Client) GetLikeCount(ctx context.Context, subjectURI string) (int, error) {
+func (c *Client) getBacklinksCount(ctx context.Context, subject, source string) (int, error) {
 	params := url.Values{}
-	params.Set("target", subjectURI)
-	params.Set("collection", "at.margin.like")
-	params.Set("path", ".subject.uri")
+	params.Set("subject", subject)
+	params.Set("source", source)
 
-	endpoint := fmt.Sprintf("%s/links/count/distinct-dids?%s", c.baseURL, params.Encode())
+	endpoint := fmt.Sprintf("%s/xrpc/blue.microcosm.links.getBacklinksCount?%s", c.baseURL, params.Encode())
 
 	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 	if err != nil {
@@ -87,36 +86,54 @@ func (c *Client) GetLikeCount(ctx context.Context, subjectURI string) (int, erro
 	return countResp.Total, nil
 }
 
-func (c *Client) GetReplyCount(ctx context.Context, rootURI string) (int, error) {
-	params := url.Values{}
-	params.Set("target", rootURI)
-	params.Set("collection", "at.margin.reply")
-	params.Set("path", ".root.uri")
+type BacklinksResponse struct {
+	Backlinks []struct {
+		URI string `json:"uri"`
+		DID string `json:"did"`
+	} `json:"backlinks"`
+	Cursor string `json:"cursor,omitempty"`
+}
 
-	endpoint := fmt.Sprintf("%s/links/count?%s", c.baseURL, params.Encode())
+func (c *Client) getBacklinks(ctx context.Context, subject, source string, limit int) (*BacklinksResponse, error) {
+	params := url.Values{}
+	params.Set("subject", subject)
+	params.Set("source", source)
+	if limit > 0 {
+		params.Set("limit", fmt.Sprintf("%d", limit))
+	}
+
+	endpoint := fmt.Sprintf("%s/xrpc/blue.microcosm.links.getBacklinks?%s", c.baseURL, params.Encode())
 
 	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("User-Agent", UserAgent)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return 0, fmt.Errorf("request failed: %w", err)
+		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	var countResp CountResponse
-	if err := json.NewDecoder(resp.Body).Decode(&countResp); err != nil {
-		return 0, fmt.Errorf("failed to decode response: %w", err)
+	var result BacklinksResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	return countResp.Total, nil
+	return &result, nil
+}
+
+func (c *Client) GetLikeCount(ctx context.Context, subjectURI string) (int, error) {
+	return c.getBacklinksCount(ctx, subjectURI, "at.margin.like:subject.uri")
+}
+
+func (c *Client) GetReplyCount(ctx context.Context, rootURI string) (int, error) {
+	return c.getBacklinksCount(ctx, rootURI, "at.margin.reply:root.uri")
 }
 
 type CountsResult struct {
@@ -159,99 +176,39 @@ func (c *Client) GetCountsBatch(ctx context.Context, uris []string) (map[string]
 }
 
 func (c *Client) GetAnnotationsForURL(ctx context.Context, targetURL string) ([]Link, error) {
-	params := url.Values{}
-	params.Set("target", targetURL)
-	params.Set("collection", "at.margin.annotation")
-	params.Set("path", ".target.source")
-
-	endpoint := fmt.Sprintf("%s/links?%s", c.baseURL, params.Encode())
-
-	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	resp, err := c.getBacklinks(ctx, targetURL, "at.margin.annotation:target.source", 100)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, err
 	}
-	req.Header.Set("User-Agent", UserAgent)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+	links := make([]Link, len(resp.Backlinks))
+	for i, bl := range resp.Backlinks {
+		links[i] = Link{URI: bl.URI, DID: bl.DID, Collection: "at.margin.annotation", Path: ".target.source"}
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	var linksResp LinksResponse
-	if err := json.NewDecoder(resp.Body).Decode(&linksResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	return linksResp.Links, nil
+	return links, nil
 }
 
 func (c *Client) GetHighlightsForURL(ctx context.Context, targetURL string) ([]Link, error) {
-	params := url.Values{}
-	params.Set("target", targetURL)
-	params.Set("collection", "at.margin.highlight")
-	params.Set("path", ".target.source")
-
-	endpoint := fmt.Sprintf("%s/links?%s", c.baseURL, params.Encode())
-
-	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	resp, err := c.getBacklinks(ctx, targetURL, "at.margin.highlight:target.source", 100)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, err
 	}
-	req.Header.Set("User-Agent", UserAgent)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+	links := make([]Link, len(resp.Backlinks))
+	for i, bl := range resp.Backlinks {
+		links[i] = Link{URI: bl.URI, DID: bl.DID, Collection: "at.margin.highlight", Path: ".target.source"}
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	var linksResp LinksResponse
-	if err := json.NewDecoder(resp.Body).Decode(&linksResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	return linksResp.Links, nil
+	return links, nil
 }
 
 func (c *Client) GetBookmarksForURL(ctx context.Context, targetURL string) ([]Link, error) {
-	params := url.Values{}
-	params.Set("target", targetURL)
-	params.Set("collection", "at.margin.bookmark")
-	params.Set("path", ".source")
-
-	endpoint := fmt.Sprintf("%s/links?%s", c.baseURL, params.Encode())
-
-	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	resp, err := c.getBacklinks(ctx, targetURL, "at.margin.bookmark:source", 100)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, err
 	}
-	req.Header.Set("User-Agent", UserAgent)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+	links := make([]Link, len(resp.Backlinks))
+	for i, bl := range resp.Backlinks {
+		links[i] = Link{URI: bl.URI, DID: bl.DID, Collection: "at.margin.bookmark", Path: ".source"}
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	var linksResp LinksResponse
-	if err := json.NewDecoder(resp.Body).Decode(&linksResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	return linksResp.Links, nil
+	return links, nil
 }
 
 func (c *Client) GetAllItemsForURL(ctx context.Context, targetURL string) (annotations, highlights, bookmarks []Link, err error) {
@@ -307,35 +264,13 @@ func (c *Client) GetAllItemsForURL(ctx context.Context, targetURL string) (annot
 }
 
 func (c *Client) GetLikers(ctx context.Context, subjectURI string) ([]string, error) {
-	params := url.Values{}
-	params.Set("target", subjectURI)
-	params.Set("collection", "at.margin.like")
-	params.Set("path", ".subject.uri")
-
-	endpoint := fmt.Sprintf("%s/links/distinct-dids?%s", c.baseURL, params.Encode())
-
-	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	resp, err := c.getBacklinks(ctx, subjectURI, "at.margin.like:subject.uri", 100)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, err
 	}
-	req.Header.Set("User-Agent", UserAgent)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+	dids := make([]string, len(resp.Backlinks))
+	for i, bl := range resp.Backlinks {
+		dids[i] = bl.DID
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	var result struct {
-		DIDs []string `json:"dids"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	return result.DIDs, nil
+	return dids, nil
 }

@@ -248,6 +248,11 @@ func (h *Handler) GetFeed(w http.ResponseWriter, r *http.Request) {
 
 	fetchLimit := limit + offset
 
+	perTypeFetchLimit := fetchLimit
+	if motivation == "" {
+		perTypeFetchLimit = fetchLimit/2 + 10
+	}
+
 	if tag != "" {
 		if creator != "" {
 			if motivation == "" || motivation == "commenting" {
@@ -347,56 +352,60 @@ func (h *Handler) GetFeed(w http.ResponseWriter, r *http.Request) {
 		}
 		collectionItems = []db.CollectionItem{}
 	} else {
+		typeLim := fetchLimit
+		if motivation == "" {
+			typeLim = perTypeFetchLimit
+		}
 		if motivation == "" || motivation == "commenting" {
 			switch feedType {
 			case "margin":
-				annotations, _ = h.db.GetMarginAnnotations(fetchLimit, 0)
+				annotations, _ = h.db.GetMarginAnnotations(typeLim, 0)
 			case "semble":
-				annotations, _ = h.db.GetSembleAnnotations(fetchLimit, 0)
+				annotations, _ = h.db.GetSembleAnnotations(typeLim, 0)
 			case "popular":
-				annotations, _ = h.db.GetPopularAnnotations(fetchLimit, 0)
+				annotations, _ = h.db.GetPopularAnnotations(typeLim, 0)
 			case "shelved":
-				annotations, _ = h.db.GetShelvedAnnotations(fetchLimit, 0)
+				annotations, _ = h.db.GetShelvedAnnotations(typeLim, 0)
 			default:
-				annotations, _ = h.db.GetRecentAnnotations(fetchLimit, 0)
+				annotations, _ = h.db.GetRecentAnnotations(typeLim, 0)
 			}
 		}
 		if motivation == "" || motivation == "highlighting" {
 			switch feedType {
 			case "margin":
-				highlights, _ = h.db.GetMarginHighlights(fetchLimit, 0)
+				highlights, _ = h.db.GetMarginHighlights(typeLim, 0)
 			case "semble":
-				highlights, _ = h.db.GetSembleHighlights(fetchLimit, 0)
+				highlights, _ = h.db.GetSembleHighlights(typeLim, 0)
 			case "popular":
-				highlights, _ = h.db.GetPopularHighlights(fetchLimit, 0)
+				highlights, _ = h.db.GetPopularHighlights(typeLim, 0)
 			case "shelved":
-				highlights, _ = h.db.GetShelvedHighlights(fetchLimit, 0)
+				highlights, _ = h.db.GetShelvedHighlights(typeLim, 0)
 			default:
-				highlights, _ = h.db.GetRecentHighlights(fetchLimit, 0)
+				highlights, _ = h.db.GetRecentHighlights(typeLim, 0)
 			}
 		}
 		if motivation == "" || motivation == "bookmarking" {
 			switch feedType {
 			case "margin":
-				bookmarks, _ = h.db.GetMarginBookmarks(fetchLimit, 0)
+				bookmarks, _ = h.db.GetMarginBookmarks(typeLim, 0)
 			case "semble":
-				bookmarks, _ = h.db.GetSembleBookmarks(fetchLimit, 0)
+				bookmarks, _ = h.db.GetSembleBookmarks(typeLim, 0)
 			case "popular":
-				bookmarks, _ = h.db.GetPopularBookmarks(fetchLimit, 0)
+				bookmarks, _ = h.db.GetPopularBookmarks(typeLim, 0)
 			case "shelved":
-				bookmarks, _ = h.db.GetShelvedBookmarks(fetchLimit, 0)
+				bookmarks, _ = h.db.GetShelvedBookmarks(typeLim, 0)
 			default:
-				bookmarks, _ = h.db.GetRecentBookmarks(fetchLimit, 0)
+				bookmarks, _ = h.db.GetRecentBookmarks(typeLim, 0)
 			}
 		}
 		if motivation == "" {
 			switch feedType {
 			case "popular":
-				collectionItems, err = h.db.GetPopularCollectionItems(fetchLimit, 0)
+				collectionItems, err = h.db.GetPopularCollectionItems(typeLim, 0)
 			case "shelved":
-				collectionItems, err = h.db.GetShelvedCollectionItems(fetchLimit, 0)
+				collectionItems, err = h.db.GetShelvedCollectionItems(typeLim, 0)
 			default:
-				collectionItems, err = h.db.GetRecentCollectionItems(fetchLimit, 0)
+				collectionItems, err = h.db.GetRecentCollectionItems(typeLim, 0)
 			}
 			if err != nil {
 				logger.Error("Error fetching collection items: %v", err)

@@ -1,5 +1,5 @@
 import { Clock, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { type GetFeedParams, getFeed } from "../../api/client";
 import Card from "../../components/common/Card";
 import { EmptyState } from "../../components/ui";
@@ -23,6 +23,8 @@ export interface FeedItemsProps extends Omit<
 > {
   layout: "list" | "mosaic";
   emptyMessage: string;
+  initialItems?: AnnotationItem[];
+  initialHasMore?: boolean;
 }
 
 export default function FeedItems({
@@ -33,14 +35,22 @@ export default function FeedItems({
   motivation,
   emptyMessage,
   layout,
+  initialItems,
+  initialHasMore,
 }: FeedItemsProps) {
-  const [items, setItems] = useState<AnnotationItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<AnnotationItem[]>(initialItems || []);
+  const [loading, setLoading] = useState(!initialItems);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
-  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(initialHasMore ?? false);
+  const [offset, setOffset] = useState(initialItems?.length ?? 0);
+  const skipInitialFetch = useRef(!!initialItems);
 
   useEffect(() => {
+    if (skipInitialFetch.current) {
+      skipInitialFetch.current = false;
+      return;
+    }
+
     let cancelled = false;
     const cacheKey = JSON.stringify({ type, motivation, tag, creator, source });
     const cached = feedCache.get(cacheKey);

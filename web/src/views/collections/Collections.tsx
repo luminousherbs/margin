@@ -4,12 +4,13 @@ import {
   createCollection,
   deleteCollection,
 } from "../../api/client";
-import { Plus, Folder, Trash2, X } from "lucide-react";
+import { Plus, Folder, Trash2, X, Loader2 } from "lucide-react";
 import CollectionIcon from "../../components/common/CollectionIcon";
 import { ICON_MAP } from "../../components/common/iconMap";
 import { useStore } from "@nanostores/react";
 import { $user } from "../../store/auth";
-import EmojiPicker, { Theme } from "emoji-picker-react";
+import { Theme } from "emoji-picker-react";
+const EmojiPicker = React.lazy(() => import("emoji-picker-react"));
 import { $theme } from "../../store/theme";
 import type { Collection } from "../../types";
 import { formatDistanceToNow } from "date-fns";
@@ -21,11 +22,17 @@ const collectionsCache = {
   timestamp: 0,
 };
 
-export default function Collections() {
+interface CollectionsProps {
+  initialCollections?: Collection[];
+}
+
+export default function Collections({ initialCollections }: CollectionsProps) {
   const user = useStore($user);
   const theme = useStore($theme);
-  const [collections, setCollections] = useState<Collection[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [collections, setCollections] = useState<Collection[]>(
+    Array.isArray(initialCollections) ? initialCollections : [],
+  );
+  const [loading, setLoading] = useState(!Array.isArray(initialCollections));
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newItemName, setNewItemName] = useState("");
   const [newItemDesc, setNewItemDesc] = useState("");
@@ -65,8 +72,9 @@ export default function Collections() {
   };
 
   useEffect(() => {
+    if (initialCollections) return;
     fetchCollections();
-  }, []);
+  }, [initialCollections]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -277,26 +285,37 @@ export default function Collections() {
                   </div>
                 ) : (
                   <div className="w-full bg-surface-50 dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700 overflow-hidden">
-                    <EmojiPicker
-                      className="custom-emoji-picker"
-                      onEmojiClick={(emojiData) =>
-                        setNewItemIcon(emojiData.emoji)
+                    <React.Suspense
+                      fallback={
+                        <div className="flex items-center justify-center h-[300px]">
+                          <Loader2
+                            className="animate-spin text-surface-400"
+                            size={24}
+                          />
+                        </div>
                       }
-                      autoFocusSearch={false}
-                      width="100%"
-                      height={300}
-                      previewConfig={{ showPreview: false }}
-                      skinTonesDisabled
-                      lazyLoadEmojis
-                      theme={
-                        theme === "dark" ||
-                        (theme === "system" &&
-                          window.matchMedia("(prefers-color-scheme: dark)")
-                            .matches)
-                          ? (Theme.DARK as Theme)
-                          : (Theme.LIGHT as Theme)
-                      }
-                    />
+                    >
+                      <EmojiPicker
+                        className="custom-emoji-picker"
+                        onEmojiClick={(emojiData) =>
+                          setNewItemIcon(emojiData.emoji)
+                        }
+                        autoFocusSearch={false}
+                        width="100%"
+                        height={300}
+                        previewConfig={{ showPreview: false }}
+                        skinTonesDisabled
+                        lazyLoadEmojis
+                        theme={
+                          theme === "dark" ||
+                          (theme === "system" &&
+                            window.matchMedia("(prefers-color-scheme: dark)")
+                              .matches)
+                            ? (Theme.DARK as Theme)
+                            : (Theme.LIGHT as Theme)
+                        }
+                      />
+                    </React.Suspense>
                   </div>
                 )}
               </div>

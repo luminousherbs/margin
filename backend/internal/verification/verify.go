@@ -7,13 +7,14 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"margin.at/internal/logger"
 )
 
 var client = &http.Client{
-	Timeout: 10 * time.Second,
+	Timeout: 5 * time.Second,
 	CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		if len(via) >= 3 {
 			return fmt.Errorf("too many redirects")
@@ -22,9 +23,147 @@ var client = &http.Client{
 	},
 }
 
-var verifySem = make(chan struct{}, 3)
-
 var linkTagPattern = regexp.MustCompile(`<link[^>]+rel=["']site\.standard\.document["'][^>]+href=["']([^"']+)["'][^>]*/?>|<link[^>]+href=["']([^"']+)["'][^>]+rel=["']site\.standard\.document["'][^>]*/?>`)
+
+var (
+	verifyQueue = make(chan verifyTask, 50)
+	recentMu    sync.RWMutex
+	recentURIs  = make(map[string]time.Time)
+)
+
+var (
+	domainMu      sync.Mutex
+	domainActive  = make(map[string]int)
+	domainMaxConc = 1
+)
+
+var rateLimiter = make(chan struct{}, 2)
+
+func init() {
+	for i := 0; i < cap(rateLimiter); i++ {
+		rateLimiter <- struct{}{}
+	}
+	go func() {
+		ticker := time.NewTicker(500 * time.Millisecond)
+		for range ticker.C {
+			select {
+			case rateLimiter <- struct{}{}:
+			default:
+			}
+		}
+	}()
+
+	for i := 0; i < 3; i++ {
+		go verifyWorker()
+	}
+	go func() {
+		for {
+			time.Sleep(5 * time.Minute)
+			recentMu.Lock()
+			cutoff := time.Now().Add(-10 * time.Minute)
+			for uri, t := range recentURIs {
+				if t.Before(cutoff) {
+					delete(recentURIs, uri)
+				}
+			}
+			recentMu.Unlock()
+
+			domainMu.Lock()
+			for d, c := range domainActive {
+				if c <= 0 {
+					delete(domainActive, d)
+				}
+			}
+			domainMu.Unlock()
+		}
+	}()
+}
+
+type verifyTask struct {
+	url        string
+	uri        string
+	onVerified func(string)
+	isDoc      bool
+}
+
+func extractDomain(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	return parsed.Host
+}
+
+func acquireDomain(domain string) bool {
+	if domain == "" {
+		return true
+	}
+	domainMu.Lock()
+	defer domainMu.Unlock()
+	if domainActive[domain] >= domainMaxConc {
+		return false
+	}
+	domainActive[domain]++
+	return true
+}
+
+func releaseDomain(domain string) {
+	if domain == "" {
+		return
+	}
+	domainMu.Lock()
+	domainActive[domain]--
+	if domainActive[domain] <= 0 {
+		delete(domainActive, domain)
+	}
+	domainMu.Unlock()
+}
+
+func verifyWorker() {
+	for task := range verifyQueue {
+		<-rateLimiter
+
+		domain := extractDomain(task.url)
+
+		if !acquireDomain(domain) {
+			continue
+		}
+
+		var err error
+		if task.isDoc {
+			err = VerifyDocument(task.url, task.uri)
+		} else {
+			err = VerifyPublication(task.url, task.uri)
+		}
+
+		releaseDomain(domain)
+
+		if err != nil {
+			continue
+		}
+		kind := "Publication"
+		if task.isDoc {
+			kind = "Document"
+		}
+		logger.Info("%s verified: %s", kind, task.uri)
+		if task.onVerified != nil {
+			task.onVerified(task.uri)
+		}
+	}
+}
+
+func isDuplicate(uri string) bool {
+	recentMu.RLock()
+	_, exists := recentURIs[uri]
+	recentMu.RUnlock()
+	if exists {
+		return true
+	}
+	recentMu.Lock()
+	recentURIs[uri] = time.Now()
+	recentMu.Unlock()
+	return false
+}
 
 func VerifyPublication(pubURL, expectedURI string) error {
 	pubURL = strings.TrimRight(pubURL, "/")
@@ -108,31 +247,23 @@ func VerifyDocument(docURL, expectedURI string) error {
 }
 
 func VerifyPublicationAsync(pubURL, uri string, onVerified func(string)) {
-	go func() {
-		verifySem <- struct{}{}
-		defer func() { <-verifySem }()
-
-		if err := VerifyPublication(pubURL, uri); err != nil {
-			return
-		}
-		logger.Info("Publication verified: %s", uri)
-		if onVerified != nil {
-			onVerified(uri)
-		}
-	}()
+	if isDuplicate(uri) {
+		return
+	}
+	select {
+	case verifyQueue <- verifyTask{url: pubURL, uri: uri, onVerified: onVerified, isDoc: false}:
+	default:
+		// Queue full — drop silently to protect network
+	}
 }
 
 func VerifyDocumentAsync(docURL, uri string, onVerified func(string)) {
-	go func() {
-		verifySem <- struct{}{}
-		defer func() { <-verifySem }()
-
-		if err := VerifyDocument(docURL, uri); err != nil {
-			return
-		}
-		logger.Info("Document verified: %s", uri)
-		if onVerified != nil {
-			onVerified(uri)
-		}
-	}()
+	if isDuplicate(uri) {
+		return
+	}
+	select {
+	case verifyQueue <- verifyTask{url: docURL, uri: uri, onVerified: onVerified, isDoc: true}:
+	default:
+		// Queue full — drop silently to protect network
+	}
 }

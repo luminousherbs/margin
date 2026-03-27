@@ -29,17 +29,25 @@ const searchCache = new Map<
 
 interface SearchProps {
   initialQuery?: string;
+  initialResults?: AnnotationItem[];
+  initialHasMore?: boolean;
 }
 
-export default function Search({ initialQuery = "" }: SearchProps) {
+export default function Search({
+  initialQuery = "",
+  initialResults,
+  initialHasMore,
+}: SearchProps) {
   const user = useStore($user);
   const layout = useStore($feedLayout);
 
   const [query, setQuery] = useState(initialQuery);
-  const [results, setResults] = useState<AnnotationItem[]>([]);
+  const [results, setResults] = useState<AnnotationItem[]>(
+    initialResults || [],
+  );
   const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
-  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(initialHasMore ?? false);
+  const [offset, setOffset] = useState(initialResults?.length ?? 0);
   const [myItemsOnly, setMyItemsOnly] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string | undefined>(
     undefined,
@@ -139,7 +147,12 @@ export default function Search({ initialQuery = "" }: SearchProps) {
     [user],
   );
 
+  const skipInitialSearch = useRef(!!initialResults);
   useEffect(() => {
+    if (skipInitialSearch.current) {
+      skipInitialSearch.current = false;
+      return;
+    }
     if (initialQuery) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       doSearch(initialQuery);

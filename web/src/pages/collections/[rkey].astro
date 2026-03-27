@@ -2,11 +2,30 @@
 
 import AppLayout from '../../layouts/AppLayout.astro';
 import CollectionDetail from '../../views/collections/CollectionDetail';
+import { getCollection, getCollectionItems } from '../../lib/api';
 
 const { rkey } = Astro.params;
 const user = Astro.locals.user;
+const cookie = Astro.request.headers.get('cookie') || '';
+
+let initialCollection = null;
+let initialItems: any[] = [];
+let resolvedUri = '';
+let pageTitle = 'Collection - Margin';
+
+if (user && rkey) {
+	try {
+		resolvedUri = `at://${user.did}/at.margin.collection/${rkey}`;
+		const col = await getCollection(cookie, resolvedUri);
+		if (col) {
+			initialCollection = col;
+			pageTitle = `${col.name || 'Collection'} - Margin`;
+			initialItems = await getCollectionItems(cookie, col.uri);
+		}
+	} catch { /* component will fetch client-side */ }
+}
 ---
 
-<AppLayout title="Collection - Margin" user={user}>
-	<CollectionDetail client:load rkey={rkey} />
+<AppLayout title={pageTitle} user={user}>
+	<CollectionDetail client:idle rkey={rkey} initialCollection={initialCollection} initialItems={initialItems} resolvedUri={resolvedUri} />
 </AppLayout>

@@ -186,25 +186,15 @@ export default function Card({
 
   React.useEffect(() => {
     if (isBookmark && item.uri && !ogData && pageUrl) {
-      const fetchMetadata = async () => {
-        try {
-          const res = await fetch(
-            `/api/url-metadata?url=${encodeURIComponent(pageUrl)}`,
-          );
-          if (res.ok) {
-            const data = await res.json();
-            setOgData(data);
-            try {
-              sessionStorage.setItem(`og:${pageUrl}`, JSON.stringify(data));
-            } catch {
-              /* quota exceeded */
-            }
-          }
-        } catch (e) {
-          console.error("Failed to fetch metadata", e);
-        }
+      let cancelled = false;
+      import("../../lib/metadataQueue").then(({ fetchMetadata }) => {
+        fetchMetadata(pageUrl).then((data) => {
+          if (!cancelled && data) setOgData(data);
+        });
+      });
+      return () => {
+        cancelled = true;
       };
-      fetchMetadata();
     }
   }, [isBookmark, item.uri, pageUrl, ogData]);
 
@@ -344,7 +334,7 @@ export default function Card({
   const displayImage = ogData?.image;
 
   return (
-    <article className="card p-4 hover:ring-black/10 dark:hover:ring-white/10 transition-all relative">
+    <article className="card p-4 hover:ring-black/10 dark:hover:ring-white/10 transition-all relative overflow-hidden">
       {(item.collection || (item.context && item.context.length > 0)) && (
         <div className="flex items-center gap-1.5 text-xs text-surface-400 dark:text-surface-500 mb-2 flex-wrap">
           {item.addedBy && item.addedBy.did !== item.author?.did ? (
@@ -513,7 +503,7 @@ export default function Card({
         )}
       >
         {contentWarning && !contentRevealed && (
-          <div className="absolute inset-0 z-10 rounded-lg bg-surface-100 dark:bg-surface-800 flex flex-col items-center justify-center gap-2 py-4">
+          <div className="z-10 rounded-lg bg-surface-100 dark:bg-surface-800 flex flex-col items-center justify-center gap-2 py-6 min-h-[120px]">
             <div className="flex items-center gap-2 text-surface-500 dark:text-surface-400">
               <EyeOff size={16} />
               <span className="text-sm font-medium">
@@ -538,7 +528,7 @@ export default function Card({
             Hide Content
           </button>
         )}
-        {isBookmark && (
+        {!(contentWarning && !contentRevealed) && isBookmark && (
           <div
             onClick={(e) => {
               e.preventDefault();
@@ -609,72 +599,75 @@ export default function Card({
           </div>
         )}
 
-        {item.target?.selector?.exact && (
-          <blockquote
-            className={clsx(
-              "pl-4 py-2 border-l-[3px] mb-3 text-[15px] italic text-surface-600 dark:text-surface-300 rounded-r-lg hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors",
-              !item.color &&
-                type === "highlight" &&
-                "border-yellow-400 bg-yellow-50/50 dark:bg-yellow-900/20",
-              item.color === "yellow" &&
-                "border-yellow-400 bg-yellow-50/50 dark:bg-yellow-900/20",
-              item.color === "green" &&
-                "border-green-400 bg-green-50/50 dark:bg-green-900/20",
-              item.color === "red" &&
-                "border-red-400 bg-red-50/50 dark:bg-red-900/20",
-              item.color === "blue" &&
-                "border-blue-400 bg-blue-50/50 dark:bg-blue-900/20",
-              !item.color &&
-                type !== "highlight" &&
-                "border-surface-300 dark:border-surface-600",
-            )}
-            style={
-              item.color?.startsWith("#")
-                ? {
-                    borderColor: item.color,
-                    backgroundColor: `${item.color}15`,
-                  }
-                : undefined
-            }
-          >
-            <a
-              href={`${pageUrl}#:~:text=${item.target.selector.prefix ? encodeURIComponent(item.target.selector.prefix) + "-," : ""}${encodeURIComponent(item.target.selector.exact)}${item.target.selector.suffix ? ",-" + encodeURIComponent(item.target.selector.suffix) : ""}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => {
-                const sel = item.target?.selector;
-                if (!sel) return;
-                const url = `${pageUrl}#:~:text=${sel.prefix ? encodeURIComponent(sel.prefix) + "-," : ""}${encodeURIComponent(sel.exact)}${sel.suffix ? ",-" + encodeURIComponent(sel.suffix) : ""}`;
-                handleExternalClick(e, url);
-              }}
-              className="block"
+        {!(contentWarning && !contentRevealed) &&
+          item.target?.selector?.exact && (
+            <blockquote
+              className={clsx(
+                "pl-4 py-2 border-l-[3px] mb-3 text-[15px] italic text-surface-600 dark:text-surface-300 rounded-r-lg hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors",
+                !item.color &&
+                  type === "highlight" &&
+                  "border-yellow-400 bg-yellow-50/50 dark:bg-yellow-900/20",
+                item.color === "yellow" &&
+                  "border-yellow-400 bg-yellow-50/50 dark:bg-yellow-900/20",
+                item.color === "green" &&
+                  "border-green-400 bg-green-50/50 dark:bg-green-900/20",
+                item.color === "red" &&
+                  "border-red-400 bg-red-50/50 dark:bg-red-900/20",
+                item.color === "blue" &&
+                  "border-blue-400 bg-blue-50/50 dark:bg-blue-900/20",
+                !item.color &&
+                  type !== "highlight" &&
+                  "border-surface-300 dark:border-surface-600",
+              )}
+              style={
+                item.color?.startsWith("#")
+                  ? {
+                      borderColor: item.color,
+                      backgroundColor: `${item.color}15`,
+                    }
+                  : undefined
+              }
             >
-              "{item.target?.selector?.exact}"
-            </a>
-          </blockquote>
-        )}
+              <a
+                href={`${pageUrl}#:~:text=${item.target.selector.prefix ? encodeURIComponent(item.target.selector.prefix) + "-," : ""}${encodeURIComponent(item.target.selector.exact)}${item.target.selector.suffix ? ",-" + encodeURIComponent(item.target.selector.suffix) : ""}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  const sel = item.target?.selector;
+                  if (!sel) return;
+                  const url = `${pageUrl}#:~:text=${sel.prefix ? encodeURIComponent(sel.prefix) + "-," : ""}${encodeURIComponent(sel.exact)}${sel.suffix ? ",-" + encodeURIComponent(sel.suffix) : ""}`;
+                  handleExternalClick(e, url);
+                }}
+                className="block"
+              >
+                "{item.target?.selector?.exact}"
+              </a>
+            </blockquote>
+          )}
 
-        {item.body?.value && (
-          <p className="text-surface-900 dark:text-surface-100 whitespace-pre-wrap leading-relaxed text-[15px]">
+        {!(contentWarning && !contentRevealed) && item.body?.value && (
+          <p className="text-surface-900 dark:text-surface-100 whitespace-pre-wrap break-words leading-relaxed text-[15px]">
             <RichText text={item.body.value} />
           </p>
         )}
 
-        {item.tags && item.tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-3">
-            {item.tags.map((tag) => (
-              <a
-                key={tag}
-                href={`/home?tag=${encodeURIComponent(tag)}`}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-surface-100 dark:bg-surface-800 text-xs font-medium text-surface-600 dark:text-surface-400 hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Tag size={10} />
-                <span>{tag}</span>
-              </a>
-            ))}
-          </div>
-        )}
+        {!(contentWarning && !contentRevealed) &&
+          item.tags &&
+          item.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {item.tags.map((tag) => (
+                <a
+                  key={tag}
+                  href={`/home?tag=${encodeURIComponent(tag)}`}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-surface-100 dark:bg-surface-800 text-xs font-medium text-surface-600 dark:text-surface-400 hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Tag size={10} />
+                  <span>{tag}</span>
+                </a>
+              ))}
+            </div>
+          )}
       </div>
 
       <div className="flex items-center gap-1 mt-3 ml-[52px] md:ml-0 md:gap-0">

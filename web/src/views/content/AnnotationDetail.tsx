@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useStore } from "@nanostores/react";
 import { $user } from "../../store/auth";
 import {
@@ -26,6 +26,9 @@ interface AnnotationDetailProps {
   type?: string;
   uri?: string;
   did?: string;
+  initialAnnotation?: AnnotationItem | null;
+  initialReplies?: AnnotationItem[];
+  resolvedUri?: string;
 }
 
 export default function AnnotationDetail({
@@ -34,21 +37,33 @@ export default function AnnotationDetail({
   type,
   uri,
   did,
+  initialAnnotation,
+  initialReplies,
+  resolvedUri,
 }: AnnotationDetailProps) {
   const user = useStore($user);
 
-  const [annotation, setAnnotation] = useState<AnnotationItem | null>(null);
-  const [replies, setReplies] = useState<AnnotationItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [annotation, setAnnotation] = useState<AnnotationItem | null>(
+    initialAnnotation || null,
+  );
+  const [replies, setReplies] = useState<AnnotationItem[]>(
+    initialReplies || [],
+  );
+  const [loading, setLoading] = useState(!initialAnnotation);
   const [error, setError] = useState<string | null>(null);
 
   const [replyText, setReplyText] = useState("");
   const [posting, setPosting] = useState(false);
   const [replyingTo, setReplyingTo] = useState<AnnotationItem | null>(null);
 
-  const [targetUri, setTargetUri] = useState<string | null>(uri || null);
+  const [targetUri, setTargetUri] = useState<string | null>(
+    resolvedUri || uri || null,
+  );
+  const skipInitialFetch = useRef(!!initialAnnotation);
 
   useEffect(() => {
+    if (resolvedUri) return;
+
     async function resolve() {
       if (uri) {
         setTargetUri(decodeURIComponent(uri));
@@ -79,7 +94,7 @@ export default function AnnotationDetail({
       }
     }
     resolve();
-  }, [uri, did, rkey, handle, type]);
+  }, [uri, did, rkey, handle, type, resolvedUri]);
 
   const refreshReplies = async () => {
     if (!targetUri) return;
@@ -88,6 +103,11 @@ export default function AnnotationDetail({
   };
 
   useEffect(() => {
+    if (skipInitialFetch.current) {
+      skipInitialFetch.current = false;
+      return;
+    }
+
     async function fetchData() {
       if (!targetUri) return;
 

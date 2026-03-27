@@ -20,25 +20,35 @@ interface CollectionDetailProps {
   handle?: string;
   rkey?: string;
   uri?: string;
+  initialCollection?: Collection | null;
+  initialItems?: AnnotationItem[];
+  resolvedUri?: string;
 }
 
 export default function CollectionDetail({
   handle,
   rkey,
   uri,
+  initialCollection,
+  initialItems,
+  resolvedUri,
 }: CollectionDetailProps) {
   const user = useStore($user);
-  const [collection, setCollection] = useState<Collection | null>(null);
-  const [items, setItems] = useState<AnnotationItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [collection, setCollection] = useState<Collection | null>(
+    initialCollection || null,
+  );
+  const [items, setItems] = useState<AnnotationItem[]>(initialItems || []);
+  const [loading, setLoading] = useState(!initialCollection);
   const [error, setError] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   useEffect(() => {
+    if (initialCollection) return;
+
     const loadData = async () => {
       setLoading(true);
       try {
-        let targetUri = uri;
+        let targetUri = resolvedUri || uri;
         if (!targetUri && handle && rkey) {
           if (handle.startsWith("did:")) {
             targetUri = `at://${handle}/at.margin.collection/${rkey}`;
@@ -72,7 +82,7 @@ export default function CollectionDetail({
     };
 
     loadData();
-  }, [handle, rkey, uri]);
+  }, [handle, rkey, uri, initialCollection, resolvedUri]);
 
   const handleDelete = async () => {
     if (!collection) return;

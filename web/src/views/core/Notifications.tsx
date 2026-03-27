@@ -222,11 +222,24 @@ function SubjectPreview({
   );
 }
 
-export default function Notifications() {
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [loading, setLoading] = useState(true);
+interface NotificationsProps {
+  initialNotifications?: NotificationItem[];
+}
+
+export default function Notifications({
+  initialNotifications,
+}: NotificationsProps) {
+  const [notifications, setNotifications] = useState<NotificationItem[]>(
+    initialNotifications || [],
+  );
+  const [loading, setLoading] = useState(!initialNotifications);
 
   useEffect(() => {
+    if (initialNotifications) {
+      markNotificationsRead();
+      return;
+    }
+
     const load = async () => {
       if (
         notificationsCache.data &&
@@ -256,7 +269,7 @@ export default function Notifications() {
       markNotificationsRead();
     };
     load();
-  }, []);
+  }, [initialNotifications]);
 
   if (loading) {
     return (

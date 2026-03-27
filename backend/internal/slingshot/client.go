@@ -51,7 +51,10 @@ type Record struct {
 }
 
 func (c *Client) ResolveIdentity(ctx context.Context, identifier string) (*Identity, error) {
-	endpoint := fmt.Sprintf("%s/identity/%s", c.baseURL, url.PathEscape(identifier))
+	params := url.Values{}
+	params.Set("identifier", identifier)
+
+	endpoint := fmt.Sprintf("%s/xrpc/blue.microcosm.identity.resolveMiniDoc?%s", c.baseURL, params.Encode())
 
 	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 	if err != nil {
@@ -83,9 +86,9 @@ func (c *Client) ResolveIdentity(ctx context.Context, identifier string) (*Ident
 
 func (c *Client) GetRecord(ctx context.Context, uri string) (*Record, error) {
 	params := url.Values{}
-	params.Set("uri", uri)
+	params.Set("at_uri", uri)
 
-	endpoint := fmt.Sprintf("%s/record?%s", c.baseURL, params.Encode())
+	endpoint := fmt.Sprintf("%s/xrpc/blue.microcosm.repo.getRecordByUri?%s", c.baseURL, params.Encode())
 
 	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 	if err != nil {

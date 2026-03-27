@@ -1,13 +1,19 @@
 import { useStore } from "@nanostores/react";
 import { clsx } from "clsx";
-import { Bookmark, Highlighter, MessageSquareText } from "lucide-react";
+import {
+  Bookmark,
+  Highlighter,
+  MessageSquareText,
+  User,
+  Users,
+} from "lucide-react";
 import { useState } from "react";
 import FeedItems from "../../components/feed/FeedItems";
 import { Button, Tabs } from "../../components/ui";
 import LayoutToggle from "../../components/ui/LayoutToggle";
 import { $user } from "../../store/auth";
 import { $feedLayout } from "../../store/feedLayout";
-import type { UserProfile } from "../../types";
+import type { AnnotationItem, UserProfile } from "../../types";
 
 interface FeedProps {
   initialType?: string;
@@ -16,6 +22,8 @@ interface FeedProps {
   motivation?: string;
   showTabs?: boolean;
   emptyMessage?: string;
+  initialItems?: AnnotationItem[];
+  initialHasMore?: boolean;
 }
 
 export default function Feed({
@@ -25,6 +33,8 @@ export default function Feed({
   motivation,
   showTabs = true,
   emptyMessage = "No items found.",
+  initialItems,
+  initialHasMore,
 }: FeedProps) {
   const [tag, setTag] = useState<string | undefined>(
     initialTag ||
@@ -39,6 +49,7 @@ export default function Feed({
   const [activeFilter, setActiveFilter] = useState<string | undefined>(
     motivation,
   );
+  const [mineOnly, setMineOnly] = useState(false);
 
   const clearTag = () => {
     setTag(undefined);
@@ -102,33 +113,29 @@ export default function Feed({
         </div>
       )}
 
-      {showTabs && (
-        <div className="sticky top-0 z-10 bg-white/90 dark:bg-surface-800/90 backdrop-blur-md pb-3 mb-2 -mx-1 px-1 pt-2 space-y-2">
-          {!tag && (
-            <Tabs
-              tabs={tabs}
-              activeTab={activeTab}
-              onChange={handleTabChange}
-            />
-          )}
-          {tag && (
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <span className="text-surface-500 font-normal">
-                  Items with tag:
-                </span>
-                <span className="bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-lg">
-                  #{tag}
-                </span>
-              </h2>
-              <button
-                onClick={clearTag}
-                className="text-sm text-surface-500 hover:text-surface-900 dark:hover:text-white"
-              >
-                Clear filter
-              </button>
-            </div>
-          )}
+      <div className="sticky top-0 z-10 bg-white/90 dark:bg-surface-800/90 backdrop-blur-md pb-3 mb-2 -mx-1 px-1 pt-2 space-y-2">
+        {showTabs && !tag && (
+          <Tabs tabs={tabs} activeTab={activeTab} onChange={handleTabChange} />
+        )}
+        {tag && (
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <span className="text-surface-500 font-normal">
+                Items with tag:
+              </span>
+              <span className="bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-lg">
+                #{tag}
+              </span>
+            </h2>
+            <button
+              onClick={clearTag}
+              className="text-sm text-surface-500 hover:text-surface-900 dark:hover:text-white"
+            >
+              Clear filter
+            </button>
+          </div>
+        )}
+        {showTabs && (
           <div className="flex items-center gap-1.5 flex-wrap">
             {filters.map((f) => {
               const isActive =
@@ -153,16 +160,57 @@ export default function Feed({
               <LayoutToggle className="hidden sm:inline-flex" />
             </div>
           </div>
-        </div>
-      )}
+        )}
+        {!showTabs && user && (
+          <div className="flex items-center gap-1.5">
+            {[
+              { id: "everyone", label: "Everyone", icon: Users },
+              { id: "mine", label: "Mine", icon: User },
+            ].map((f) => {
+              const isActive = f.id === "mine" ? mineOnly : !mineOnly;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => setMineOnly(f.id === "mine")}
+                  className={clsx(
+                    "inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full border transition-all",
+                    isActive
+                      ? "bg-primary-600 dark:bg-primary-500 text-white border-transparent shadow-sm"
+                      : "bg-white dark:bg-surface-900 text-surface-500 dark:text-surface-400 border-surface-200 dark:border-surface-700 hover:border-primary-300 dark:hover:border-primary-700 hover:text-primary-600 dark:hover:text-primary-400",
+                  )}
+                >
+                  <f.icon size={12} />
+                  {f.label}
+                </button>
+              );
+            })}
+            <div className="ml-auto">
+              <LayoutToggle className="hidden sm:inline-flex" />
+            </div>
+          </div>
+        )}
+      </div>
 
       <FeedItems
-        key={`${activeTab}-${activeFilter || "all"}-${tag || ""}`}
+        key={`${activeTab}-${activeFilter || "all"}-${tag || ""}-${mineOnly ? "mine" : "all"}`}
         type={activeTab === "atmosphereconf" ? "all" : activeTab}
         motivation={activeFilter}
+        creator={mineOnly && user ? user.did : undefined}
         emptyMessage={emptyMessage}
         layout={layout}
-        tag={activeTab === "atmosphereconf" ? "atmosphereconf" : tag?.toLowerCase()}
+        tag={
+          activeTab === "atmosphereconf" ? "atmosphereconf" : tag?.toLowerCase()
+        }
+        initialItems={
+          activeTab === initialType && activeFilter === motivation && !mineOnly
+            ? initialItems
+            : undefined
+        }
+        initialHasMore={
+          activeTab === initialType && activeFilter === motivation && !mineOnly
+            ? initialHasMore
+            : undefined
+        }
       />
     </div>
   );

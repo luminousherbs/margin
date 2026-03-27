@@ -249,10 +249,10 @@ func (i *Ingester) handleCommit(event JetstreamEvent) {
 			i.dispatchToHandler(firehoseEvent)
 
 			did := event.Did
-		select {
-		case i.workerPool <- func() { i.triggerLazySync(did) }:
-		default:
-		}
+			select {
+			case i.workerPool <- func() { i.triggerLazySync(did) }:
+			default:
+			}
 		}
 	case "delete":
 		i.handleDelete(commit.Collection, uri)

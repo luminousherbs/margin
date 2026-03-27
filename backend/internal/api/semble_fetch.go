@@ -14,6 +14,39 @@ import (
 	"margin.at/internal/xrpc"
 )
 
+var (
+	failedCardsMu sync.RWMutex
+	failedCards   = make(map[string]time.Time)
+)
+
+func isRecentlyFailed(uri string) bool {
+	failedCardsMu.RLock()
+	t, ok := failedCards[uri]
+	failedCardsMu.RUnlock()
+	return ok && time.Since(t) < 30*time.Minute
+}
+
+func markFailed(uri string) {
+	failedCardsMu.Lock()
+	failedCards[uri] = time.Now()
+	failedCardsMu.Unlock()
+}
+
+func init() {
+	go func() {
+		for {
+			time.Sleep(10 * time.Minute)
+			failedCardsMu.Lock()
+			for uri, t := range failedCards {
+				if time.Since(t) > 30*time.Minute {
+					delete(failedCards, uri)
+				}
+			}
+			failedCardsMu.Unlock()
+		}
+	}()
+}
+
 func ensureSembleCardsIndexed(ctx context.Context, database *db.DB, uris []string) {
 	if len(uris) == 0 || database == nil {
 		return
@@ -48,7 +81,7 @@ func ensureSembleCardsIndexed(ctx context.Context, database *db.DB, uris []strin
 
 	missing := make([]string, 0)
 	for _, u := range deduped {
-		if !foundSet[u] {
+		if !foundSet[u] && !isRecentlyFailed(u) {
 			missing = append(missing, u)
 		}
 	}
@@ -83,6 +116,7 @@ func fetchAndIndexSembleCards(ctx context.Context, database *db.DB, uris []strin
 			}
 
 			if err := fetchSembleCard(ctx, database, u); err != nil {
+				markFailed(u)
 				if ctx.Err() == nil {
 					logger.Error("Failed to lazy fetch card %s: %v", u, err)
 				}
@@ -116,21 +150,35 @@ func fetchSembleCard(ctx context.Context, database *db.DB, uri string) error {
 	if len(parts) < 3 {
 		return fmt.Errorf("invalid uri parts: expected at least 3 parts")
 	}
-	did, collection, rkey := parts[0], parts[1], parts[2]
+	did, _, _ := parts[0], parts[1], parts[2]
 
+	record, err := xrpc.SlingshotClient.GetRecord(ctx, uri)
+	if err != nil {
+		return fetchSembleCardFromPDS(ctx, database, uri, did, parts[1], parts[2])
+	}
+
+	var card xrpc.SembleCard
+	if err := json.Unmarshal(record.Value, &card); err != nil {
+		return err
+	}
+
+	return indexSembleCard(database, uri, did, &card)
+}
+
+func fetchSembleCardFromPDS(ctx context.Context, database *db.DB, uri, did, collection, rkey string) error {
 	pds, err := xrpc.ResolveDIDToPDS(did)
 	if err != nil {
 		return fmt.Errorf("failed to resolve PDS: %w", err)
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
-	url := fmt.Sprintf("%s/xrpc/com.atproto.repo.getRecord?repo=%s&collection=%s&rkey=%s", pds, did, collection, rkey)
+	fetchURL := fmt.Sprintf("%s/xrpc/com.atproto.repo.getRecord?repo=%s&collection=%s&rkey=%s", pds, did, collection, rkey)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", fetchURL, nil)
 	if err != nil {
 		return err
 	}
 
+	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to fetch record: %w", err)
@@ -151,6 +199,10 @@ func fetchSembleCard(ctx context.Context, database *db.DB, uri string) error {
 		return err
 	}
 
+	return indexSembleCard(database, uri, did, &card)
+}
+
+func indexSembleCard(database *db.DB, uri, did string, card *xrpc.SembleCard) error {
 	createdAt := card.GetCreatedAtTime()
 	content, err := card.ParseContent()
 	if err != nil {

@@ -14,6 +14,7 @@ import (
 	"margin.at/internal/constellation"
 	"margin.at/internal/db"
 	"margin.at/internal/logger"
+	"margin.at/internal/xrpc"
 )
 
 var (
@@ -654,9 +655,10 @@ func fetchProfilesForDIDs(database *db.DB, dids []string) map[string]Author {
 	}
 
 	if len(missingDIDs) > 0 {
-		batchSize := 25
+		// Batch fetch from bsky.social (fast — 1 HTTP call per 25 DIDs)
 		var wg sync.WaitGroup
 		var mu sync.Mutex
+		batchSize := 25
 
 		for i := 0; i < len(missingDIDs); i += batchSize {
 			end := i + batchSize
@@ -680,6 +682,40 @@ func fetchProfilesForDIDs(database *db.DB, dids []string) map[string]Author {
 			}(batch)
 		}
 		wg.Wait()
+
+		// Fallback: resolve stragglers via Slingshot (individual calls)
+		stillMissing := make([]string, 0)
+		for _, did := range missingDIDs {
+			if p, ok := profiles[did]; !ok || p.Handle == "" {
+				stillMissing = append(stillMissing, did)
+			}
+		}
+
+		if len(stillMissing) > 0 {
+			sem := make(chan struct{}, 5)
+			for _, did := range stillMissing {
+				wg.Add(1)
+				go func(d string) {
+					defer wg.Done()
+					sem <- struct{}{}
+					defer func() { <-sem }()
+					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+					defer cancel()
+					identity, err := xrpc.SlingshotClient.ResolveIdentity(ctx, d)
+					if err != nil || identity.Handle == "" {
+						return
+					}
+					mu.Lock()
+					author := profiles[d]
+					author.DID = d
+					author.Handle = identity.Handle
+					profiles[d] = author
+					Cache.Set(d, author)
+					mu.Unlock()
+				}(did)
+			}
+			wg.Wait()
+		}
 	}
 
 	if database != nil && len(dids) > 0 {
@@ -822,53 +858,115 @@ func hydrateCollectionItemsWithData(database *db.DB, items []db.CollectionItem, 
 		mu             sync.Mutex
 	)
 
-	nestedShared := &hydrationData{profiles: profiles}
+	// Fetch raw items first to collect all author DIDs
+	var rawAnnos []db.Annotation
+	var rawHighlights []db.Highlight
+	var rawBookmarks []db.Bookmark
 
 	if len(annotationURIs) > 0 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			rawAnnos, err := database.GetAnnotationsByURIs(annotationURIs)
+			result, err := database.GetAnnotationsByURIs(annotationURIs)
 			if err == nil {
-				hydrated, _ := hydrateAnnotationsWithData(database, rawAnnos, viewerDID, nestedShared)
 				mu.Lock()
-				for _, a := range hydrated {
-					annotationsMap[a.ID] = a
-				}
+				rawAnnos = result
 				mu.Unlock()
 			}
 		}()
 	}
-
 	if len(highlightURIs) > 0 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			rawHighlights, err := database.GetHighlightsByURIs(highlightURIs)
+			result, err := database.GetHighlightsByURIs(highlightURIs)
 			if err == nil {
-				hydrated, _ := hydrateHighlightsWithData(database, rawHighlights, viewerDID, nestedShared)
 				mu.Lock()
-				for _, h := range hydrated {
-					highlightsMap[h.ID] = h
-				}
+				rawHighlights = result
 				mu.Unlock()
 			}
 		}()
 	}
-
 	if len(bookmarkURIs) > 0 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			rawBookmarks, err := database.GetBookmarksByURIs(bookmarkURIs)
+			result, err := database.GetBookmarksByURIs(bookmarkURIs)
 			if err == nil {
-				hydrated, _ := hydrateBookmarksWithData(database, rawBookmarks, viewerDID, nestedShared)
 				mu.Lock()
-				for _, b := range hydrated {
-					bookmarksMap[b.ID] = b
-				}
+				rawBookmarks = result
 				mu.Unlock()
 			}
+		}()
+	}
+	wg.Wait()
+
+	// Collect missing author DIDs from nested items and fetch their profiles
+	missingDIDs := make(map[string]bool)
+	for _, a := range rawAnnos {
+		if _, ok := profiles[a.AuthorDID]; !ok {
+			missingDIDs[a.AuthorDID] = true
+		}
+	}
+	for _, h := range rawHighlights {
+		if _, ok := profiles[h.AuthorDID]; !ok {
+			missingDIDs[h.AuthorDID] = true
+		}
+	}
+	for _, b := range rawBookmarks {
+		if _, ok := profiles[b.AuthorDID]; !ok {
+			missingDIDs[b.AuthorDID] = true
+		}
+	}
+	if len(missingDIDs) > 0 {
+		dids := make([]string, 0, len(missingDIDs))
+		for did := range missingDIDs {
+			dids = append(dids, did)
+		}
+		extra := fetchProfilesForDIDs(database, dids)
+		for did, prof := range extra {
+			profiles[did] = prof
+		}
+	}
+
+	nestedShared := &hydrationData{profiles: profiles}
+
+	if len(rawAnnos) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			hydrated, _ := hydrateAnnotationsWithData(database, rawAnnos, viewerDID, nestedShared)
+			mu.Lock()
+			for _, a := range hydrated {
+				annotationsMap[a.ID] = a
+			}
+			mu.Unlock()
+		}()
+	}
+
+	if len(rawHighlights) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			hydrated, _ := hydrateHighlightsWithData(database, rawHighlights, viewerDID, nestedShared)
+			mu.Lock()
+			for _, h := range hydrated {
+				highlightsMap[h.ID] = h
+			}
+			mu.Unlock()
+		}()
+	}
+
+	if len(rawBookmarks) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			hydrated, _ := hydrateBookmarksWithData(database, rawBookmarks, viewerDID, nestedShared)
+			mu.Lock()
+			for _, b := range hydrated {
+				bookmarksMap[b.ID] = b
+			}
+			mu.Unlock()
 		}()
 	}
 

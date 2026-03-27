@@ -70,6 +70,7 @@ const profileCollectionsCache = new Map<
 
 interface ProfileProps {
   did: string;
+  initialProfile?: UserProfile | null;
 }
 
 type Tab = "all" | "annotations" | "highlights" | "bookmarks" | "collections";
@@ -82,9 +83,11 @@ const motivationMap: Record<Tab, string | undefined> = {
   collections: undefined,
 };
 
-export default function Profile({ did }: ProfileProps) {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function Profile({ did, initialProfile }: ProfileProps) {
+  const [profile, setProfile] = useState<UserProfile | null>(
+    initialProfile || null,
+  );
+  const [loading, setLoading] = useState(!initialProfile);
   const [activeTab, setActiveTab] = useState<Tab>("all");
 
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -131,11 +134,16 @@ export default function Profile({ did }: ProfileProps) {
     }
   };
 
+  const skipInitialProfileFetch = useRef(!!initialProfile);
   useEffect(() => {
-    setProfile(null);
-    setCollections([]);
-    setActiveTab("all");
-    setLoading(true);
+    if (skipInitialProfileFetch.current) {
+      skipInitialProfileFetch.current = false;
+    } else {
+      setProfile(null);
+      setCollections([]);
+      setActiveTab("all");
+      setLoading(true);
+    }
 
     const loadProfile = async () => {
       const cached = profileCache.get(did);
@@ -144,7 +152,7 @@ export default function Profile({ did }: ProfileProps) {
         setAccountLabels(cached.labels);
         setModRelation(cached.relation);
         setLoading(false);
-      } else {
+      } else if (!initialProfile) {
         setLoading(true);
       }
 
@@ -215,7 +223,8 @@ export default function Profile({ did }: ProfileProps) {
       }
     };
     if (did) loadProfile();
-  }, [did, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [did, user, initialProfile]);
 
   useEffect(() => {
     loadPreferences();

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { X, Loader2 } from "lucide-react";
 import CollectionIcon from "../common/CollectionIcon";
 import { ICON_MAP } from "../common/iconMap";
-import EmojiPicker, { Theme } from "emoji-picker-react";
+import { Theme } from "emoji-picker-react";
+const EmojiPicker = React.lazy(() => import("emoji-picker-react"));
 import { updateCollection, type Collection } from "../../api/client";
 import { useStore } from "@nanostores/react";
 import { $theme } from "../../store/theme";
@@ -188,24 +189,35 @@ export default function EditCollectionModal({
                 </div>
               ) : (
                 <div className="w-full bg-surface-50 dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700 overflow-hidden">
-                  <EmojiPicker
-                    className="custom-emoji-picker"
-                    onEmojiClick={(emojiData) => setIcon(emojiData.emoji)}
-                    autoFocusSearch={false}
-                    width="100%"
-                    height={300}
-                    previewConfig={{ showPreview: false }}
-                    skinTonesDisabled
-                    lazyLoadEmojis
-                    theme={
-                      theme === "dark" ||
-                      (theme === "system" &&
-                        window.matchMedia("(prefers-color-scheme: dark)")
-                          .matches)
-                        ? (Theme.DARK as Theme)
-                        : (Theme.LIGHT as Theme)
+                  <React.Suspense
+                    fallback={
+                      <div className="flex items-center justify-center h-[300px]">
+                        <Loader2
+                          className="animate-spin text-surface-400"
+                          size={24}
+                        />
+                      </div>
                     }
-                  />
+                  >
+                    <EmojiPicker
+                      className="custom-emoji-picker"
+                      onEmojiClick={(emojiData) => setIcon(emojiData.emoji)}
+                      autoFocusSearch={false}
+                      width="100%"
+                      height={300}
+                      previewConfig={{ showPreview: false }}
+                      skinTonesDisabled
+                      lazyLoadEmojis
+                      theme={
+                        theme === "dark" ||
+                        (theme === "system" &&
+                          window.matchMedia("(prefers-color-scheme: dark)")
+                            .matches)
+                          ? (Theme.DARK as Theme)
+                          : (Theme.LIGHT as Theme)
+                      }
+                    />
+                  </React.Suspense>
                 </div>
               )}
 
