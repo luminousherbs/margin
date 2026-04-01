@@ -11,7 +11,7 @@ import (
 func (h *Handler) SyncAll(w http.ResponseWriter, r *http.Request) {
 	session, err := h.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
@@ -25,7 +25,7 @@ func (h *Handler) SyncAll(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		http.Error(w, "Sync failed: "+err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Sync failed")
 		return
 	}
 

@@ -39,28 +39,28 @@ type CreateAnnotationResponse struct {
 func (s *AnnotationService) CreateAnnotation(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	var req CreateAnnotationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
 	if req.URL == "" {
-		http.Error(w, "URL is required", http.StatusBadRequest)
+		WriteBadRequest(w, "URL is required")
 		return
 	}
 
 	if req.Text == "" && req.Selector == nil && len(req.Tags) == 0 {
-		http.Error(w, "Must provide text, selector, or tags", http.StatusBadRequest)
+		WriteBadRequest(w, "Must provide text, selector, or tags")
 		return
 	}
 
 	if len(req.Text) > 3000 {
-		http.Error(w, "Text too long (max 3000 chars)", http.StatusBadRequest)
+		WriteBadRequest(w, "Text too long (max 3000 chars)")
 		return
 	}
 
@@ -233,8 +233,7 @@ func (s *AnnotationService) CreateAnnotation(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(CreateAnnotationResponse{
+	WriteSuccess(w, CreateAnnotationResponse{
 		URI: result.URI,
 		CID: result.CID,
 	})
@@ -243,7 +242,7 @@ func (s *AnnotationService) CreateAnnotation(w http.ResponseWriter, r *http.Requ
 func (s *AnnotationService) DeleteAnnotation(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
@@ -251,7 +250,7 @@ func (s *AnnotationService) DeleteAnnotation(w http.ResponseWriter, r *http.Requ
 	collectionType := r.URL.Query().Get("type")
 
 	if rkey == "" {
-		http.Error(w, "rkey required", http.StatusBadRequest)
+		WriteBadRequest(w, "rkey required")
 		return
 	}
 
@@ -287,8 +286,7 @@ func (s *AnnotationService) DeleteAnnotation(w http.ResponseWriter, r *http.Requ
 		s.db.DeleteAnnotation(uri)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	WriteSuccess(w, map[string]bool{"success": true})
 }
 
 type UpdateAnnotationRequest struct {
@@ -300,36 +298,36 @@ type UpdateAnnotationRequest struct {
 func (s *AnnotationService) UpdateAnnotation(w http.ResponseWriter, r *http.Request) {
 	uri := r.URL.Query().Get("uri")
 	if uri == "" {
-		http.Error(w, "uri query parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "uri query parameter required")
 		return
 	}
 
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	annotation, err := s.db.GetAnnotationByURI(uri)
 	if err != nil || annotation == nil {
-		http.Error(w, "Annotation not found", http.StatusNotFound)
+		WriteNotFound(w, "Annotation not found")
 		return
 	}
 
 	if annotation.AuthorDID != session.DID {
-		http.Error(w, "Not authorized to edit this annotation", http.StatusForbidden)
+		WriteForbidden(w, "Not authorized to edit this annotation")
 		return
 	}
 
 	var req UpdateAnnotationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
 	parts := parseATURI(uri)
 	if len(parts) < 3 {
-		http.Error(w, "Invalid URI format", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid URI format")
 		return
 	}
 	rkey := parts[2]
@@ -420,8 +418,7 @@ func (s *AnnotationService) UpdateAnnotation(w http.ResponseWriter, r *http.Requ
 		logger.Error("Warning: failed to sync self-labels: %v", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"success": true,
 		"uri":     result.URI,
 		"cid":     result.CID,
@@ -444,18 +441,18 @@ type CreateLikeRequest struct {
 func (s *AnnotationService) LikeAnnotation(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	var req CreateLikeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
 	if req.SubjectURI == "" || req.SubjectCID == "" {
-		http.Error(w, "subjectUri and subjectCid are required", http.StatusBadRequest)
+		WriteBadRequest(w, "subjectUri and subjectCid are required")
 		return
 	}
 
@@ -469,7 +466,7 @@ func (s *AnnotationService) LikeAnnotation(w http.ResponseWriter, r *http.Reques
 	record := xrpc.NewLikeRecord(req.SubjectURI, req.SubjectCID)
 
 	if err := record.Validate(); err != nil {
-		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
+		WriteBadRequest(w, "Validation error: "+err.Error())
 		return
 	}
 
@@ -504,26 +501,25 @@ func (s *AnnotationService) LikeAnnotation(w http.ResponseWriter, r *http.Reques
 		})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"uri": result.URI})
+	WriteSuccess(w, map[string]string{"uri": result.URI})
 }
 
 func (s *AnnotationService) UnlikeAnnotation(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	subjectURI := r.URL.Query().Get("uri")
 	if subjectURI == "" {
-		http.Error(w, "uri query parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "uri query parameter required")
 		return
 	}
 
 	userLike, err := s.db.GetLikeByUserAndSubject(session.DID, subjectURI)
 	if err != nil {
-		http.Error(w, "Like not found", http.StatusNotFound)
+		WriteNotFound(w, "Like not found")
 		return
 	}
 
@@ -540,8 +536,7 @@ func (s *AnnotationService) UnlikeAnnotation(w http.ResponseWriter, r *http.Requ
 
 	s.db.DeleteLike(userLike.URI)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	WriteSuccess(w, map[string]bool{"success": true})
 }
 
 type CreateReplyRequest struct {
@@ -555,33 +550,33 @@ type CreateReplyRequest struct {
 func (s *AnnotationService) CreateReply(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	var req CreateReplyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
 	if req.ParentURI == "" || req.ParentCID == "" {
-		http.Error(w, "parentUri and parentCid are required", http.StatusBadRequest)
+		WriteBadRequest(w, "parentUri and parentCid are required")
 		return
 	}
 	if req.RootURI == "" || req.RootCID == "" {
-		http.Error(w, "rootUri and rootCid are required", http.StatusBadRequest)
+		WriteBadRequest(w, "rootUri and rootCid are required")
 		return
 	}
 	if req.Text == "" {
-		http.Error(w, "text is required", http.StatusBadRequest)
+		WriteBadRequest(w, "text is required")
 		return
 	}
 
 	record := xrpc.NewReplyRecord(req.ParentURI, req.ParentCID, req.RootURI, req.RootCID, req.Text)
 
 	if err := record.Validate(); err != nil {
-		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
+		WriteBadRequest(w, "Validation error: "+err.Error())
 		return
 	}
 
@@ -633,31 +628,30 @@ func (s *AnnotationService) CreateReply(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"uri": result.URI})
+	WriteSuccess(w, map[string]string{"uri": result.URI})
 }
 
 func (s *AnnotationService) DeleteReply(w http.ResponseWriter, r *http.Request) {
 	uri := r.URL.Query().Get("uri")
 	if uri == "" {
-		http.Error(w, "uri query parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "uri query parameter required")
 		return
 	}
 
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	reply, err := s.db.GetReplyByURI(uri)
 	if err != nil || reply == nil {
-		http.Error(w, "reply not found", http.StatusNotFound)
+		WriteNotFound(w, "reply not found")
 		return
 	}
 
 	if reply.AuthorDID != session.DID {
-		http.Error(w, "not authorized to delete this reply", http.StatusForbidden)
+		WriteForbidden(w, "not authorized to delete this reply")
 		return
 	}
 
@@ -671,8 +665,7 @@ func (s *AnnotationService) DeleteReply(w http.ResponseWriter, r *http.Request) 
 
 	s.db.DeleteReply(uri)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	WriteSuccess(w, map[string]bool{"success": true})
 }
 
 type CreateHighlightRequest struct {
@@ -687,18 +680,18 @@ type CreateHighlightRequest struct {
 func (s *AnnotationService) CreateHighlight(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	var req CreateHighlightRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
 	if req.URL == "" || req.Selector == nil {
-		http.Error(w, "URL and selector are required", http.StatusBadRequest)
+		WriteBadRequest(w, "URL and selector are required")
 		return
 	}
 
@@ -719,7 +712,7 @@ func (s *AnnotationService) CreateHighlight(w http.ResponseWriter, r *http.Reque
 	record.Labels = xrpc.NewSelfLabels(validLabels)
 
 	if err := record.Validate(); err != nil {
-		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
+		WriteBadRequest(w, "Validation error: "+err.Error())
 		return
 	}
 
@@ -779,7 +772,7 @@ func (s *AnnotationService) CreateHighlight(w http.ResponseWriter, r *http.Reque
 		CID:          &cid,
 	}
 	if err := s.db.CreateHighlight(highlight); err != nil {
-		http.Error(w, "Failed to index highlight", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to index highlight")
 		return
 	}
 
@@ -789,8 +782,7 @@ func (s *AnnotationService) CreateHighlight(w http.ResponseWriter, r *http.Reque
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"uri": result.URI, "cid": result.CID})
+	WriteSuccess(w, map[string]string{"uri": result.URI, "cid": result.CID})
 }
 
 type CreateBookmarkRequest struct {
@@ -803,18 +795,18 @@ type CreateBookmarkRequest struct {
 func (s *AnnotationService) CreateBookmark(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	var req CreateBookmarkRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
 	if req.URL == "" {
-		http.Error(w, "URL is required", http.StatusBadRequest)
+		WriteBadRequest(w, "URL is required")
 		return
 	}
 
@@ -829,14 +821,14 @@ func (s *AnnotationService) CreateBookmark(w http.ResponseWriter, r *http.Reques
 	}
 
 	if err := record.Validate(); err != nil {
-		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
+		WriteBadRequest(w, "Validation error: "+err.Error())
 		return
 	}
 
 	var result *xrpc.CreateRecordOutput
 
 	if existing, err := s.checkDuplicateBookmark(session.DID, req.URL); err == nil && existing != nil {
-		http.Error(w, "Bookmark already exists", http.StatusConflict)
+		WriteConflict(w, "Bookmark already exists")
 		return
 	}
 
@@ -881,20 +873,19 @@ func (s *AnnotationService) CreateBookmark(w http.ResponseWriter, r *http.Reques
 	}
 	s.db.CreateBookmark(bookmark)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"uri": result.URI, "cid": result.CID})
+	WriteSuccess(w, map[string]string{"uri": result.URI, "cid": result.CID})
 }
 
 func (s *AnnotationService) DeleteHighlight(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	rkey := r.URL.Query().Get("rkey")
 	if rkey == "" {
-		http.Error(w, "rkey required", http.StatusBadRequest)
+		WriteBadRequest(w, "rkey required")
 		return
 	}
 
@@ -908,20 +899,19 @@ func (s *AnnotationService) DeleteHighlight(w http.ResponseWriter, r *http.Reque
 	uri := "at://" + session.DID + "/" + xrpc.CollectionHighlight + "/" + rkey
 	s.db.DeleteHighlight(uri)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	WriteSuccess(w, map[string]bool{"success": true})
 }
 
 func (s *AnnotationService) DeleteBookmark(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	rkey := r.URL.Query().Get("rkey")
 	if rkey == "" {
-		http.Error(w, "rkey required", http.StatusBadRequest)
+		WriteBadRequest(w, "rkey required")
 		return
 	}
 
@@ -935,8 +925,7 @@ func (s *AnnotationService) DeleteBookmark(w http.ResponseWriter, r *http.Reques
 	uri := "at://" + session.DID + "/" + xrpc.CollectionBookmark + "/" + rkey
 	s.db.DeleteBookmark(uri)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	WriteSuccess(w, map[string]bool{"success": true})
 }
 
 type UpdateHighlightRequest struct {
@@ -948,30 +937,30 @@ type UpdateHighlightRequest struct {
 func (s *AnnotationService) UpdateHighlight(w http.ResponseWriter, r *http.Request) {
 	uri := r.URL.Query().Get("uri")
 	if uri == "" {
-		http.Error(w, "uri query parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "uri query parameter required")
 		return
 	}
 
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	if len(uri) < 5 || !strings.HasPrefix(uri[5:], session.DID) {
-		http.Error(w, "Not authorized", http.StatusForbidden)
+		WriteForbidden(w, "Not authorized")
 		return
 	}
 
 	var req UpdateHighlightRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
 	parts := parseATURI(uri)
 	if len(parts) < 3 {
-		http.Error(w, "Invalid URI", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid URI")
 		return
 	}
 	rkey := parts[2]
@@ -1043,8 +1032,7 @@ func (s *AnnotationService) UpdateHighlight(w http.ResponseWriter, r *http.Reque
 		logger.Error("Warning: failed to sync self-labels: %v", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "uri": result.URI, "cid": result.CID})
+	WriteSuccess(w, map[string]interface{}{"success": true, "uri": result.URI, "cid": result.CID})
 }
 
 type UpdateBookmarkRequest struct {
@@ -1057,30 +1045,30 @@ type UpdateBookmarkRequest struct {
 func (s *AnnotationService) UpdateBookmark(w http.ResponseWriter, r *http.Request) {
 	uri := r.URL.Query().Get("uri")
 	if uri == "" {
-		http.Error(w, "uri query parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "uri query parameter required")
 		return
 	}
 
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	if len(uri) < 5 || !strings.HasPrefix(uri[5:], session.DID) {
-		http.Error(w, "Not authorized", http.StatusForbidden)
+		WriteForbidden(w, "Not authorized")
 		return
 	}
 
 	var req UpdateBookmarkRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
 	parts := parseATURI(uri)
 	if len(parts) < 3 {
-		http.Error(w, "Invalid URI", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid URI")
 		return
 	}
 	rkey := parts[2]
@@ -1155,6 +1143,5 @@ func (s *AnnotationService) UpdateBookmark(w http.ResponseWriter, r *http.Reques
 		logger.Error("Warning: failed to sync self-labels: %v", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "uri": result.URI, "cid": result.CID})
+	WriteSuccess(w, map[string]interface{}{"success": true, "uri": result.URI, "cid": result.CID})
 }

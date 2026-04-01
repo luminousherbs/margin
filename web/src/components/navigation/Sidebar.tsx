@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Home,
   Bookmark,
@@ -20,34 +20,20 @@ import { $user, logout } from "../../store/auth";
 import { $theme, cycleTheme } from "../../store/theme";
 import { getUnreadNotificationCount } from "../../api/client";
 import { Avatar, CountBadge } from "../ui";
-import type { UserProfile } from "../../types";
 
 interface SidebarProps {
-  initialUser?: UserProfile | null;
   currentPath?: string;
+  onNavigate?: (path: string) => void;
 }
 
 export default function Sidebar({
-  initialUser,
   currentPath: initialPath,
+  onNavigate,
 }: SidebarProps) {
-  const storeUser = useStore($user);
-  const user = storeUser || initialUser || null;
+  const user = useStore($user);
   const theme = useStore($theme);
-  const [currentPath, setCurrentPath] = useState(initialPath || "/");
+  const currentPath = initialPath || "/";
   const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    if (initialUser && !storeUser) {
-      $user.set(initialUser);
-    }
-  }, [initialUser, storeUser]);
-
-  useEffect(() => {
-    const handler = () => setCurrentPath(window.location.pathname);
-    document.addEventListener("astro:page-load", handler);
-    return () => document.removeEventListener("astro:page-load", handler);
-  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -107,6 +93,14 @@ export default function Sidebar({
       <div className="flex flex-col gap-6">
         <a
           href="/home"
+          onClick={
+            onNavigate
+              ? (e) => {
+                  e.preventDefault();
+                  onNavigate("/home");
+                }
+              : undefined
+          }
           className="px-3 hover:opacity-80 transition-opacity w-fit flex items-center gap-2.5"
         >
           <img src="/logo.svg" alt="Margin" className="w-8 h-8" />
@@ -122,7 +116,14 @@ export default function Sidebar({
                 key={item.href}
                 href={item.href}
                 title={item.label}
-                data-astro-prefetch="viewport"
+                onClick={
+                  onNavigate
+                    ? (e) => {
+                        e.preventDefault();
+                        onNavigate(item.href);
+                      }
+                    : undefined
+                }
                 className={`flex items-center justify-center lg:justify-start gap-3 px-0 lg:px-3 py-2.5 rounded-lg transition-all duration-150 text-[14px] group ${
                   isActive
                     ? "font-semibold text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-950/40"
@@ -146,6 +147,14 @@ export default function Sidebar({
             <a
               href="/new"
               title="New annotation"
+              onClick={
+                onNavigate
+                  ? (e) => {
+                      e.preventDefault();
+                      onNavigate("/new");
+                    }
+                  : undefined
+              }
               className="flex items-center justify-center lg:justify-start gap-3 px-0 lg:px-3 py-2.5 mt-2 rounded-lg bg-primary-600 dark:bg-primary-500 text-white hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors text-[14px] font-semibold"
             >
               <PenSquare size={20} strokeWidth={1.75} />
@@ -180,6 +189,14 @@ export default function Sidebar({
             <a
               href="/settings"
               title="Settings"
+              onClick={
+                onNavigate
+                  ? (e) => {
+                      e.preventDefault();
+                      onNavigate("/settings");
+                    }
+                  : undefined
+              }
               className="flex items-center justify-center lg:justify-start gap-3 px-0 lg:px-3 py-2.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 text-[13px] font-medium text-surface-500 dark:text-surface-400 transition-colors"
             >
               <Settings size={18} />
@@ -191,6 +208,14 @@ export default function Sidebar({
             <a
               href={`/profile/${user.did}`}
               title={user.displayName || user.handle}
+              onClick={
+                onNavigate
+                  ? (e) => {
+                      e.preventDefault();
+                      onNavigate(`/profile/${user.did}`);
+                    }
+                  : undefined
+              }
               className="flex items-center justify-center lg:justify-start gap-2.5 p-2 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors w-full"
             >
               <Avatar did={user.did} avatar={user.avatar} size="sm" />

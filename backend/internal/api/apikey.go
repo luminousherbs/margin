@@ -42,13 +42,13 @@ type CreateKeyResponse struct {
 func (h *APIKeyHandler) CreateKey(w http.ResponseWriter, r *http.Request) {
 	session, err := h.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		WriteUnauthorized(w, "Unauthorized")
 		return
 	}
 
 	var req CreateKeyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
@@ -62,7 +62,7 @@ func (h *APIKeyHandler) CreateKey(w http.ResponseWriter, r *http.Request) {
 
 	record := xrpc.NewAPIKeyRecord(req.Name, keyHash)
 	if err := record.Validate(); err != nil {
-		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
+		WriteBadRequest(w, "Validation error: "+err.Error())
 		return
 	}
 
@@ -74,7 +74,7 @@ func (h *APIKeyHandler) CreateKey(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		logger.Error("[ERROR] Failed to create API key record on PDS: %v", err)
-		http.Error(w, "Failed to create key record: "+err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to create key record")
 		return
 	}
 
@@ -93,12 +93,11 @@ func (h *APIKeyHandler) CreateKey(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.db.CreateAPIKey(apiKey); err != nil {
 		logger.Error("[ERROR] Failed to insert API key into DB: %v", err)
-		http.Error(w, "Failed to create key", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to create key")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(CreateKeyResponse{
+	WriteSuccess(w, CreateKeyResponse{
 		ID:        keyID,
 		Name:      req.Name,
 		Key:       rawKey,
@@ -109,13 +108,13 @@ func (h *APIKeyHandler) CreateKey(w http.ResponseWriter, r *http.Request) {
 func (h *APIKeyHandler) ListKeys(w http.ResponseWriter, r *http.Request) {
 	session, err := h.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		WriteUnauthorized(w, "Unauthorized")
 		return
 	}
 
 	keys, err := h.db.GetAPIKeysByOwner(session.DID)
 	if err != nil {
-		http.Error(w, "Failed to get keys", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to get keys")
 		return
 	}
 
@@ -123,26 +122,25 @@ func (h *APIKeyHandler) ListKeys(w http.ResponseWriter, r *http.Request) {
 		keys = []db.APIKey{}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"keys": keys})
+	WriteSuccess(w, map[string]interface{}{"keys": keys})
 }
 
 func (h *APIKeyHandler) DeleteKey(w http.ResponseWriter, r *http.Request) {
 	session, err := h.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		WriteUnauthorized(w, "Unauthorized")
 		return
 	}
 
 	keyID := chi.URLParam(r, "id")
 	if keyID == "" {
-		http.Error(w, "Key ID required", http.StatusBadRequest)
+		WriteBadRequest(w, "Key ID required")
 		return
 	}
 
 	uri, err := h.db.DeleteAPIKey(keyID, session.DID)
 	if err != nil {
-		http.Error(w, "Failed to delete key", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to delete key")
 		return
 	}
 
@@ -152,8 +150,7 @@ func (h *APIKeyHandler) DeleteKey(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	WriteSuccess(w, map[string]bool{"success": true})
 }
 
 type QuickBookmarkRequest struct {
@@ -165,24 +162,24 @@ type QuickBookmarkRequest struct {
 func (h *APIKeyHandler) QuickBookmark(w http.ResponseWriter, r *http.Request) {
 	apiKey, err := h.authenticateAPIKey(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	var req QuickBookmarkRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
 	if req.URL == "" {
-		http.Error(w, "URL is required", http.StatusBadRequest)
+		WriteBadRequest(w, "URL is required")
 		return
 	}
 
 	session, err := h.getSessionByDID(apiKey.OwnerDID)
 	if err != nil {
-		http.Error(w, "User session not found. Please log in to margin.at first.", http.StatusUnauthorized)
+		WriteUnauthorized(w, "User session not found. Please log in to margin.at first.")
 		return
 	}
 
@@ -190,7 +187,7 @@ func (h *APIKeyHandler) QuickBookmark(w http.ResponseWriter, r *http.Request) {
 	record := xrpc.NewBookmarkRecord(req.URL, urlHash, req.Title, req.Description)
 
 	if err := record.Validate(); err != nil {
-		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
+		WriteBadRequest(w, "Validation error: "+err.Error())
 		return
 	}
 
@@ -201,7 +198,7 @@ func (h *APIKeyHandler) QuickBookmark(w http.ResponseWriter, r *http.Request) {
 		return createErr
 	})
 	if err != nil {
-		http.Error(w, "Failed to create bookmark: "+err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to create bookmark")
 		return
 	}
 
@@ -229,8 +226,7 @@ func (h *APIKeyHandler) QuickBookmark(w http.ResponseWriter, r *http.Request) {
 	}
 	h.db.CreateBookmark(bookmark)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	WriteSuccess(w, map[string]string{
 		"uri":     result.URI,
 		"cid":     result.CID,
 		"message": "Bookmark created successfully",
@@ -247,24 +243,24 @@ type QuickSaveRequest struct {
 func (h *APIKeyHandler) QuickSave(w http.ResponseWriter, r *http.Request) {
 	apiKey, err := h.authenticateAPIKey(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	var req QuickSaveRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
 	if req.URL == "" {
-		http.Error(w, "URL is required", http.StatusBadRequest)
+		WriteBadRequest(w, "URL is required")
 		return
 	}
 
 	session, err := h.getSessionByDID(apiKey.OwnerDID)
 	if err != nil {
-		http.Error(w, "User session not found. Please log in to margin.at first.", http.StatusUnauthorized)
+		WriteUnauthorized(w, "User session not found. Please log in to margin.at first.")
 		return
 	}
 
@@ -286,7 +282,7 @@ func (h *APIKeyHandler) QuickSave(w http.ResponseWriter, r *http.Request) {
 		record := xrpc.NewHighlightRecord(req.URL, urlHash, req.Selector, color, nil)
 
 		if err := record.Validate(); err != nil {
-			http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
+			WriteBadRequest(w, "Validation error: "+err.Error())
 			return
 		}
 
@@ -322,7 +318,7 @@ func (h *APIKeyHandler) QuickSave(w http.ResponseWriter, r *http.Request) {
 		record := xrpc.NewAnnotationRecord(req.URL, urlHash, req.Text, req.Selector, "")
 
 		if err := record.Validate(); err != nil {
-			http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
+			WriteBadRequest(w, "Validation error: "+err.Error())
 			return
 		}
 
@@ -365,12 +361,11 @@ func (h *APIKeyHandler) QuickSave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		http.Error(w, "Failed to create record: "+err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to create record")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	WriteSuccess(w, map[string]string{
 		"uri":     result.URI,
 		"cid":     result.CID,
 		"message": "Saved successfully",
@@ -386,24 +381,24 @@ type QuickHighlightRequest struct {
 func (h *APIKeyHandler) QuickHighlight(w http.ResponseWriter, r *http.Request) {
 	apiKey, err := h.authenticateAPIKey(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	var req QuickHighlightRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
 	if req.URL == "" || req.Selector == nil {
-		http.Error(w, "URL and selector are required", http.StatusBadRequest)
+		WriteBadRequest(w, "URL and selector are required")
 		return
 	}
 
 	session, err := h.getSessionByDID(apiKey.OwnerDID)
 	if err != nil {
-		http.Error(w, "User session not found. Please log in to margin.at first.", http.StatusUnauthorized)
+		WriteUnauthorized(w, "User session not found. Please log in to margin.at first.")
 		return
 	}
 
@@ -416,7 +411,7 @@ func (h *APIKeyHandler) QuickHighlight(w http.ResponseWriter, r *http.Request) {
 	record := xrpc.NewHighlightRecord(req.URL, urlHash, req.Selector, color, nil)
 
 	if err := record.Validate(); err != nil {
-		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
+		WriteBadRequest(w, "Validation error: "+err.Error())
 		return
 	}
 
@@ -427,7 +422,7 @@ func (h *APIKeyHandler) QuickHighlight(w http.ResponseWriter, r *http.Request) {
 		return createErr
 	})
 	if err != nil {
-		http.Error(w, "Failed to create highlight: "+err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to create highlight")
 		return
 	}
 
@@ -452,8 +447,7 @@ func (h *APIKeyHandler) QuickHighlight(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Warning: failed to index highlight in local DB: %v\n", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	WriteSuccess(w, map[string]string{
 		"uri":     result.URI,
 		"cid":     result.CID,
 		"message": "Highlight created successfully",

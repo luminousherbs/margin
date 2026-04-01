@@ -162,20 +162,6 @@ func main() {
 	handler := api.NewHandler(database, annotationSvc, tokenRefresher, syncSvc, recService)
 	handler.RegisterRoutes(r)
 
-	r.Post("/api/annotations", annotationSvc.CreateAnnotation)
-	r.Put("/api/annotations", annotationSvc.UpdateAnnotation)
-	r.Delete("/api/annotations", annotationSvc.DeleteAnnotation)
-	r.Post("/api/annotations/like", annotationSvc.LikeAnnotation)
-	r.Delete("/api/annotations/like", annotationSvc.UnlikeAnnotation)
-	r.Post("/api/annotations/reply", annotationSvc.CreateReply)
-	r.Delete("/api/annotations/reply", annotationSvc.DeleteReply)
-	r.Post("/api/highlights", annotationSvc.CreateHighlight)
-	r.Put("/api/highlights", annotationSvc.UpdateHighlight)
-	r.Delete("/api/highlights", annotationSvc.DeleteHighlight)
-	r.Post("/api/bookmarks", annotationSvc.CreateBookmark)
-	r.Put("/api/bookmarks", annotationSvc.UpdateBookmark)
-	r.Delete("/api/bookmarks", annotationSvc.DeleteBookmark)
-
 	r.Route("/auth", func(r chi.Router) {
 		r.Use(middleware.Throttle(10))
 		r.Get("/login", oauthHandler.HandleLogin)
@@ -187,11 +173,6 @@ func main() {
 	})
 	r.Get("/client-metadata.json", oauthHandler.HandleClientMetadata)
 	r.Get("/jwks.json", oauthHandler.HandleJWKS)
-
-	r.Get("/api/tags/trending", handler.HandleGetTrendingTags)
-	r.Put("/api/profile", handler.UpdateProfile)
-	r.Get("/api/profile/{did}", handler.GetProfile)
-	r.Post("/api/profile/avatar", handler.UploadAvatar)
 
 	port := getEnv("PORT", "8081")
 	server := &http.Server{

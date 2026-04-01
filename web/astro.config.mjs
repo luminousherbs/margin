@@ -11,12 +11,10 @@ export default defineConfig({
   output: "server",
   adapter: node({ mode: "standalone" }),
   integrations: [react(), tailwind()],
+  security: { checkOrigin: false },
   prefetch: {
     prefetchAll: true,
     defaultStrategy: "viewport",
-  },
-  security: {
-    checkOrigin: true,
   },
   vite: {
     ssr: {

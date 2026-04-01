@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useStore } from "@nanostores/react";
 import { $user } from "../../store/auth";
 import {
@@ -42,6 +43,7 @@ export default function AnnotationDetail({
   resolvedUri,
 }: AnnotationDetailProps) {
   const user = useStore($user);
+  const navigate = useNavigate();
 
   const [annotation, setAnnotation] = useState<AnnotationItem | null>(
     initialAnnotation || null,
@@ -208,6 +210,10 @@ export default function AnnotationDetail({
         </p>
         <a
           href="/home"
+          onClick={(e) => {
+            e.preventDefault();
+            navigate("/home");
+          }}
           className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
         >
           Back to Feed
@@ -221,6 +227,10 @@ export default function AnnotationDetail({
       <div className="mb-4">
         <a
           href="/home"
+          onClick={(e) => {
+            e.preventDefault();
+            navigate(-1);
+          }}
           className="inline-flex items-center gap-1.5 text-sm font-medium text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors"
         >
           <ArrowLeft size={16} />
@@ -231,7 +241,7 @@ export default function AnnotationDetail({
       <Card
         item={annotation}
         onDelete={() => {
-          window.location.href = "/home";
+          navigate("/home");
         }}
       />
 

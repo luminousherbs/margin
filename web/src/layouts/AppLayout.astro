@@ -3,7 +3,6 @@ import BaseLayout from "./BaseLayout.astro";
 import Sidebar from "../components/navigation/Sidebar";
 import RightSidebar from "../components/navigation/RightSidebar";
 import MobileNav from "../components/navigation/MobileNav";
-import { BlueskyIcon } from "../components/common/Icons";
 import type { UserProfile } from "../types";
 
 interface Props {
@@ -17,37 +16,6 @@ const { title, description, image, user = Astro.locals.user } = Astro.props;
 ---
 
 <BaseLayout title={title} description={description} image={image}>
-	<div
-		class="bg-blue-600 dark:bg-blue-500 text-white font-medium text-sm flex items-center justify-center gap-x-3 gap-y-1 flex-wrap py-2 px-4 w-full z-50"
-	>
-		<div
-			class="w-12 h-9 overflow-hidden rounded flex items-start justify-center -my-1"
-		>
-			<img
-				src="https://atmosphereconf.org/_image?href=%2F_astro%2Fgoodstuff-goose.DKPXDrcQ.png&w=792&h=990&f=webp"
-				alt="Atmosphere Goose"
-				class="w-12 h-12 object-cover object-top drop-shadow-md"
-			/>
-		</div>
-		<span
-			>Welcome to <a
-				href="https://atmosphereconf.org/"
-				target="_blank"
-				rel="noopener noreferrer"
-				class="font-bold underline hover:text-blue-200 transition-colors"
-				>ATmosphereConf 2026</a
-			>!</span
-		>
-		<a
-			href="https://bsky.app/profile/atmosphereconf.org/feed/atmosphereconf"
-			target="_blank"
-			rel="noopener noreferrer"
-			class="hover:text-blue-200 transition-colors flex items-center gap-1.5 ml-1 bg-blue-700/50 hover:bg-blue-700 px-2 py-0.5 rounded-full"
-		>
-			<BlueskyIcon size={14} color="currentColor" />
-			<span>View feed</span>
-		</a>
-	</div>
 	<div class="min-h-screen bg-surface-100 dark:bg-surface-900 flex">
 		<div transition:persist="sidebar">
 			<Sidebar

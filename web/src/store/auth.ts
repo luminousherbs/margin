@@ -11,7 +11,8 @@ $user.subscribe((user) => {
 });
 
 export function logout() {
-  fetch("/auth/logout", { method: "POST" }).then(() => {
+  $user.set(null);
+  fetch("/auth/logout", { method: "POST" }).finally(() => {
     window.location.href = "/";
   });
 }

@@ -225,8 +225,8 @@ func HandleAPIError(w http.ResponseWriter, r *http.Request, err error, fallbackM
 			SameSite: http.SameSiteLaxMode,
 			MaxAge:   -1,
 		})
-		http.Error(w, "session expired", http.StatusUnauthorized)
+		WriteUnauthorized(w, "session expired")
 		return
 	}
-	http.Error(w, fallbackMsg+err.Error(), fallbackStatus)
+	WriteJSONError(w, fallbackStatus, fallbackMsg)
 }

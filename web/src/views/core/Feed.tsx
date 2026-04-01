@@ -76,7 +76,6 @@ export default function Feed({
   const tabs = [
     { id: "all", label: "Recent" },
     { id: "popular", label: "Popular" },
-    { id: "atmosphereconf", label: "ATmosphereConf" },
     { id: "shelved", label: "Shelved" },
     { id: "margin", label: "Margin" },
     { id: "semble", label: "Semble" },
@@ -193,14 +192,12 @@ export default function Feed({
 
       <FeedItems
         key={`${activeTab}-${activeFilter || "all"}-${tag || ""}-${mineOnly ? "mine" : "all"}`}
-        type={activeTab === "atmosphereconf" ? "all" : activeTab}
+        type={activeTab}
         motivation={activeFilter}
         creator={mineOnly && user ? user.did : undefined}
         emptyMessage={emptyMessage}
         layout={layout}
-        tag={
-          activeTab === "atmosphereconf" ? "atmosphereconf" : tag?.toLowerCase()
-        }
+        tag={tag?.toLowerCase()}
         initialItems={
           activeTab === initialType && activeFilter === motivation && !mineOnly
             ? initialItems

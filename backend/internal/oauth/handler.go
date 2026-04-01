@@ -556,15 +556,17 @@ func (h *Handler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 		h.db.DeleteSession(cookie.Value)
 	}
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     "margin_session",
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https",
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   -1,
-	})
+	for _, secure := range []bool{true, false} {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "margin_session",
+			Value:    "",
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   secure,
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   -1,
+		})
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})

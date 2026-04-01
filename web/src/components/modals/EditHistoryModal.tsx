@@ -105,7 +105,7 @@ export default function EditHistoryModal({
 
               {history.map((edit, index) => (
                 <div
-                  key={edit.cid || index}
+                  key={edit.id || index}
                   className="p-4 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors"
                 >
                   <div className="flex justify-between items-start mb-2">

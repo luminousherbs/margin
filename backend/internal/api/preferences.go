@@ -32,13 +32,13 @@ type PreferencesResponse struct {
 func (h *Handler) GetPreferences(w http.ResponseWriter, r *http.Request) {
 	session, err := h.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		WriteUnauthorized(w, "Unauthorized")
 		return
 	}
 
 	prefs, err := h.db.GetPreferences(session.DID)
 	if err != nil {
-		http.Error(w, "Failed to fetch preferences", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to fetch preferences")
 		return
 	}
 
@@ -72,8 +72,7 @@ func (h *Handler) GetPreferences(w http.ResponseWriter, r *http.Request) {
 		disableWarning = *prefs.DisableExternalLinkWarning
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(PreferencesResponse{
+	WriteSuccess(w, PreferencesResponse{
 		ExternalLinkSkippedHostnames: hostnames,
 		SubscribedLabelers:           labelers,
 		LabelPreferences:             labelPrefs,
@@ -84,13 +83,13 @@ func (h *Handler) GetPreferences(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdatePreferences(w http.ResponseWriter, r *http.Request) {
 	session, err := h.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		WriteUnauthorized(w, "Unauthorized")
 		return
 	}
 
 	var input PreferencesResponse
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid input")
 		return
 	}
 
@@ -113,7 +112,7 @@ func (h *Handler) UpdatePreferences(w http.ResponseWriter, r *http.Request) {
 
 	record := xrpc.NewPreferencesRecord(input.ExternalLinkSkippedHostnames, xrpcLabelers, xrpcLabelPrefs, &input.DisableExternalLinkWarning)
 	if err := record.Validate(); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid record: %v", err), http.StatusBadRequest)
+		WriteBadRequest(w, fmt.Sprintf("Invalid record: %v", err))
 		return
 	}
 

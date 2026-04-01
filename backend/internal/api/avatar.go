@@ -15,7 +15,7 @@ import (
 func (h *Handler) HandleAvatarProxy(w http.ResponseWriter, r *http.Request) {
 	did := chi.URLParam(r, "did")
 	if did == "" {
-		http.Error(w, "DID required", http.StatusBadRequest)
+		WriteBadRequest(w, "DID required")
 		return
 	}
 
@@ -27,6 +27,8 @@ func (h *Handler) HandleAvatarProxy(w http.ResponseWriter, r *http.Request) {
 	if cdnURL == "" {
 		cdnURL = "https://avatars.margin.at"
 	}
+
+	w.Header().Set("Cache-Control", "public, max-age=86400")
 
 	secret := os.Getenv("AVATAR_SHARED_SECRET")
 	if secret != "" {

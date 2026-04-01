@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Search, Coffee } from "lucide-react";
 import {
   getTrendingTags,
@@ -17,11 +17,15 @@ function looksLikeUrl(query: string): boolean {
   );
 }
 
-function navigate(path: string) {
-  window.location.href = path;
+interface RightSidebarProps {
+  onNavigate?: (path: string) => void;
 }
 
-export default function RightSidebar() {
+export default function RightSidebar({ onNavigate }: RightSidebarProps) {
+  const navigate = (path: string) => {
+    if (onNavigate) onNavigate(path);
+    else window.location.href = path;
+  };
   const [tags, setTags] = useState<Tag[]>([]);
   const [browser] = useState<"chrome" | "firefox" | "edge" | "other">(() => {
     if (typeof navigator === "undefined") return "other";
@@ -84,59 +88,48 @@ export default function RightSidebar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const selectSuggestion = useCallback((actor: ActorSearchItem) => {
+  const selectSuggestion = (actor: ActorSearchItem) => {
     isSelectionRef.current = true;
     setSearchQuery("");
     setSuggestions([]);
     setShowSuggestions(false);
     navigate(`/profile/${encodeURIComponent(actor.handle)}`);
-  }, []);
+  };
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (showSuggestions && suggestions.length > 0) {
-        if (e.key === "ArrowDown") {
-          e.preventDefault();
-          setSelectedIndex((prev) =>
-            Math.min(prev + 1, suggestions.length - 1),
-          );
-          return;
-        } else if (e.key === "ArrowUp") {
-          e.preventDefault();
-          setSelectedIndex((prev) => Math.max(prev - 1, -1));
-          return;
-        } else if (e.key === "Enter" && selectedIndex >= 0) {
-          e.preventDefault();
-          selectSuggestion(suggestions[selectedIndex]);
-          return;
-        } else if (e.key === "Escape") {
-          setShowSuggestions(false);
-          return;
-        }
-      }
-
-      if (e.key === "Enter" && searchQuery.trim()) {
-        const q = searchQuery.trim();
-        if (looksLikeUrl(q)) {
-          navigate(`/url/${encodeURIComponent(q)}`);
-        } else if (q.includes(".")) {
-          navigate(`/profile/${encodeURIComponent(q)}`);
-        } else {
-          navigate(`/search?q=${encodeURIComponent(q)}`);
-        }
-        setSearchQuery("");
-        setSuggestions([]);
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (showSuggestions && suggestions.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIndex((prev) => Math.min(prev + 1, suggestions.length - 1));
+        return;
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIndex((prev) => Math.max(prev - 1, -1));
+        return;
+      } else if (e.key === "Enter" && selectedIndex >= 0) {
+        e.preventDefault();
+        selectSuggestion(suggestions[selectedIndex]);
+        return;
+      } else if (e.key === "Escape") {
         setShowSuggestions(false);
+        return;
       }
-    },
-    [
-      showSuggestions,
-      suggestions,
-      selectedIndex,
-      searchQuery,
-      selectSuggestion,
-    ],
-  );
+    }
+
+    if (e.key === "Enter" && searchQuery.trim()) {
+      const q = searchQuery.trim();
+      if (looksLikeUrl(q)) {
+        navigate(`/url/${encodeURIComponent(q)}`);
+      } else if (q.includes(".")) {
+        navigate(`/profile/${encodeURIComponent(q)}`);
+      } else {
+        navigate(`/search?q=${encodeURIComponent(q)}`);
+      }
+      setSearchQuery("");
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
 
   useEffect(() => {
     getTrendingTags(10).then(setTags);

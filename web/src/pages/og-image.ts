@@ -41,6 +41,20 @@ interface RecordData {
   color: string;
 }
 
+async function fetchAvatarDataUri(url: string): Promise<string> {
+  if (!url) return "";
+  try {
+    const res = await fetch(url, { headers: { "User-Agent": "margin.at/og" } });
+    if (!res.ok) return "";
+    const buf = await res.arrayBuffer();
+    const mime = res.headers.get("content-type") || "image/jpeg";
+    const b64 = Buffer.from(buf).toString("base64");
+    return `data:${mime};base64,${b64}`;
+  } catch {
+    return "";
+  }
+}
+
 async function fetchRecordData(uri: string): Promise<RecordData | null> {
   try {
     const res = await fetch(
@@ -53,7 +67,7 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
       const did = author.did || "";
       const authorName = handle ? `@${handle}` : did || "someone";
       const displayName = author.displayName || handle || did || "someone";
-      const avatarURL = author.avatar || "";
+      const avatarURL = await fetchAvatarDataUri(author.avatar || "");
       const targetSource = item.target?.source || item.url || item.source || "";
       const domain = targetSource
         ? (() => {
@@ -135,7 +149,7 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
       const did = author.did || "";
       const authorName = handle ? `@${handle}` : did || "someone";
       const displayName = author.displayName || handle || did || "someone";
-      const avatarURL = author.avatar || "";
+      const avatarURL = await fetchAvatarDataUri(author.avatar || "");
 
       return {
         type: "collection",

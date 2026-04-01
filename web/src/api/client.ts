@@ -37,24 +37,27 @@ export async function checkSession(): Promise<UserProfile | null> {
         postsCount: data.postsCount,
       };
 
-      try {
-        const bskyRes = await fetch(
+      const [bskyResult, marginResult] = await Promise.allSettled([
+        fetch(
           `https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(data.did)}`,
-        );
-        if (bskyRes.ok) {
-          const bskyData = await bskyRes.json();
+        ),
+        fetch(`/api/profile/${data.did}`),
+      ]);
+
+      if (bskyResult.status === "fulfilled" && bskyResult.value.ok) {
+        try {
+          const bskyData = await bskyResult.value.json();
           if (bskyData.avatar) baseProfile.avatar = bskyData.avatar;
           if (bskyData.displayName)
             baseProfile.displayName = bskyData.displayName;
+        } catch {
+          /* ignore */
         }
-      } catch (e) {
-        console.warn("Failed to fetch Bsky profile for session", e);
       }
 
-      try {
-        const res = await fetch(`/api/profile/${data.did}`);
-        if (res.ok) {
-          const marginProfile = await res.json();
+      if (marginResult.status === "fulfilled" && marginResult.value.ok) {
+        try {
+          const marginProfile = await marginResult.value.json();
           if (marginProfile) {
             if (marginProfile.description)
               baseProfile.description = marginProfile.description;
@@ -68,9 +71,9 @@ export async function checkSession(): Promise<UserProfile | null> {
               baseProfile.website = marginProfile.website;
             if (marginProfile.links) baseProfile.links = marginProfile.links;
           }
+        } catch {
+          /* ignore */
         }
-      } catch (e) {
-        console.debug("Failed to fetch Margin profile:", e);
       }
 
       sessionAtom.set(baseProfile);

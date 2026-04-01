@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -18,18 +17,18 @@ func (h *Handler) HandleGetTrendingTags(w http.ResponseWriter, r *http.Request) 
 
 	tags, err := h.db.GetTrendingTags(limit)
 	if err != nil {
-		http.Error(w, `{"error": "Failed to fetch trending tags: `+err.Error()+`"}`, http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to fetch trending tags")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tags)
+	w.Header().Set("Cache-Control", "public, max-age=300, s-maxage=600")
+	WriteSuccess(w, tags)
 }
 
 func (h *Handler) HandleGetUserTags(w http.ResponseWriter, r *http.Request) {
 	did := chi.URLParam(r, "did")
 	if did == "" {
-		http.Error(w, `{"error": "did is required"}`, http.StatusBadRequest)
+		WriteBadRequest(w, "did is required")
 		return
 	}
 
@@ -42,10 +41,9 @@ func (h *Handler) HandleGetUserTags(w http.ResponseWriter, r *http.Request) {
 
 	tags, err := h.db.GetUserTags(did, limit)
 	if err != nil {
-		http.Error(w, `{"error": "Failed to fetch user tags"}`, http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to fetch user tags")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tags)
+	WriteSuccess(w, tags)
 }

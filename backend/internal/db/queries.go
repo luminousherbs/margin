@@ -34,12 +34,6 @@ func scanAnnotations(rows interface {
 	return annotations, nil
 }
 
-func (db *DB) AnnotationExists(uri string) bool {
-	var exists bool
-	db.QueryRow(`SELECT EXISTS(SELECT 1 FROM annotations WHERE uri = $1)`, uri).Scan(&exists)
-	return exists
-}
-
 func HashURL(rawURL string) string {
 	parsed, err := url.Parse(rawURL)
 	if err != nil || parsed.Host == "" {

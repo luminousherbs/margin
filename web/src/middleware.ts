@@ -1,7 +1,7 @@
 import type { APIContext } from "astro";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { getSession } from "./lib/api";
+import { clearSessionCacheForCookie, getSession } from "./lib/api";
 
 const API_PORT = process.env.API_PORT || 8081;
 const API_URL = process.env.API_URL || `http://localhost:${API_PORT}`;
@@ -53,10 +53,15 @@ export async function onRequest(
   );
 
   if (shouldProxy) {
-    return proxyToBackend(request, url);
+    const response = await proxyToBackend(request, url);
+    if (url.pathname === "/auth/logout") {
+      clearSessionCacheForCookie(request.headers.get("cookie") || "");
+    }
+    return response;
   }
 
   const cookie = request.headers.get("cookie") || "";
+
   if (cookie.includes("margin_session")) {
     locals.user = await getSession(cookie);
   } else {
@@ -84,6 +89,8 @@ async function proxyToBackend(request: Request, url: URL): Promise<Response> {
   const headers = new Headers(request.headers);
   const host = headers.get("host");
   headers.delete("host");
+  headers.delete("origin");
+  headers.delete("referer");
   if (host) {
     headers.set("X-Forwarded-Host", host);
     headers.set("X-Forwarded-Proto", url.protocol.replace(":", ""));

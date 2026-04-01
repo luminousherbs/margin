@@ -22,7 +22,7 @@ func NewModerationHandler(database *db.DB, refresher *TokenRefresher) *Moderatio
 func (m *ModerationHandler) BlockUser(w http.ResponseWriter, r *http.Request) {
 	session, err := m.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		WriteUnauthorized(w, "Unauthorized")
 		return
 	}
 
@@ -30,58 +30,56 @@ func (m *ModerationHandler) BlockUser(w http.ResponseWriter, r *http.Request) {
 		DID string `json:"did"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.DID == "" {
-		http.Error(w, "did is required", http.StatusBadRequest)
+		WriteBadRequest(w, "did is required")
 		return
 	}
 
 	if req.DID == session.DID {
-		http.Error(w, "Cannot block yourself", http.StatusBadRequest)
+		WriteBadRequest(w, "Cannot block yourself")
 		return
 	}
 
 	if err := m.db.CreateBlock(session.DID, req.DID); err != nil {
 		logger.Error("Failed to create block: %v", err)
-		http.Error(w, "Failed to block user", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to block user")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	WriteSuccess(w, map[string]string{"status": "ok"})
 }
 
 func (m *ModerationHandler) UnblockUser(w http.ResponseWriter, r *http.Request) {
 	session, err := m.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		WriteUnauthorized(w, "Unauthorized")
 		return
 	}
 
 	did := r.URL.Query().Get("did")
 	if did == "" {
-		http.Error(w, "did query parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "did query parameter required")
 		return
 	}
 
 	if err := m.db.DeleteBlock(session.DID, did); err != nil {
 		logger.Error("Failed to delete block: %v", err)
-		http.Error(w, "Failed to unblock user", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to unblock user")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	WriteSuccess(w, map[string]string{"status": "ok"})
 }
 
 func (m *ModerationHandler) GetBlocks(w http.ResponseWriter, r *http.Request) {
 	session, err := m.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		WriteUnauthorized(w, "Unauthorized")
 		return
 	}
 
 	blocks, err := m.db.GetBlocks(session.DID)
 	if err != nil {
-		http.Error(w, "Failed to fetch blocks", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to fetch blocks")
 		return
 	}
 
@@ -106,14 +104,13 @@ func (m *ModerationHandler) GetBlocks(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"items": items})
+	WriteSuccess(w, map[string]interface{}{"items": items})
 }
 
 func (m *ModerationHandler) MuteUser(w http.ResponseWriter, r *http.Request) {
 	session, err := m.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		WriteUnauthorized(w, "Unauthorized")
 		return
 	}
 
@@ -121,58 +118,56 @@ func (m *ModerationHandler) MuteUser(w http.ResponseWriter, r *http.Request) {
 		DID string `json:"did"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.DID == "" {
-		http.Error(w, "did is required", http.StatusBadRequest)
+		WriteBadRequest(w, "did is required")
 		return
 	}
 
 	if req.DID == session.DID {
-		http.Error(w, "Cannot mute yourself", http.StatusBadRequest)
+		WriteBadRequest(w, "Cannot mute yourself")
 		return
 	}
 
 	if err := m.db.CreateMute(session.DID, req.DID); err != nil {
 		logger.Error("Failed to create mute: %v", err)
-		http.Error(w, "Failed to mute user", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to mute user")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	WriteSuccess(w, map[string]string{"status": "ok"})
 }
 
 func (m *ModerationHandler) UnmuteUser(w http.ResponseWriter, r *http.Request) {
 	session, err := m.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		WriteUnauthorized(w, "Unauthorized")
 		return
 	}
 
 	did := r.URL.Query().Get("did")
 	if did == "" {
-		http.Error(w, "did query parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "did query parameter required")
 		return
 	}
 
 	if err := m.db.DeleteMute(session.DID, did); err != nil {
 		logger.Error("Failed to delete mute: %v", err)
-		http.Error(w, "Failed to unmute user", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to unmute user")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	WriteSuccess(w, map[string]string{"status": "ok"})
 }
 
 func (m *ModerationHandler) GetMutes(w http.ResponseWriter, r *http.Request) {
 	session, err := m.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		WriteUnauthorized(w, "Unauthorized")
 		return
 	}
 
 	mutes, err := m.db.GetMutes(session.DID)
 	if err != nil {
-		http.Error(w, "Failed to fetch mutes", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to fetch mutes")
 		return
 	}
 
@@ -197,8 +192,7 @@ func (m *ModerationHandler) GetMutes(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"items": items})
+	WriteSuccess(w, map[string]interface{}{"items": items})
 }
 
 func (m *ModerationHandler) GetRelationship(w http.ResponseWriter, r *http.Request) {
@@ -206,18 +200,17 @@ func (m *ModerationHandler) GetRelationship(w http.ResponseWriter, r *http.Reque
 	subjectDID := r.URL.Query().Get("did")
 
 	if subjectDID == "" {
-		http.Error(w, "did query parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "did query parameter required")
 		return
 	}
 
 	blocked, muted, blockedBy, err := m.db.GetViewerRelationship(viewerDID, subjectDID)
 	if err != nil {
-		http.Error(w, "Failed to get relationship", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to get relationship")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"blocking":  blocked,
 		"muting":    muted,
 		"blockedBy": blockedBy,
@@ -227,7 +220,7 @@ func (m *ModerationHandler) GetRelationship(w http.ResponseWriter, r *http.Reque
 func (m *ModerationHandler) CreateReport(w http.ResponseWriter, r *http.Request) {
 	session, err := m.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		WriteUnauthorized(w, "Unauthorized")
 		return
 	}
 
@@ -238,12 +231,12 @@ func (m *ModerationHandler) CreateReport(w http.ResponseWriter, r *http.Request)
 		ReasonText *string `json:"reasonText,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
 	if req.SubjectDID == "" || req.ReasonType == "" {
-		http.Error(w, "subjectDid and reasonType are required", http.StatusBadRequest)
+		WriteBadRequest(w, "subjectDid and reasonType are required")
 		return
 	}
 
@@ -257,30 +250,29 @@ func (m *ModerationHandler) CreateReport(w http.ResponseWriter, r *http.Request)
 	}
 
 	if !validReasons[req.ReasonType] {
-		http.Error(w, "Invalid reasonType", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid reasonType")
 		return
 	}
 
 	id, err := m.db.CreateReport(session.DID, req.SubjectDID, req.SubjectURI, req.ReasonType, req.ReasonText)
 	if err != nil {
 		logger.Error("Failed to create report: %v", err)
-		http.Error(w, "Failed to submit report", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to submit report")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"id": id, "status": "ok"})
+	WriteSuccess(w, map[string]interface{}{"id": id, "status": "ok"})
 }
 
 func (m *ModerationHandler) AdminGetReports(w http.ResponseWriter, r *http.Request) {
 	session, err := m.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		WriteUnauthorized(w, "Unauthorized")
 		return
 	}
 
 	if !config.Get().IsAdmin(session.DID) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		WriteForbidden(w, "Forbidden")
 		return
 	}
 
@@ -290,7 +282,7 @@ func (m *ModerationHandler) AdminGetReports(w http.ResponseWriter, r *http.Reque
 
 	reports, err := m.db.GetReports(status, limit, offset)
 	if err != nil {
-		http.Error(w, "Failed to fetch reports", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to fetch reports")
 		return
 	}
 
@@ -340,8 +332,7 @@ func (m *ModerationHandler) AdminGetReports(w http.ResponseWriter, r *http.Reque
 	pendingCount, _ := m.db.GetReportCount("pending")
 	totalCount, _ := m.db.GetReportCount("")
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"items":        items,
 		"totalItems":   totalCount,
 		"pendingCount": pendingCount,
@@ -351,12 +342,12 @@ func (m *ModerationHandler) AdminGetReports(w http.ResponseWriter, r *http.Reque
 func (m *ModerationHandler) AdminTakeAction(w http.ResponseWriter, r *http.Request) {
 	session, err := m.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		WriteUnauthorized(w, "Unauthorized")
 		return
 	}
 
 	if !config.Get().IsAdmin(session.DID) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		WriteForbidden(w, "Forbidden")
 		return
 	}
 
@@ -366,7 +357,7 @@ func (m *ModerationHandler) AdminTakeAction(w http.ResponseWriter, r *http.Reque
 		Comment  *string `json:"comment,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
@@ -378,19 +369,19 @@ func (m *ModerationHandler) AdminTakeAction(w http.ResponseWriter, r *http.Reque
 	}
 
 	if !validActions[req.Action] {
-		http.Error(w, "Invalid action", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid action")
 		return
 	}
 
 	report, err := m.db.GetReport(req.ReportID)
 	if err != nil {
-		http.Error(w, "Report not found", http.StatusNotFound)
+		WriteNotFound(w, "Report not found")
 		return
 	}
 
 	if err := m.db.CreateModerationAction(req.ReportID, session.DID, req.Action, req.Comment); err != nil {
 		logger.Error("Failed to create moderation action: %v", err)
-		http.Error(w, "Failed to take action", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to take action")
 		return
 	}
 
@@ -413,32 +404,31 @@ func (m *ModerationHandler) AdminTakeAction(w http.ResponseWriter, r *http.Reque
 		logger.Error("Failed to resolve report: %v", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	WriteSuccess(w, map[string]string{"status": "ok"})
 }
 
 func (m *ModerationHandler) AdminGetReport(w http.ResponseWriter, r *http.Request) {
 	session, err := m.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		WriteUnauthorized(w, "Unauthorized")
 		return
 	}
 
 	if !config.Get().IsAdmin(session.DID) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		WriteForbidden(w, "Forbidden")
 		return
 	}
 
 	idStr := r.URL.Query().Get("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		http.Error(w, "Invalid report ID", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid report ID")
 		return
 	}
 
 	report, err := m.db.GetReport(id)
 	if err != nil {
-		http.Error(w, "Report not found", http.StatusNotFound)
+		WriteNotFound(w, "Report not found")
 		return
 	}
 
@@ -446,8 +436,7 @@ func (m *ModerationHandler) AdminGetReport(w http.ResponseWriter, r *http.Reques
 
 	profiles := fetchProfilesForDIDs(m.db, []string{report.ReporterDID, report.SubjectDID})
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"report":   report,
 		"reporter": profiles[report.ReporterDID],
 		"subject":  profiles[report.SubjectDID],
@@ -463,8 +452,7 @@ func (m *ModerationHandler) AdminCheckAccess(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"isAdmin": config.Get().IsAdmin(session.DID)})
+	WriteSuccess(w, map[string]bool{"isAdmin": config.Get().IsAdmin(session.DID)})
 }
 
 func (m *ModerationHandler) deleteContent(uri string) {
@@ -477,12 +465,12 @@ func (m *ModerationHandler) deleteContent(uri string) {
 func (m *ModerationHandler) AdminCreateLabel(w http.ResponseWriter, r *http.Request) {
 	session, err := m.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		WriteUnauthorized(w, "Unauthorized")
 		return
 	}
 
 	if !config.Get().IsAdmin(session.DID) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		WriteForbidden(w, "Forbidden")
 		return
 	}
 
@@ -492,18 +480,18 @@ func (m *ModerationHandler) AdminCreateLabel(w http.ResponseWriter, r *http.Requ
 		Val string `json:"val"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
 	if req.Val == "" {
-		http.Error(w, "val is required", http.StatusBadRequest)
+		WriteBadRequest(w, "val is required")
 		return
 	}
 
 	labelerDID := config.Get().ServiceDID
 	if labelerDID == "" {
-		http.Error(w, "SERVICE_DID not configured — cannot issue labels", http.StatusInternalServerError)
+		WriteInternalError(w, "SERVICE_DID not configured — cannot issue labels")
 		return
 	}
 
@@ -512,7 +500,7 @@ func (m *ModerationHandler) AdminCreateLabel(w http.ResponseWriter, r *http.Requ
 		targetURI = req.Src
 	}
 	if targetURI == "" {
-		http.Error(w, "src or uri is required", http.StatusBadRequest)
+		WriteBadRequest(w, "src or uri is required")
 		return
 	}
 
@@ -526,57 +514,55 @@ func (m *ModerationHandler) AdminCreateLabel(w http.ResponseWriter, r *http.Requ
 	}
 
 	if !validLabels[req.Val] {
-		http.Error(w, "Invalid label value. Must be one of: sexual, nudity, violence, gore, spam, misleading", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid label value. Must be one of: sexual, nudity, violence, gore, spam, misleading")
 		return
 	}
 
 	if err := m.db.CreateContentLabel(labelerDID, targetURI, req.Val, session.DID); err != nil {
 		logger.Error("Failed to create content label: %v", err)
-		http.Error(w, "Failed to create label", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to create label")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	WriteSuccess(w, map[string]string{"status": "ok"})
 }
 
 func (m *ModerationHandler) AdminDeleteLabel(w http.ResponseWriter, r *http.Request) {
 	session, err := m.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		WriteUnauthorized(w, "Unauthorized")
 		return
 	}
 
 	if !config.Get().IsAdmin(session.DID) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		WriteForbidden(w, "Forbidden")
 		return
 	}
 
 	idStr := r.URL.Query().Get("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		http.Error(w, "Invalid label ID", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid label ID")
 		return
 	}
 
 	if err := m.db.DeleteContentLabel(id); err != nil {
-		http.Error(w, "Failed to delete label", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to delete label")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	WriteSuccess(w, map[string]string{"status": "ok"})
 }
 
 func (m *ModerationHandler) AdminGetLabels(w http.ResponseWriter, r *http.Request) {
 	session, err := m.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		WriteUnauthorized(w, "Unauthorized")
 		return
 	}
 
 	if !config.Get().IsAdmin(session.DID) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		WriteForbidden(w, "Forbidden")
 		return
 	}
 
@@ -585,7 +571,7 @@ func (m *ModerationHandler) AdminGetLabels(w http.ResponseWriter, r *http.Reques
 
 	labels, err := m.db.GetAllContentLabels(limit, offset)
 	if err != nil {
-		http.Error(w, "Failed to fetch labels", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to fetch labels")
 		return
 	}
 
@@ -628,8 +614,7 @@ func (m *ModerationHandler) AdminGetLabels(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"items": items})
+	WriteSuccess(w, map[string]interface{}{"items": items})
 }
 
 func (m *ModerationHandler) getViewerDID(r *http.Request) string {
@@ -663,8 +648,7 @@ func (m *ModerationHandler) GetLabelerInfo(w http.ResponseWriter, r *http.Reques
 		{Identifier: "misleading", Severity: "inform", Blurs: "content", Description: "Misleading information"},
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"did":    serviceDID,
 		"name":   "Margin Moderation",
 		"labels": labels,

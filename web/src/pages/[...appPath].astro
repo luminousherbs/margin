@@ -1,0 +1,13 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import AppShell from '../views/AppShell';
+
+const user = Astro.locals.user ?? null;
+---
+
+<BaseLayout>
+  <script is:inline define:vars={{ initialUser: user }}>
+    window.__MARGIN_USER__ = initialUser;
+  </script>
+  <AppShell client:only="react" />
+</BaseLayout>

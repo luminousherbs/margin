@@ -27,13 +27,13 @@ type UpdateProfileRequest struct {
 func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	session, err := h.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	var req UpdateProfileRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
@@ -48,7 +48,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := record.Validate(); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		WriteBadRequest(w, err.Error())
 		return
 	}
 
@@ -104,7 +104,7 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if did == "" {
-		http.Error(w, "DID required", http.StatusBadRequest)
+		WriteBadRequest(w, "DID required")
 		return
 	}
 
@@ -123,7 +123,7 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 
 	profile, err := h.db.GetProfile(did)
 	if err != nil {
-		http.Error(w, "Failed to fetch profile", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to fetch profile")
 		return
 	}
 
@@ -222,14 +222,14 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	w.Header().Set("Cache-Control", "private, max-age=60")
+	WriteSuccess(w, resp)
 }
 
 func (h *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	session, err := h.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
@@ -237,20 +237,20 @@ func (h *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 
 	file, header, err := r.FormFile("avatar")
 	if err != nil {
-		http.Error(w, "Failed to read avatar file: "+err.Error(), http.StatusBadRequest)
+		WriteBadRequest(w, "Failed to read avatar file: "+err.Error())
 		return
 	}
 	defer file.Close()
 
 	contentType := header.Header.Get("Content-Type")
 	if contentType != "image/jpeg" && contentType != "image/png" {
-		http.Error(w, "Invalid image type. Must be JPEG or PNG.", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid image type. Must be JPEG or PNG.")
 		return
 	}
 
 	data, err := io.ReadAll(file)
 	if err != nil {
-		http.Error(w, "Failed to read file", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to read file")
 		return
 	}
 
@@ -262,12 +262,11 @@ func (h *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		http.Error(w, "Failed to upload avatar: "+err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to upload avatar")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"blob": blobRef,
 	})
 }

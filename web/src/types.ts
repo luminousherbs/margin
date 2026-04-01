@@ -137,14 +137,6 @@ export interface CollectionItem {
   annotation?: AnnotationItem;
 }
 
-export interface EditHistoryItem {
-  uri: string;
-  cid: string;
-  author: UserProfile;
-  text: string;
-  createdAt: string;
-}
-
 export interface ModerationRelationship {
   blocking: boolean;
   muting: boolean;

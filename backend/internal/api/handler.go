@@ -105,21 +105,37 @@ func NewHandler(database *db.DB, annotationService *AnnotationService, refresher
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Get("/health", h.Health)
 
+	collectionService := NewCollectionService(h.db, h.refresher)
+
 	r.Route("/api", func(r chi.Router) {
+		// Annotations
 		r.Get("/annotations", h.GetAnnotations)
 		r.Get("/annotations/feed", h.GetFeed)
 		r.Get("/annotation", h.GetAnnotation)
 		r.Get("/annotations/history", h.GetEditHistory)
+		r.Post("/annotations", h.annotationService.CreateAnnotation)
 		r.Put("/annotations", h.annotationService.UpdateAnnotation)
+		r.Delete("/annotations", h.annotationService.DeleteAnnotation)
+		r.Post("/annotations/like", h.annotationService.LikeAnnotation)
+		r.Delete("/annotations/like", h.annotationService.UnlikeAnnotation)
+		r.Post("/annotations/reply", h.annotationService.CreateReply)
+		r.Delete("/annotations/reply", h.annotationService.DeleteReply)
+		r.Get("/replies", h.GetReplies)
+		r.Get("/likes", h.GetLikeCount)
 
+		// Highlights
 		r.Get("/highlights", h.GetHighlights)
+		r.Post("/highlights", h.annotationService.CreateHighlight)
 		r.Put("/highlights", h.annotationService.UpdateHighlight)
+		r.Delete("/highlights", h.annotationService.DeleteHighlight)
 
+		// Bookmarks
 		r.Get("/bookmarks", h.GetBookmarks)
 		r.Post("/bookmarks", h.annotationService.CreateBookmark)
 		r.Put("/bookmarks", h.annotationService.UpdateBookmark)
+		r.Delete("/bookmarks", h.annotationService.DeleteBookmark)
 
-		collectionService := NewCollectionService(h.db, h.refresher)
+		// Collections
 		r.Post("/collections", collectionService.CreateCollection)
 		r.Get("/collections", collectionService.GetCollections)
 		r.Put("/collections", collectionService.UpdateCollection)
@@ -129,41 +145,50 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Delete("/collections/items", collectionService.RemoveCollectionItem)
 		r.Get("/collections/containing", collectionService.GetAnnotationCollections)
 		r.Get("/collection", collectionService.GetCollection)
-		r.Post("/sync", h.SyncAll)
 
+		// Targets & discovery
 		r.Get("/targets", h.GetByTarget)
 		r.Get("/discover", h.DiscoverForURL)
+		r.Get("/url-metadata", h.GetURLMetadata)
 
+		// User content
 		r.Get("/users/{did}/annotations", h.GetUserAnnotations)
 		r.Get("/users/{did}/highlights", h.GetUserHighlights)
 		r.Get("/users/{did}/bookmarks", h.GetUserBookmarks)
 		r.Get("/users/{did}/targets", h.GetUserTargetItems)
 		r.Get("/users/{did}/tags", h.HandleGetUserTags)
 
-		r.Get("/trending-tags", h.HandleGetTrendingTags)
+		// Profile
+		r.Get("/profile/{did}", h.GetProfile)
+		r.Put("/profile", h.UpdateProfile)
+		r.Post("/profile/avatar", h.UploadAvatar)
+		r.Get("/avatar/{did}", h.HandleAvatarProxy)
+
+		// Tags & search
+		r.Get("/tags/trending", h.HandleGetTrendingTags)
+		r.Get("/trending-tags", h.HandleGetTrendingTags) // legacy alias
 		r.Get("/search", h.Search)
 		r.Get("/recommendations", h.GetRecommendations)
 		r.Get("/documents", h.GetDocuments)
-		r.Post("/admin/backfill", h.AdminBackfill)
 
-		r.Get("/replies", h.GetReplies)
-		r.Get("/likes", h.GetLikeCount)
-		r.Get("/url-metadata", h.GetURLMetadata)
+		// Notifications
 		r.Get("/notifications", h.GetNotifications)
 		r.Get("/notifications/count", h.GetUnreadNotificationCount)
 		r.Post("/notifications/read", h.MarkNotificationsRead)
-		r.Get("/avatar/{did}", h.HandleAvatarProxy)
 
+		// Preferences & sync
+		r.Get("/preferences", h.GetPreferences)
+		r.Put("/preferences", h.UpdatePreferences)
+		r.Post("/sync", h.SyncAll)
+
+		// API keys
 		r.Post("/keys", h.apiKeys.CreateKey)
 		r.Get("/keys", h.apiKeys.ListKeys)
 		r.Delete("/keys/{id}", h.apiKeys.DeleteKey)
-
 		r.Post("/quick/bookmark", h.apiKeys.QuickBookmark)
 		r.Post("/quick/save", h.apiKeys.QuickSave)
 
-		r.Get("/preferences", h.GetPreferences)
-		r.Put("/preferences", h.UpdatePreferences)
-
+		// Moderation
 		r.Post("/moderation/block", h.moderation.BlockUser)
 		r.Delete("/moderation/block", h.moderation.UnblockUser)
 		r.Get("/moderation/blocks", h.moderation.GetBlocks)
@@ -180,12 +205,15 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Delete("/moderation/admin/label", h.moderation.AdminDeleteLabel)
 		r.Get("/moderation/admin/labels", h.moderation.AdminGetLabels)
 		r.Get("/moderation/labeler", h.moderation.GetLabelerInfo)
+
+		// Admin
+		r.Post("/admin/backfill", h.AdminBackfill)
 	})
 }
 
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "version": "1.0"})
+	w.Header().Set("Cache-Control", "no-cache")
+	WriteSuccess(w, map[string]string{"status": "ok", "version": "1.0"})
 }
 
 func (h *Handler) GetAnnotations(w http.ResponseWriter, r *http.Request) {
@@ -214,14 +242,13 @@ func (h *Handler) GetAnnotations(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Internal server error")
 		return
 	}
 
 	enriched, _ := hydrateAnnotations(h.db, annotations, h.getViewerDID(r))
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"@context":   "http://www.w3.org/ns/anno.jsonld",
 		"type":       "AnnotationCollection",
 		"items":      enriched,
@@ -587,8 +614,7 @@ func (h *Handler) GetFeed(w http.ResponseWriter, r *http.Request) {
 		feed = feed[:limit]
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"@context":   "http://www.w3.org/ns/anno.jsonld",
 		"type":       "Collection",
 		"items":      feed,
@@ -660,7 +686,7 @@ func getPopularity(item interface{}) int {
 func (h *Handler) GetAnnotation(w http.ResponseWriter, r *http.Request) {
 	uri := r.URL.Query().Get("uri")
 	if uri == "" {
-		http.Error(w, "uri query parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "uri query parameter required")
 		return
 	}
 
@@ -828,7 +854,7 @@ func (h *Handler) GetAnnotation(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	http.Error(w, "Annotation, Highlight, or Bookmark not found", http.StatusNotFound)
+	WriteNotFound(w, "Annotation, Highlight, or Bookmark not found")
 
 }
 
@@ -838,7 +864,7 @@ func (h *Handler) GetByTarget(w http.ResponseWriter, r *http.Request) {
 		source = r.URL.Query().Get("url")
 	}
 	if source == "" {
-		http.Error(w, "source or url parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "source or url parameter required")
 		return
 	}
 
@@ -874,8 +900,7 @@ func (h *Handler) GetByTarget(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "private, max-age=0, no-store")
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"@context":    "http://www.w3.org/ns/anno.jsonld",
 		"source":      source,
 		"sourceHash":  urlHash,
@@ -891,7 +916,7 @@ func (h *Handler) DiscoverForURL(w http.ResponseWriter, r *http.Request) {
 		source = r.URL.Query().Get("url")
 	}
 	if source == "" {
-		http.Error(w, "source or url parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "source or url parameter required")
 		return
 	}
 
@@ -978,8 +1003,7 @@ func (h *Handler) DiscoverForURL(w http.ResponseWriter, r *http.Request) {
 	enrichedHighlights, _ := hydrateHighlights(h.db, mergedHighlights, viewerDID)
 	enrichedBookmarks, _ := hydrateBookmarks(h.db, mergedBookmarks, viewerDID)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"@context":          "http://www.w3.org/ns/anno.jsonld",
 		"source":            source,
 		"sourceHash":        urlHash,
@@ -1008,14 +1032,13 @@ func (h *Handler) GetHighlights(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Internal server error")
 		return
 	}
 
 	enriched, _ := hydrateHighlights(h.db, highlights, h.getViewerDID(r))
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"@context":   "http://www.w3.org/ns/anno.jsonld",
 		"type":       "HighlightCollection",
 		"items":      enriched,
@@ -1029,20 +1052,19 @@ func (h *Handler) GetBookmarks(w http.ResponseWriter, r *http.Request) {
 	offset := parseIntParam(r, "offset", 0)
 
 	if did == "" {
-		http.Error(w, "creator parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "creator parameter required")
 		return
 	}
 
 	bookmarks, err := h.db.GetBookmarksByAuthor(did, limit, offset)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Internal server error")
 		return
 	}
 
 	enriched, _ := hydrateBookmarks(h.db, bookmarks, h.getViewerDID(r))
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"@context":   "http://www.w3.org/ns/anno.jsonld",
 		"type":       "BookmarkCollection",
 		"items":      enriched,
@@ -1074,14 +1096,13 @@ func (h *Handler) GetUserAnnotations(w http.ResponseWriter, r *http.Request) {
 	annotations, err = h.db.GetAnnotationsByAuthor(did, limit, offset)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Internal server error")
 		return
 	}
 
 	enriched, _ := hydrateAnnotations(h.db, annotations, h.getViewerDID(r))
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"@context":   "http://www.w3.org/ns/anno.jsonld",
 		"type":       "AnnotationCollection",
 		"creator":    did,
@@ -1114,14 +1135,13 @@ func (h *Handler) GetUserHighlights(w http.ResponseWriter, r *http.Request) {
 	highlights, err = h.db.GetHighlightsByAuthor(did, limit, offset)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Internal server error")
 		return
 	}
 
 	enriched, _ := hydrateHighlights(h.db, highlights, h.getViewerDID(r))
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"@context":   "http://www.w3.org/ns/anno.jsonld",
 		"type":       "HighlightCollection",
 		"creator":    did,
@@ -1154,14 +1174,13 @@ func (h *Handler) GetUserBookmarks(w http.ResponseWriter, r *http.Request) {
 	bookmarks, err = h.db.GetBookmarksByAuthor(did, limit, offset)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Internal server error")
 		return
 	}
 
 	enriched, _ := hydrateBookmarks(h.db, bookmarks, h.getViewerDID(r))
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"@context":   "http://www.w3.org/ns/anno.jsonld",
 		"type":       "BookmarkCollection",
 		"creator":    did,
@@ -1181,7 +1200,7 @@ func (h *Handler) GetUserTargetItems(w http.ResponseWriter, r *http.Request) {
 		source = r.URL.Query().Get("url")
 	}
 	if source == "" {
-		http.Error(w, "source or url parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "source or url parameter required")
 		return
 	}
 
@@ -1196,8 +1215,7 @@ func (h *Handler) GetUserTargetItems(w http.ResponseWriter, r *http.Request) {
 	enrichedAnnotations, _ := hydrateAnnotations(h.db, annotations, h.getViewerDID(r))
 	enrichedHighlights, _ := hydrateHighlights(h.db, highlights, h.getViewerDID(r))
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"@context":    "http://www.w3.org/ns/anno.jsonld",
 		"creator":     did,
 		"source":      source,
@@ -1210,20 +1228,19 @@ func (h *Handler) GetUserTargetItems(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetReplies(w http.ResponseWriter, r *http.Request) {
 	uri := r.URL.Query().Get("uri")
 	if uri == "" {
-		http.Error(w, "uri query parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "uri query parameter required")
 		return
 	}
 
 	replies, err := h.db.GetRepliesByRoot(uri)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Internal server error")
 		return
 	}
 
 	enriched, _ := hydrateReplies(h.db, replies)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"@context":   "http://www.w3.org/ns/anno.jsonld",
 		"type":       "ReplyCollection",
 		"inReplyTo":  uri,
@@ -1235,13 +1252,13 @@ func (h *Handler) GetReplies(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetLikeCount(w http.ResponseWriter, r *http.Request) {
 	uri := r.URL.Query().Get("uri")
 	if uri == "" {
-		http.Error(w, "uri query parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "uri query parameter required")
 		return
 	}
 
 	count, err := h.db.GetLikeCount(uri)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Internal server error")
 		return
 	}
 
@@ -1257,8 +1274,7 @@ func (h *Handler) GetLikeCount(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"count": count,
 		"liked": liked,
 	})
@@ -1267,13 +1283,13 @@ func (h *Handler) GetLikeCount(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetEditHistory(w http.ResponseWriter, r *http.Request) {
 	uri := r.URL.Query().Get("uri")
 	if uri == "" {
-		http.Error(w, "uri query parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "uri query parameter required")
 		return
 	}
 
 	history, err := h.db.GetEditHistory(uri)
 	if err != nil {
-		http.Error(w, "Failed to fetch edit history", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to fetch edit history")
 		return
 	}
 
@@ -1281,8 +1297,8 @@ func (h *Handler) GetEditHistory(w http.ResponseWriter, r *http.Request) {
 		history = []db.EditHistory{}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(history)
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	WriteSuccess(w, history)
 }
 
 func parseIntParam(r *http.Request, name string, defaultVal int) int {
@@ -1300,7 +1316,7 @@ func parseIntParam(r *http.Request, name string, defaultVal int) int {
 func (h *Handler) GetURLMetadata(w http.ResponseWriter, r *http.Request) {
 	targetURL := r.URL.Query().Get("url")
 	if targetURL == "" {
-		http.Error(w, "url parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "url parameter required")
 		return
 	}
 
@@ -1353,9 +1369,8 @@ func (h *Handler) GetURLMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 	h.metaCache.set(targetURL, data, ttl)
 
-	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
-	json.NewEncoder(w).Encode(data)
+	WriteSuccess(w, data)
 }
 
 func (h *Handler) fetchURLMetadata(ctx context.Context, targetURL string) map[string]string {
@@ -1501,7 +1516,7 @@ func (h *Handler) fetchURLMetadata(ctx context.Context, targetURL string) map[st
 func (h *Handler) GetNotifications(w http.ResponseWriter, r *http.Request) {
 	session, err := h.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, "Authentication required")
 		return
 	}
 
@@ -1510,7 +1525,7 @@ func (h *Handler) GetNotifications(w http.ResponseWriter, r *http.Request) {
 
 	notifications, err := h.db.GetNotifications(session.DID, limit, offset)
 	if err != nil {
-		http.Error(w, "Failed to get notifications", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to get notifications")
 		return
 	}
 
@@ -1530,34 +1545,32 @@ func (h *Handler) GetNotifications(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetUnreadNotificationCount(w http.ResponseWriter, r *http.Request) {
 	session, err := h.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, "Authentication required")
 		return
 	}
 
 	count, err := h.db.GetUnreadNotificationCount(session.DID)
 	if err != nil {
-		http.Error(w, "Failed to get count", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to get count")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]int{"count": count})
+	WriteSuccess(w, map[string]int{"count": count})
 }
 
 func (h *Handler) MarkNotificationsRead(w http.ResponseWriter, r *http.Request) {
 	session, err := h.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, "Authentication required")
 		return
 	}
 
 	if err := h.db.MarkNotificationsRead(session.DID); err != nil {
-		http.Error(w, "Failed to mark as read", http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to mark as read")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	WriteSuccess(w, map[string]string{"status": "ok"})
 }
 func (h *Handler) getViewerDID(r *http.Request) string {
 	cookie, err := r.Cookie("margin_session")
@@ -1664,7 +1677,7 @@ func mergeBookmarks(a, b []db.Bookmark) []db.Bookmark {
 func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	if query == "" {
-		http.Error(w, "q parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "q parameter required")
 		return
 	}
 
@@ -1694,8 +1707,7 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 
 	sortFeed(feed)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"items":        feed,
 		"fetchedCount": len(feed),
 	})
@@ -1704,12 +1716,12 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetRecommendations(w http.ResponseWriter, r *http.Request) {
 	viewerDID := h.getViewerDID(r)
 	if viewerDID == "" {
-		http.Error(w, "authentication required", http.StatusUnauthorized)
+		WriteUnauthorized(w, "authentication required")
 		return
 	}
 
 	if !h.recommendations.IsEnabled() {
-		http.Error(w, "recommendations not available", http.StatusServiceUnavailable)
+		WriteJSONError(w, http.StatusServiceUnavailable, "recommendations not available")
 		return
 	}
 
@@ -1721,7 +1733,7 @@ func (h *Handler) GetRecommendations(w http.ResponseWriter, r *http.Request) {
 	items, err := h.recommendations.GetRecommendations(viewerDID, limit)
 	if err != nil {
 		logger.Error("Recommendations error for %s: %v", viewerDID, err)
-		http.Error(w, "failed to get recommendations", http.StatusInternalServerError)
+		WriteInternalError(w, "failed to get recommendations")
 		return
 	}
 
@@ -1729,8 +1741,7 @@ func (h *Handler) GetRecommendations(w http.ResponseWriter, r *http.Request) {
 		items = []recommendations.RecommendedItem{}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"items":      items,
 		"totalItems": len(items),
 	})
@@ -1756,7 +1767,7 @@ func (h *Handler) GetDocuments(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		logger.Error("GetDocuments error: %v", err)
-		http.Error(w, "failed to get documents", http.StatusInternalServerError)
+		WriteInternalError(w, "failed to get documents")
 		return
 	}
 
@@ -1797,8 +1808,7 @@ func (h *Handler) GetDocuments(w http.ResponseWriter, r *http.Request) {
 
 	total, _ := h.db.GetDocumentCount()
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"items":      items,
 		"totalItems": total,
 	})
@@ -1807,15 +1817,15 @@ func (h *Handler) GetDocuments(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) AdminBackfill(w http.ResponseWriter, r *http.Request) {
 	session, err := h.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil || session == nil {
-		http.Error(w, "authentication required", http.StatusUnauthorized)
+		WriteUnauthorized(w, "authentication required")
 		return
 	}
 	if !config.Get().IsAdmin(session.DID) {
-		http.Error(w, "admin access required", http.StatusForbidden)
+		WriteForbidden(w, "admin access required")
 		return
 	}
 	if !h.recommendations.IsEnabled() {
-		http.Error(w, "embeddings not enabled (set OPENAI_API_KEY)", http.StatusServiceUnavailable)
+		WriteJSONError(w, http.StatusServiceUnavailable, "embeddings not enabled (set OPENAI_API_KEY)")
 		return
 	}
 
@@ -1857,6 +1867,5 @@ func (h *Handler) AdminBackfill(w http.ResponseWriter, r *http.Request) {
 	docCount, _ := h.db.GetDocumentCount()
 	res.Documents = docCount
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(res)
+	WriteSuccess(w, res)
 }

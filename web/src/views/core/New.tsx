@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useStore } from "@nanostores/react";
 import { $user } from "../../store/auth";
 import Composer from "../../components/feed/Composer";
@@ -16,6 +17,7 @@ export default function NewAnnotationPage({
   initialQuote,
 }: NewAnnotationProps) {
   const user = useStore($user);
+  const navigate = useNavigate();
 
   const initialUrl = propUrl || "";
 
@@ -59,7 +61,7 @@ export default function NewAnnotationPage({
   }
 
   const handleSuccess = () => {
-    window.location.href = "/home";
+    navigate("/home");
   };
 
   return (

@@ -17,37 +17,23 @@ import {
 import React, { useEffect, useState } from "react";
 import { getUnreadNotificationCount } from "../../api/client";
 import { $user, logout } from "../../store/auth";
-import type { UserProfile } from "../../types";
 import { AppleIcon } from "../common/Icons";
 
 interface MobileNavProps {
-  initialUser?: UserProfile | null;
   currentPath?: string;
+  onNavigate?: (path: string) => void;
 }
 
 export default function MobileNav({
-  initialUser,
   currentPath: initialPath,
+  onNavigate,
 }: MobileNavProps) {
-  const storeUser = useStore($user);
-  const user = storeUser || initialUser || null;
+  const user = useStore($user);
   const [currentPath, setCurrentPath] = useState(initialPath || "/");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const isAuthenticated = !!user;
-
-  useEffect(() => {
-    if (initialUser && !storeUser) {
-      $user.set(initialUser);
-    }
-  }, [initialUser, storeUser]);
-
-  useEffect(() => {
-    const handler = () => setCurrentPath(window.location.pathname);
-    document.addEventListener("astro:page-load", handler);
-    return () => document.removeEventListener("astro:page-load", handler);
-  }, []);
 
   const isActive = (path: string) => {
     if (path === "/") return currentPath === "/";
@@ -81,7 +67,13 @@ export default function MobileNav({
                 <a
                   href={`/profile/${user.did}`}
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
-                  onClick={closeMenu}
+                  onClick={(e) => {
+                    if (onNavigate) {
+                      e.preventDefault();
+                      onNavigate(`/profile/${user.did}`);
+                    }
+                    closeMenu();
+                  }}
                 >
                   {user.avatar ? (
                     <img
@@ -106,50 +98,37 @@ export default function MobileNav({
 
                 <div className="h-px bg-surface-200 dark:bg-surface-700 my-2" />
 
-                <a
-                  href="/annotations"
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
-                  onClick={closeMenu}
-                >
-                  <MessageSquareText size={20} />
-                  <span>Annotations</span>
-                </a>
-
-                <a
-                  href="/highlights"
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
-                  onClick={closeMenu}
-                >
-                  <Highlighter size={20} />
-                  <span>Highlights</span>
-                </a>
-
-                <a
-                  href="/bookmarks"
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
-                  onClick={closeMenu}
-                >
-                  <Bookmark size={20} />
-                  <span>Bookmarks</span>
-                </a>
-
-                <a
-                  href="/collections"
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
-                  onClick={closeMenu}
-                >
-                  <Folder size={20} />
-                  <span>Collections</span>
-                </a>
-
-                <a
-                  href="/settings"
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
-                  onClick={closeMenu}
-                >
-                  <Settings size={20} />
-                  <span>Settings</span>
-                </a>
+                {[
+                  {
+                    href: "/annotations",
+                    icon: MessageSquareText,
+                    label: "Annotations",
+                  },
+                  {
+                    href: "/highlights",
+                    icon: Highlighter,
+                    label: "Highlights",
+                  },
+                  { href: "/bookmarks", icon: Bookmark, label: "Bookmarks" },
+                  { href: "/collections", icon: Folder, label: "Collections" },
+                  { href: "/settings", icon: Settings, label: "Settings" },
+                ].map(({ href, icon: Icon, label }) => (
+                  <a
+                    key={href}
+                    href={href}
+                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
+                    onClick={(e) => {
+                      if (onNavigate) {
+                        e.preventDefault();
+                        onNavigate(href);
+                      }
+                      closeMenu();
+                    }}
+                  >
+                    <Icon size={20} />
+                    <span>{label}</span>
+                  </a>
+                ))}
 
                 <div className="h-px bg-surface-200 dark:bg-surface-700 my-2" />
 
@@ -187,22 +166,26 @@ export default function MobileNav({
                   <User size={20} />
                   <span>Sign In</span>
                 </a>
-                <a
-                  href="/collections"
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
-                  onClick={closeMenu}
-                >
-                  <Folder size={20} />
-                  <span>Collections</span>
-                </a>
-                <a
-                  href="/settings"
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
-                  onClick={closeMenu}
-                >
-                  <Settings size={20} />
-                  <span>Settings</span>
-                </a>
+                {[
+                  { href: "/collections", icon: Folder, label: "Collections" },
+                  { href: "/settings", icon: Settings, label: "Settings" },
+                ].map(({ href, icon: Icon, label }) => (
+                  <a
+                    key={href}
+                    href={href}
+                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-surface-700 dark:text-surface-200"
+                    onClick={(e) => {
+                      if (onNavigate) {
+                        e.preventDefault();
+                        onNavigate(href);
+                      }
+                      closeMenu();
+                    }}
+                  >
+                    <Icon size={20} />
+                    <span>{label}</span>
+                  </a>
+                ))}
 
                 <div className="h-px bg-surface-200 dark:bg-surface-700 my-2" />
 
@@ -225,13 +208,16 @@ export default function MobileNav({
       <nav className="fixed bottom-0 left-0 right-0 h-14 bg-white/90 dark:bg-surface-900/90 backdrop-blur-md border-t border-surface-200 dark:border-surface-700 flex items-center justify-around px-2 z-50 md:hidden safe-area-bottom">
         <a
           href="/home"
-          data-astro-prefetch="viewport"
           className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-colors ${
             isActive("/home")
               ? "text-primary-600"
               : "text-surface-500 hover:text-surface-700"
           }`}
-          onClick={() => {
+          onClick={(e) => {
+            if (onNavigate) {
+              e.preventDefault();
+              onNavigate("/home");
+            }
             setCurrentPath("/home");
             closeMenu();
           }}
@@ -241,13 +227,16 @@ export default function MobileNav({
 
         <a
           href="/search"
-          data-astro-prefetch="viewport"
           className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-colors ${
             isActive("/search")
               ? "text-primary-600"
               : "text-surface-500 hover:text-surface-700"
           }`}
-          onClick={() => {
+          onClick={(e) => {
+            if (onNavigate) {
+              e.preventDefault();
+              onNavigate("/search");
+            }
             setCurrentPath("/search");
             closeMenu();
           }}
@@ -259,9 +248,12 @@ export default function MobileNav({
           <>
             <a
               href="/new"
-              data-astro-prefetch="viewport"
               className="flex items-center justify-center w-12 h-12 rounded-full bg-primary-600 text-white shadow-lg hover:bg-primary-500 transition-colors -mt-4"
-              onClick={() => {
+              onClick={(e) => {
+                if (onNavigate) {
+                  e.preventDefault();
+                  onNavigate("/new");
+                }
                 setCurrentPath("/new");
                 closeMenu();
               }}
@@ -271,13 +263,16 @@ export default function MobileNav({
 
             <a
               href="/notifications"
-              data-astro-prefetch="viewport"
               className={`relative flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-colors ${
                 isActive("/notifications")
                   ? "text-primary-600"
                   : "text-surface-500 hover:text-surface-700"
               }`}
-              onClick={() => {
+              onClick={(e) => {
+                if (onNavigate) {
+                  e.preventDefault();
+                  onNavigate("/notifications");
+                }
                 setCurrentPath("/notifications");
                 closeMenu();
               }}

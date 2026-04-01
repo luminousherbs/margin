@@ -39,25 +39,25 @@ type AddCollectionItemRequest struct {
 func (s *CollectionService) CreateCollection(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	var req CreateCollectionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
 	if req.Name == "" {
-		http.Error(w, "Name is required", http.StatusBadRequest)
+		WriteBadRequest(w, "Name is required")
 		return
 	}
 
 	record := xrpc.NewCollectionRecord(req.Name, req.Description, req.Icon)
 
 	if err := record.Validate(); err != nil {
-		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
+		WriteBadRequest(w, "Validation error: "+err.Error())
 		return
 	}
 
@@ -68,7 +68,7 @@ func (s *CollectionService) CreateCollection(w http.ResponseWriter, r *http.Requ
 		return createErr
 	})
 	if err != nil {
-		http.Error(w, "Failed to create collection: "+err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to create collection")
 		return
 	}
 
@@ -91,14 +91,13 @@ func (s *CollectionService) CreateCollection(w http.ResponseWriter, r *http.Requ
 	}
 	s.db.CreateCollection(collection)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	WriteSuccess(w, result)
 }
 
 func (s *CollectionService) AddCollectionItem(w http.ResponseWriter, r *http.Request) {
 	collectionURIRaw := chi.URLParam(r, "collection")
 	if collectionURIRaw == "" {
-		http.Error(w, "Collection URI required", http.StatusBadRequest)
+		WriteBadRequest(w, "Collection URI required")
 		return
 	}
 
@@ -106,25 +105,25 @@ func (s *CollectionService) AddCollectionItem(w http.ResponseWriter, r *http.Req
 
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	var req AddCollectionItemRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
 	if req.AnnotationURI == "" {
-		http.Error(w, "Annotation URI required", http.StatusBadRequest)
+		WriteBadRequest(w, "Annotation URI required")
 		return
 	}
 
 	record := xrpc.NewCollectionItemRecord(collectionURI, req.AnnotationURI, req.Position)
 
 	if err := record.Validate(); err != nil {
-		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
+		WriteBadRequest(w, "Validation error: "+err.Error())
 		return
 	}
 
@@ -135,7 +134,7 @@ func (s *CollectionService) AddCollectionItem(w http.ResponseWriter, r *http.Req
 		return createErr
 	})
 	if err != nil {
-		http.Error(w, "Failed to add item: "+err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to add item")
 		return
 	}
 
@@ -153,20 +152,19 @@ func (s *CollectionService) AddCollectionItem(w http.ResponseWriter, r *http.Req
 		logger.Error("Failed to add to collection in DB: %v", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	WriteSuccess(w, result)
 }
 
 func (s *CollectionService) RemoveCollectionItem(w http.ResponseWriter, r *http.Request) {
 	itemURI := r.URL.Query().Get("uri")
 	if itemURI == "" {
-		http.Error(w, "Item URI required", http.StatusBadRequest)
+		WriteBadRequest(w, "Item URI required")
 		return
 	}
 
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
@@ -187,13 +185,13 @@ func (s *CollectionService) RemoveCollectionItem(w http.ResponseWriter, r *http.
 func (s *CollectionService) GetAnnotationCollections(w http.ResponseWriter, r *http.Request) {
 	annotationURI := r.URL.Query().Get("uri")
 	if annotationURI == "" {
-		http.Error(w, "uri parameter required", http.StatusBadRequest)
+		WriteBadRequest(w, "uri parameter required")
 		return
 	}
 
 	uris, err := s.db.GetCollectionURIsForAnnotation(annotationURI)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Internal server error")
 		return
 	}
 
@@ -201,8 +199,7 @@ func (s *CollectionService) GetAnnotationCollections(w http.ResponseWriter, r *h
 		uris = []string{}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(uris)
+	WriteSuccess(w, uris)
 }
 
 func (s *CollectionService) GetCollections(w http.ResponseWriter, r *http.Request) {
@@ -215,13 +212,13 @@ func (s *CollectionService) GetCollections(w http.ResponseWriter, r *http.Reques
 	}
 
 	if authorDID == "" {
-		http.Error(w, "Author DID required", http.StatusBadRequest)
+		WriteBadRequest(w, "Author DID required")
 		return
 	}
 
 	collections, err := s.db.GetCollectionsByAuthor(authorDID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Internal server error")
 		return
 	}
 
@@ -256,8 +253,7 @@ func (s *CollectionService) GetCollections(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	WriteSuccess(w, map[string]interface{}{
 		"@context":   "http://www.w3.org/ns/anno.jsonld",
 		"type":       "Collection",
 		"items":      apiCollections,
@@ -285,13 +281,13 @@ func (s *CollectionService) GetCollectionItems(w http.ResponseWriter, r *http.Re
 	}
 
 	if collectionURI == "" {
-		http.Error(w, "Collection URI required", http.StatusBadRequest)
+		WriteBadRequest(w, "Collection URI required")
 		return
 	}
 
 	items, err := s.db.GetCollectionItems(collectionURI)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Internal server error")
 		return
 	}
 
@@ -320,8 +316,7 @@ func (s *CollectionService) GetCollectionItems(w http.ResponseWriter, r *http.Re
 		enrichedItems = []APICollectionItem{}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(enrichedItems)
+	WriteSuccess(w, enrichedItems)
 }
 
 type UpdateCollectionRequest struct {
@@ -333,36 +328,36 @@ type UpdateCollectionRequest struct {
 func (s *CollectionService) UpdateCollection(w http.ResponseWriter, r *http.Request) {
 	uri := r.URL.Query().Get("uri")
 	if uri == "" {
-		http.Error(w, "URI required", http.StatusBadRequest)
+		WriteBadRequest(w, "URI required")
 		return
 	}
 
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	if len(uri) < len(session.DID)+5 || uri[5:5+len(session.DID)] != session.DID {
-		http.Error(w, "Not authorized to update this collection", http.StatusForbidden)
+		WriteForbidden(w, "Not authorized to update this collection")
 		return
 	}
 
 	var req UpdateCollectionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
 	if req.Name == "" {
-		http.Error(w, "Name is required", http.StatusBadRequest)
+		WriteBadRequest(w, "Name is required")
 		return
 	}
 
 	record := xrpc.NewCollectionRecord(req.Name, req.Description, req.Icon)
 
 	if err := record.Validate(); err != nil {
-		http.Error(w, "Validation error: "+err.Error(), http.StatusBadRequest)
+		WriteBadRequest(w, "Validation error: "+err.Error())
 		return
 	}
 
@@ -382,7 +377,7 @@ func (s *CollectionService) UpdateCollection(w http.ResponseWriter, r *http.Requ
 	})
 
 	if err != nil {
-		http.Error(w, "Failed to update collection: "+err.Error(), http.StatusInternalServerError)
+		WriteInternalError(w, "Failed to update collection")
 		return
 	}
 
@@ -405,25 +400,24 @@ func (s *CollectionService) UpdateCollection(w http.ResponseWriter, r *http.Requ
 	}
 	s.db.CreateCollection(collection)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	WriteSuccess(w, result)
 }
 
 func (s *CollectionService) DeleteCollection(w http.ResponseWriter, r *http.Request) {
 	uri := r.URL.Query().Get("uri")
 	if uri == "" {
-		http.Error(w, "URI required", http.StatusBadRequest)
+		WriteBadRequest(w, "URI required")
 		return
 	}
 
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		WriteUnauthorized(w, err.Error())
 		return
 	}
 
 	if len(uri) < len(session.DID)+5 || uri[5:5+len(session.DID)] != session.DID {
-		http.Error(w, "Not authorized to delete this collection", http.StatusForbidden)
+		WriteForbidden(w, "Not authorized to delete this collection")
 		return
 	}
 
@@ -452,7 +446,7 @@ func (s *CollectionService) DeleteCollection(w http.ResponseWriter, r *http.Requ
 func (s *CollectionService) GetCollection(w http.ResponseWriter, r *http.Request) {
 	uri := r.URL.Query().Get("uri")
 	if uri == "" {
-		http.Error(w, "URI required", http.StatusBadRequest)
+		WriteBadRequest(w, "URI required")
 		return
 	}
 
@@ -472,7 +466,7 @@ func (s *CollectionService) GetCollection(w http.ResponseWriter, r *http.Request
 	}
 
 	if err != nil || collection == nil {
-		http.Error(w, "Collection not found", http.StatusNotFound)
+		WriteNotFound(w, "Collection not found")
 		return
 	}
 
@@ -501,6 +495,5 @@ func (s *CollectionService) GetCollection(w http.ResponseWriter, r *http.Request
 		ItemsCount:  itemCounts[collection.URI],
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(apiCollection)
+	WriteSuccess(w, apiCollection)
 }

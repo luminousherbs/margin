@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   getCollection,
   getCollectionItems,
@@ -34,6 +35,7 @@ export default function CollectionDetail({
   resolvedUri,
 }: CollectionDetailProps) {
   const user = useStore($user);
+  const navigate = useNavigate();
   const [collection, setCollection] = useState<Collection | null>(
     initialCollection || null,
   );
@@ -88,7 +90,7 @@ export default function CollectionDetail({
     if (!collection) return;
     if (window.confirm("Delete this collection?")) {
       await deleteCollection(collection.id);
-      window.location.href = "/collections";
+      navigate("/collections");
     }
   };
 
@@ -137,6 +139,10 @@ export default function CollectionDetail({
     <div className="animate-fade-in max-w-2xl mx-auto">
       <a
         href="/collections"
+        onClick={(e) => {
+          e.preventDefault();
+          navigate(-1);
+        }}
         className="inline-flex items-center gap-1.5 text-sm font-medium text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white mb-4 transition-colors"
       >
         <ArrowLeft size={16} />

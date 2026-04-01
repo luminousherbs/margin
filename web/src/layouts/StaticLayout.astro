@@ -1,5 +1,4 @@
 ---
-import { ClientRouter } from 'astro:transitions';
 import '../styles/global.css';
 
 interface Props {
@@ -26,7 +25,7 @@ const { title = 'Margin', description = 'Annotate the web', image = 'https://mar
 		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
 		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f172a" />
 		<meta property="og:type" content="website" />
-		<meta property="og:url" content={Astro.url} />
+		<meta property="og:url" content="https://margin.at" />
 		<meta property="og:title" content={title} />
 		<meta property="og:description" content={description} />
 		<meta property="og:image" content={image} />
@@ -37,8 +36,6 @@ const { title = 'Margin', description = 'Annotate the web', image = 'https://mar
 		<meta name="twitter:image" content={image} />
 
 		<title>{title}</title>
-
-		<ClientRouter />
 
 		<script is:inline>
 			(function() {
@@ -52,12 +49,6 @@ const { title = 'Margin', description = 'Annotate the web', image = 'https://mar
 					}
 				}
 				applyTheme();
-				document.addEventListener('astro:before-swap', function(e) {
-					var theme = localStorage.getItem('theme') || 'system';
-					var dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-					e.newDocument.documentElement.dataset.theme = dark ? 'dark' : 'light';
-				});
-				document.addEventListener('astro:after-swap', applyTheme);
 			})();
 		</script>
 	</head>
