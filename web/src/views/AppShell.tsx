@@ -93,6 +93,11 @@ function AtAnnotationRoute() {
   return <AnnotationDetail did={did} rkey={rkey} />;
 }
 
+function UriAnnotationRoute() {
+  const { uri } = useParams<{ uri: string }>();
+  return <AnnotationDetail uri={uri ? decodeURIComponent(uri) : undefined} />;
+}
+
 function ProfileRoute() {
   const { did } = useParams<{ did: string }>();
   if (!did) return <Navigate to="/home" replace />;
@@ -247,6 +252,7 @@ function AppLayout() {
                   path="/:handle/bookmark/:rkey"
                   element={<AnnotationDetailRoute />}
                 />
+                <Route path="/annotation/:uri" element={<UriAnnotationRoute />} />
                 <Route path="/at/:did/:rkey" element={<AtAnnotationRoute />} />
                 <Route path="/profile/:did" element={<ProfileRoute />} />
                 <Route
