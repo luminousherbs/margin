@@ -334,7 +334,7 @@ export default function Card({
   const displayImage = ogData?.image;
 
   return (
-    <article className="card p-4 hover:ring-black/10 dark:hover:ring-white/10 transition-all relative overflow-hidden">
+    <article className="card p-4 hover:ring-black/10 dark:hover:ring-white/10 transition-all relative overflow-visible">
       {(item.collection || (item.context && item.context.length > 0)) && (
         <div className="flex items-center gap-1.5 text-xs text-surface-400 dark:text-surface-500 mb-2 flex-wrap">
           {item.addedBy && item.addedBy.did !== item.author?.did ? (

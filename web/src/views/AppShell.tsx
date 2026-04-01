@@ -109,17 +109,22 @@ function AppLayout() {
   }, [location.pathname]);
 
   useEffect(() => {
+    const SERVER_PATHS = [
+      "/login",
+      "/about",
+      "/privacy",
+      "/terms",
+      "/auth/",
+      "/api/",
+      "/og-image",
+    ];
     const handleClick = (e: MouseEvent) => {
       const a = (e.target as Element).closest("a");
       if (!a) return;
       if (a.hasAttribute("target") || a.hasAttribute("download")) return;
       const href = a.getAttribute("href");
       if (!href || !href.startsWith("/")) return;
-      if (
-        href.startsWith("/auth/") ||
-        href.startsWith("/api/") ||
-        href.startsWith("/og-image")
-      )
+      if (href === "/" || SERVER_PATHS.some((p: string) => href.startsWith(p)))
         return;
       e.preventDefault();
       navigate(href);

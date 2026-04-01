@@ -3,9 +3,98 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import AppShell from '../views/AppShell';
 
 const user = Astro.locals.user ?? null;
+const path = Astro.params.appPath || '';
+const segments = path.split('/');
+
+const API_URL = process.env.API_URL || `http://localhost:${process.env.API_PORT || 8081}`;
+const BASE_URL = process.env.BASE_URL || 'https://margin.at';
+
+let title = 'Margin';
+let description = 'Annotate the web';
+let image = `${BASE_URL}/og.png`;
+
+try {
+  let uri = '';
+
+  if (segments.length === 3 && segments[0] === 'at') {
+    uri = `at://${segments[1]}/at.margin.annotation/${segments[2]}`;
+  } else if (segments.length === 3) {
+    const [handle, type, rkey] = segments;
+    const contentTypes = ['annotation', 'highlight', 'bookmark', 'collection'];
+    if (contentTypes.includes(type) && rkey) {
+      let did = handle;
+      if (!handle.startsWith('did:')) {
+        const resolveRes = await fetch(
+          `https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`
+        );
+        if (resolveRes.ok) {
+          const data = await resolveRes.json();
+          did = data.did;
+        }
+      }
+      const collectionMap: Record<string, string> = {
+        annotation: 'at.margin.annotation',
+        highlight: 'at.margin.highlight',
+        bookmark: 'at.margin.bookmark',
+        collection: 'at.margin.collection',
+      };
+      uri = `at://${did}/${collectionMap[type]}/${rkey}`;
+    }
+  }
+
+  if (uri) {
+    const res = await fetch(`${API_URL}/api/annotation?uri=${encodeURIComponent(uri)}`);
+    if (res.ok) {
+      const item = await res.json();
+      const author = item.author || item.creator || {};
+      const handle = author.handle || author.did || 'someone';
+      const bodyText = item.body?.value || item.bodyValue || item.text || '';
+      const selectorText = item.target?.selector?.exact || item.selector?.exact || '';
+      const motivation = item.motivation || '';
+      const targetTitle = item.target?.title || item.title || '';
+
+      if (motivation === 'highlighting' || uri.includes('/at.margin.highlight/')) {
+        title = selectorText
+          ? `"${selectorText.slice(0, 100)}" — highlighted by @${handle}`
+          : `Highlight by @${handle}`;
+        description = targetTitle || 'A highlight on Margin';
+      } else if (uri.includes('/at.margin.bookmark/')) {
+        title = targetTitle
+          ? `${targetTitle} — bookmarked by @${handle}`
+          : `Bookmark by @${handle}`;
+        description = bodyText?.slice(0, 200) || 'A bookmark on Margin';
+      } else if (uri.includes('/at.margin.collection/')) {
+        title = `${item.name || 'Collection'} by @${handle}`;
+        description = item.description?.slice(0, 200) || 'A collection on Margin';
+      } else {
+        title = bodyText
+          ? `${bodyText.slice(0, 100)} — @${handle}`
+          : `Annotation by @${handle}`;
+        description = selectorText
+          ? `"${selectorText.slice(0, 200)}"`
+          : targetTitle || 'An annotation on Margin';
+      }
+
+      image = `${BASE_URL}/og-image?uri=${encodeURIComponent(uri)}`;
+    }
+  }
+
+  if (segments.length === 2 && segments[0] === 'profile' && segments[1]) {
+    const did = segments[1];
+    const profileRes = await fetch(`${API_URL}/api/profile/${encodeURIComponent(did)}`);
+    if (profileRes.ok) {
+      const profile = await profileRes.json();
+      const name = profile.displayName || profile.handle || did;
+      title = `${name} — Margin`;
+      description = profile.description?.slice(0, 200) || `${name}'s profile on Margin`;
+    }
+  }
+} catch (e) {
+  // Fall through
+}
 ---
 
-<BaseLayout>
+<BaseLayout title={title} description={description} image={image}>
   <script is:inline define:vars={{ initialUser: user }}>
     window.__MARGIN_USER__ = initialUser;
   </script>
