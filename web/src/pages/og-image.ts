@@ -41,7 +41,25 @@ interface RecordData {
   color: string;
 }
 
-async function fetchAvatarDataUri(url: string): Promise<string> {
+async function resolveAvatarUrl(did: string): Promise<string> {
+  if (!did) return "";
+  try {
+    const res = await fetch(
+      `https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(did)}`,
+    );
+    if (!res.ok) return "";
+    const profile = await res.json();
+    const avatar = profile.avatar || "";
+    if (!avatar) return "";
+    return avatar.replace(/@[a-z]+$/, "@jpeg") +
+      (/@[a-z]+$/.test(avatar) ? "" : "@jpeg");
+  } catch {
+    return "";
+  }
+}
+
+async function fetchAvatarDataUri(did: string): Promise<string> {
+  const url = await resolveAvatarUrl(did);
   if (!url) return "";
   try {
     const res = await fetch(url, { headers: { "User-Agent": "margin.at/og" } });
@@ -67,7 +85,7 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
       const did = author.did || "";
       const authorName = handle ? `@${handle}` : did || "someone";
       const displayName = author.displayName || handle || did || "someone";
-      const avatarURL = await fetchAvatarDataUri(author.avatar || "");
+      const avatarURL = await fetchAvatarDataUri(author.did || "");
       const targetSource = item.target?.source || item.url || item.source || "";
       const domain = targetSource
         ? (() => {
@@ -149,7 +167,7 @@ async function fetchRecordData(uri: string): Promise<RecordData | null> {
       const did = author.did || "";
       const authorName = handle ? `@${handle}` : did || "someone";
       const displayName = author.displayName || handle || did || "someone";
-      const avatarURL = await fetchAvatarDataUri(author.avatar || "");
+      const avatarURL = await fetchAvatarDataUri(author.did || "");
 
       return {
         type: "collection",
@@ -810,64 +828,72 @@ export const GET: APIRoute = async ({ url }) => {
     return new Response("uri parameter required", { status: 400 });
   }
 
-  const data = await fetchRecordData(uri);
-  if (!data) {
-    return new Response("Record not found", { status: 404 });
-  }
+  try {
+    const data = await fetchRecordData(uri);
+    if (!data) {
+      return new Response("Record not found", { status: 404 });
+    }
 
-  const fonts = loadFonts();
+    const fonts = loadFonts();
 
-  let element: unknown;
-  switch (data.type) {
-    case "collection":
-      element = buildCollectionImage(data);
-      break;
-    case "bookmark":
-      element = buildBookmarkImage(data);
-      break;
-    case "highlight":
-      element = buildHighlightImage(data);
-      break;
-    case "annotation":
-    default:
-      element = buildAnnotationImage(data);
-      break;
-  }
+    let element: unknown;
+    switch (data.type) {
+      case "collection":
+        element = buildCollectionImage(data);
+        break;
+      case "bookmark":
+        element = buildBookmarkImage(data);
+        break;
+      case "highlight":
+        element = buildHighlightImage(data);
+        break;
+      case "annotation":
+      default:
+        element = buildAnnotationImage(data);
+        break;
+    }
 
-  const svg = await satori(element as React.ReactNode, {
-    width: 1200,
-    height: 630,
-    fonts: [
-      { name: "Inter", data: fonts.regular, weight: 400, style: "normal" },
-      { name: "Inter", data: fonts.bold, weight: 700, style: "normal" },
-    ],
-    loadAdditionalAsset: async (code: string, segment: string) => {
-      if (code === "emoji") {
-        const codepoints = [...segment]
-          .map((c) => c.codePointAt(0)!.toString(16))
-          .join("-");
-        const emojiUrl = `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${codepoints}.svg`;
-        try {
-          const res = await fetch(emojiUrl);
-          if (res.ok)
-            return `data:image/svg+xml,${encodeURIComponent(await res.text())}`;
-        } catch {
-          // ignore
+    const svg = await satori(element as React.ReactNode, {
+      width: 1200,
+      height: 630,
+      fonts: [
+        { name: "Inter", data: fonts.regular, weight: 400, style: "normal" },
+        { name: "Inter", data: fonts.bold, weight: 700, style: "normal" },
+      ],
+      loadAdditionalAsset: async (code: string, segment: string) => {
+        if (code === "emoji") {
+          const codepoints = [...segment]
+            .map((c) => c.codePointAt(0)!.toString(16))
+            .join("-");
+          const emojiUrl = `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${codepoints}.svg`;
+          try {
+            const res = await fetch(emojiUrl);
+            if (res.ok)
+              return `data:image/svg+xml,${encodeURIComponent(await res.text())}`;
+          } catch {
+            // ignore
+          }
         }
-      }
-      return "";
-    },
-  });
+        return "";
+      },
+    });
 
-  const resvg = new Resvg(svg, {
-    fitTo: { mode: "width", value: 1200 },
-  });
-  const png = resvg.render().asPng();
+    const resvg = new Resvg(svg, {
+      fitTo: { mode: "width", value: 1200 },
+    });
+    const png = resvg.render().asPng();
 
-  return new Response(new Uint8Array(png), {
-    headers: {
-      "Content-Type": "image/png",
-      "Cache-Control": "public, max-age=86400",
-    },
-  });
+    return new Response(new Uint8Array(png), {
+      headers: {
+        "Content-Type": "image/png",
+        "Cache-Control": "public, max-age=86400",
+      },
+    });
+  } catch (e) {
+    console.error("[og-image] Error generating image:", e);
+    console.error("[og-image] cwd:", process.cwd());
+    console.error("[og-image] publicDir:", getPublicDir());
+    const BASE_URL = process.env.BASE_URL || "https://margin.at";
+    return Response.redirect(`${BASE_URL}/og.png`, 302);
+  }
 };
