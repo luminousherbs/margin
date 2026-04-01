@@ -43,7 +43,9 @@ try {
   }
 
   if (uri) {
-    const res = await fetch(`${API_URL}/api/annotation?uri=${encodeURIComponent(uri)}`);
+    const isCollection = uri.includes('/at.margin.collection/');
+    const endpoint = isCollection ? 'collection' : 'annotation';
+    const res = await fetch(`${API_URL}/api/${endpoint}?uri=${encodeURIComponent(uri)}`);
     if (res.ok) {
       const item = await res.json();
       const author = item.author || item.creator || {};
@@ -63,7 +65,7 @@ try {
           ? `${targetTitle} — bookmarked by @${handle}`
           : `Bookmark by @${handle}`;
         description = bodyText?.slice(0, 200) || 'A bookmark on Margin';
-      } else if (uri.includes('/at.margin.collection/')) {
+      } else if (isCollection) {
         title = `${item.name || 'Collection'} by @${handle}`;
         description = item.description?.slice(0, 200) || 'A collection on Margin';
       } else {
