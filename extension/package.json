@@ -20,6 +20,7 @@
     "@webext-core/messaging": "^1.4.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.563.0",
+    "pdfjs-dist": "5.4.624",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

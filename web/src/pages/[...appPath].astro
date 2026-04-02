@@ -16,7 +16,9 @@ let image = `${BASE_URL}/og.png`;
 try {
   let uri = '';
 
-  if (segments.length === 3 && segments[0] === 'at') {
+  if (segments.length === 2 && segments[0] === 'annotation' && segments[1]) {
+    uri = decodeURIComponent(segments[1]);
+  } else if (segments.length === 3 && segments[0] === 'at') {
     uri = `at://${segments[1]}/at.margin.annotation/${segments[2]}`;
   } else if (segments.length === 3) {
     const [handle, type, rkey] = segments;

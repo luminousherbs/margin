@@ -53,6 +53,7 @@ interface ProtocolMap {
   getItemCollections(data: { annotationUri: string }): string[];
 
   deleteHighlight(data: { uri: string }): { success: boolean; error?: string };
+  updateHighlightTags(data: { uri: string; tags: string[] }): { success: boolean; error?: string };
   convertHighlightToAnnotation(data: {
     highlightUri: string;
     url: string;

@@ -1,5 +1,5 @@
 import { defineConfig } from 'wxt';
-import { cp } from 'fs/promises';
+import { cp, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 
@@ -14,6 +14,13 @@ export default defineConfig({
 
       if (existsSync(publicDir)) {
         await cp(publicDir, outDir, { recursive: true });
+      }
+
+      const pdfjsBuildSrc = resolve(__dirname, 'node_modules', 'pdfjs-dist', 'build');
+      const pdfjsBuildDest = resolve(outDir, 'pdfjs', 'build');
+      await mkdir(pdfjsBuildDest, { recursive: true });
+      for (const file of ['pdf.mjs', 'pdf.worker.mjs', 'pdf.sandbox.mjs']) {
+        await cp(resolve(pdfjsBuildSrc, file), resolve(pdfjsBuildDest, file));
       }
     },
   },

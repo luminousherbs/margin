@@ -16,6 +16,7 @@ import {
   createReply,
   getUserTags,
   getTrendingTags,
+  updateHighlightTags,
 } from '@/utils/api';
 import { overlayEnabledItem, apiUrlItem } from '@/utils/storage';
 
@@ -96,6 +97,10 @@ export default defineBackground(() => {
 
   onMessage('deleteHighlight', async ({ data }) => {
     return await deleteHighlight(data.uri);
+  });
+
+  onMessage('updateHighlightTags', async ({ data }) => {
+    return await updateHighlightTags(data.uri, data.tags);
   });
 
   onMessage('convertHighlightToAnnotation', async ({ data }) => {
@@ -349,6 +354,10 @@ export default defineBackground(() => {
         showNotification('Margin', 'Text highlighted!');
         try {
           await browser.tabs.sendMessage(tab.id!, { type: 'REFRESH_ANNOTATIONS' });
+          const uri = result.data?.uri || result.data?.id || '';
+          if (uri) {
+            await browser.tabs.sendMessage(tab.id!, { type: 'SHOW_TAG_INPUT', uri });
+          }
         } catch {
           /* ignore */
         }
@@ -384,7 +393,7 @@ export default defineBackground(() => {
     if (command === 'toggle-sidebar') {
       const browserAny = browser as any;
       if (browserAny.sidePanel) {
-        chrome.windows.getCurrent((win) => {
+        browser.windows.getCurrent().then((win: { id?: number }) => {
           if (win?.id) {
             if (sidePanelOpen && typeof browserAny.sidePanel.close === 'function') {
               browserAny.sidePanel.close({ windowId: win.id }).catch((err: Error) => {

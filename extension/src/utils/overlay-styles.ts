@@ -225,10 +225,15 @@ export const overlayStyles = /* css */ `
   min-width: 0;
 }
 
-.comment-handle { 
-  font-size: 13px; 
-  font-weight: 600; 
-  color: var(--text-primary); 
+.comment-handle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: none;
+  pointer-events: auto;
+}
+.comment-handle:hover {
+  color: var(--accent);
 }
 
 .comment-time {
@@ -703,4 +708,151 @@ export const overlayStyles = /* css */ `
 .toast-success .toast-icon {
   color: #34d399;
 }
+
+.margin-tag-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  padding: 0;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  z-index: 2147483647;
+  pointer-events: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 80px rgba(59, 130, 246, 0.04);
+  animation: modal-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--text-primary);
+  overflow: hidden;
+}
+.margin-tag-toast * { box-sizing: border-box; }
+.margin-tag-toast.toast-out {
+  animation: toast-out 0.2s ease forwards;
+}
+.tag-toast-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-primary);
+}
+.tag-toast-header svg { width: 16px; height: 16px; color: #34d399; }
+.tag-toast-header span:last-child {
+  font-size: 14px;
+  font-weight: 600;
+}
+.tag-toast-body { padding: 16px; }
+.tag-toast-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  min-height: 38px;
+  transition: all 0.15s;
+}
+.tag-toast-tags:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+.tag-toast-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.tag-toast-pill button {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 2px;
+  line-height: 1;
+  opacity: 0.6;
+}
+.tag-toast-pill button:hover { opacity: 1; }
+.tag-toast-input {
+  flex: 1;
+  min-width: 60px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 2px 0;
+}
+.tag-toast-input::placeholder { color: var(--text-tertiary); }
+.tag-toast-suggestions {
+  display: none;
+  flex-direction: column;
+  margin-top: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  max-height: 140px;
+  overflow-y: auto;
+}
+.tag-suggestion-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.tag-suggestion-btn:hover {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+.tag-toast-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-primary);
+}
+.tag-toast-skip {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: all 0.15s;
+}
+.tag-toast-skip:hover { color: var(--text-primary); background: var(--bg-hover); }
+.tag-toast-save {
+  background: var(--accent);
+  border: none;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tag-toast-save:hover { background: var(--accent-hover); }
+.tag-toast-save:disabled { opacity: 0.4; cursor: not-allowed; }
 `;

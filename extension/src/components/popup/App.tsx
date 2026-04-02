@@ -22,6 +22,7 @@ import {
   PenTool,
   Eye,
   Send,
+  MessageSquare,
 } from 'lucide-react';
 
 type Tab = 'page' | 'bookmarks' | 'highlights' | 'collections';
@@ -55,6 +56,8 @@ export function App() {
   const [apiUrl, setApiUrl] = useState('https://margin.at');
   const [overlayEnabled, setOverlayEnabled] = useState(true);
   const [tags, setTags] = useState<string[]>([]);
+  const [bookmarkTags, setBookmarkTags] = useState<string[]>([]);
+  const [showBookmarkTags, setShowBookmarkTags] = useState(false);
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
 
   useEffect(() => {
@@ -343,9 +346,12 @@ export function App() {
       const result = await sendMessage('createBookmark', {
         url: currentUrl,
         title: currentTitle,
+        tags: bookmarkTags.length > 0 ? bookmarkTags : undefined,
       });
       if (result.success) {
         setBookmarked(true);
+        setBookmarkTags([]);
+        setShowBookmarkTags(false);
       } else {
         alert('Failed to bookmark page');
       }
@@ -659,12 +665,16 @@ export function App() {
                     <Eye size={15} />
                   </button>
                   <button
-                    onClick={handleBookmark}
+                    onClick={() => {
+                      if (!bookmarked) setShowBookmarkTags(!showBookmarkTags);
+                    }}
                     disabled={bookmarking || bookmarked}
                     className={`p-1.5 rounded-md transition-colors ${
                       bookmarked
                         ? 'text-emerald-400'
-                        : 'text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--bg-hover)]'
+                        : showBookmarkTags
+                          ? 'text-[var(--accent)] bg-[var(--accent-subtle)]'
+                          : 'text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--bg-hover)]'
                     }`}
                     title={bookmarked ? 'Bookmarked' : 'Bookmark page'}
                   >
@@ -672,6 +682,25 @@ export function App() {
                   </button>
                 </div>
               </div>
+              {showBookmarkTags && !bookmarked && (
+                <div className="mt-2 pt-2 border-t border-[var(--border)]">
+                  <div className="mb-1.5">
+                    <TagInput
+                      tags={bookmarkTags}
+                      onChange={setBookmarkTags}
+                      suggestions={tagSuggestions}
+                      placeholder="Add bookmark tags..."
+                    />
+                  </div>
+                  <button
+                    onClick={handleBookmark}
+                    disabled={bookmarking}
+                    className="w-full py-1.5 bg-[var(--accent)] text-white text-xs rounded-lg font-medium hover:bg-[var(--accent-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {bookmarking ? 'Bookmarking...' : 'Bookmark page'}
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="p-4 border-b border-[var(--border)]">
@@ -1077,9 +1106,14 @@ function AnnotationCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-sm font-semibold hover:text-[var(--accent)] cursor-pointer transition-colors">
+            <a
+              href={`https://margin.at/profile/${author.did || ''}`}
+              target="_blank"
+              rel="noopener"
+              className="text-sm font-semibold hover:text-[var(--accent)] cursor-pointer transition-colors no-underline text-inherit"
+            >
               @{handle}
-            </span>
+            </a>
             <span className="text-[11px] text-[var(--text-tertiary)]">
               {formatDate(item.created || item.createdAt)}
             </span>
@@ -1118,6 +1152,18 @@ function AnnotationCard({
                 >
                   <FolderPlus size={13} />
                 </button>
+              )}
+              {!isHighlight && (
+                <a
+                  href={`https://margin.at/annotation/${encodeURIComponent(item.uri || item.id || '')}`}
+                  target="_blank"
+                  rel="noopener"
+                  className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--accent-subtle)] rounded transition-all"
+                  title="Reply"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MessageSquare size={13} />
+                </a>
               )}
             </div>
           </div>

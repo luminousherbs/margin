@@ -208,6 +208,22 @@ export async function createHighlight(data: {
   }
 }
 
+export async function updateHighlightTags(uri: string, tags: string[]) {
+  try {
+    const res = await apiRequest(`/highlights?uri=${encodeURIComponent(uri)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ tags }),
+    });
+    if (!res.ok) {
+      const error = await res.text();
+      return { success: false, error };
+    }
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+}
+
 export async function getUserBookmarks(did: string) {
   try {
     const res = await apiRequest(`/users/${did}/bookmarks`);

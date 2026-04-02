@@ -485,6 +485,9 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
     if (message.type === 'REFRESH_ANNOTATIONS') {
       fetchAnnotations(0, true);
     }
+    if (message.type === 'SHOW_TAG_INPUT' && message.uri) {
+      showTagToast(message.uri);
+    }
     if (message.type === 'SCROLL_TO_TEXT' && message.text) {
       scrollToText(message.text);
     }
@@ -584,6 +587,132 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
       toast.classList.add('toast-out');
       setTimeout(() => toast.remove(), 200);
     }, 2500);
+  }
+
+  function showTagToast(uri: string) {
+    if (!shadowRoot) return;
+    const container = shadowRoot.getElementById('margin-overlay-container');
+    if (!container) return;
+
+    container.querySelectorAll('.margin-tag-toast').forEach((el) => el.remove());
+
+    const tags: string[] = [];
+    const toast = document.createElement('div');
+    toast.className = 'margin-tag-toast';
+    toast.innerHTML = `
+      <div class="tag-toast-header">
+        <span>${Icons.check}</span>
+        <span>Highlighted! Add tags?</span>
+      </div>
+      <div class="tag-toast-body">
+        <div class="tag-toast-tags">
+          <input type="text" class="tag-toast-input" placeholder="Type a tag and press Enter..." />
+        </div>
+        <div class="tag-toast-suggestions"></div>
+      </div>
+      <div class="tag-toast-actions">
+        <button class="tag-toast-skip">Skip</button>
+        <button class="tag-toast-save">Save</button>
+      </div>
+    `;
+    container.appendChild(toast);
+
+    const input = toast.querySelector('.tag-toast-input') as HTMLInputElement;
+    const tagsWrapper = toast.querySelector('.tag-toast-tags') as HTMLElement;
+    const suggestionsEl = toast.querySelector('.tag-toast-suggestions') as HTMLElement;
+    const saveBtn = toast.querySelector('.tag-toast-save') as HTMLButtonElement;
+    const skipBtn = toast.querySelector('.tag-toast-skip') as HTMLButtonElement;
+
+    function renderTags() {
+      tagsWrapper.querySelectorAll('.tag-toast-pill').forEach((el) => el.remove());
+      tags.forEach((t) => {
+        const pill = document.createElement('span');
+        pill.className = 'tag-toast-pill';
+        pill.innerHTML = `${escapeHtml(t)} <button data-tag="${escapeHtml(t)}">&times;</button>`;
+        pill.querySelector('button')!.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = tags.indexOf(t);
+          if (idx !== -1) tags.splice(idx, 1);
+          renderTags();
+          input.focus();
+        });
+        tagsWrapper.insertBefore(pill, input);
+      });
+      input.placeholder = tags.length === 0 ? 'Type a tag and press Enter...' : '';
+    }
+
+    function addTag(val: string) {
+      const normalized = val
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, '');
+      if (normalized && !tags.includes(normalized) && tags.length < 10) {
+        tags.push(normalized);
+        renderTags();
+      }
+      input.value = '';
+      suggestionsEl.style.display = 'none';
+    }
+
+    tagsWrapper.addEventListener('click', () => input.focus());
+
+    input.addEventListener('keydown', (e: Event) => {
+      const ke = e as KeyboardEvent;
+      if (ke.key === 'Enter' || ke.key === ',') {
+        ke.preventDefault();
+        ke.stopPropagation();
+        if (input.value.trim()) addTag(input.value);
+      } else if (ke.key === 'Backspace' && !input.value && tags.length > 0) {
+        tags.pop();
+        renderTags();
+      }
+    });
+
+    input.addEventListener('input', () => {
+      const val = input.value.toLowerCase().trim();
+      if (!val) {
+        suggestionsEl.style.display = 'none';
+        return;
+      }
+      const matches = cachedUserTags.filter((t) => t.includes(val) && !tags.includes(t));
+      if (matches.length === 0) {
+        suggestionsEl.style.display = 'none';
+        return;
+      }
+      suggestionsEl.innerHTML = matches
+        .slice(0, 5)
+        .map((t) => `<button class="tag-suggestion-btn">${escapeHtml(t)}</button>`)
+        .join('');
+      suggestionsEl.style.display = 'flex';
+      suggestionsEl.querySelectorAll('.tag-suggestion-btn').forEach((btn) => {
+        btn.addEventListener('click', () => addTag(btn.textContent || ''));
+      });
+    });
+
+    function dismiss() {
+      toast.classList.add('toast-out');
+      setTimeout(() => toast.remove(), 200);
+    }
+
+    skipBtn.addEventListener('click', dismiss);
+
+    saveBtn.addEventListener('click', async () => {
+      if (tags.length === 0) {
+        dismiss();
+        return;
+      }
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+      try {
+        await sendMessage('updateHighlightTags', { uri, tags });
+        showToast('Tags added!', 'success');
+      } catch {
+        showToast('Failed to save tags', 'error');
+      }
+      dismiss();
+    });
+
+    setTimeout(() => input.focus(), 50);
   }
 
   async function fetchAnnotations(retryCount = 0, cacheBust = false) {
@@ -842,6 +971,9 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
     }
 
     if (clickedItems.length > 0) {
+      const target = e.target as HTMLElement;
+      if (target.closest('a[href]')) return;
+
       e.preventDefault();
       e.stopPropagation();
 
@@ -939,7 +1071,7 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
               <div class="comment-header">
                 ${avatarHtml}
                 <div class="comment-meta">
-                  <span class="comment-handle">@${escapeHtml(handle)}</span>
+                  <a class="comment-handle" href="${APP_URL}/profile/${escapeHtml(author.did || '')}" target="_blank" rel="noopener">@${escapeHtml(handle)}</a>
                   ${createdAt ? `<span class="comment-time">${escapeHtml(createdAt)}</span>` : ''}
                 </div>
               </div>
@@ -1066,9 +1198,10 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
 
     popoverEl.querySelectorAll('.btn-share').forEach((btn) => {
       btn.addEventListener('click', async (_e) => {
-        const text = (btn as HTMLElement).getAttribute('data-text') || '';
+        const id = (btn as HTMLElement).getAttribute('data-id') || '';
+        const url = `${APP_URL}/annotation/${encodeURIComponent(id)}`;
         try {
-          await navigator.clipboard.writeText(text);
+          await navigator.clipboard.writeText(url);
           const originalInner = btn.innerHTML;
           btn.innerHTML = `${Icons.check} Copied!`;
           setTimeout(() => {

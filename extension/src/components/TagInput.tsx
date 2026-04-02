@@ -80,7 +80,7 @@ export default function TagInput({
   return (
     <div ref={containerRef} className="relative">
       <div
-        className="flex flex-wrap items-center gap-1.5 p-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs cursor-text min-h-[34px] focus-within:border-[var(--accent)] focus-within:ring-1 focus-within:ring-[var(--accent-subtle)] transition-all"
+        className="flex flex-wrap items-center gap-1.5 p-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs cursor-text min-h-[34px] focus-within:border-[var(--accent)] ring-0 outline-none transition-all"
         onClick={() => inputRef.current?.focus()}
       >
         <Tag size={12} className="text-[var(--text-tertiary)] flex-shrink-0" />
@@ -113,7 +113,8 @@ export default function TagInput({
           onFocus={() => setShowSuggestions(true)}
           onKeyDown={handleKeyDown}
           placeholder={tags.length === 0 ? placeholder : ''}
-          className="flex-1 min-w-[60px] bg-transparent border-none outline-none text-[11px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+          className="flex-1 min-w-[60px] bg-transparent border-none outline-none ring-0 text-[11px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-0 focus:border-none focus:shadow-none"
+          style={{ outline: 'none', boxShadow: 'none' }}
         />
       </div>
 

@@ -103,6 +103,8 @@ export function App() {
   const [addingToCollection, setAddingToCollection] = useState<string | null>(null);
   const [containingCollections, setContainingCollections] = useState<Set<string>>(new Set());
   const [tags, setTags] = useState<string[]>([]);
+  const [bookmarkTags, setBookmarkTags] = useState<string[]>([]);
+  const [showBookmarkTags, setShowBookmarkTags] = useState(false);
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
 
   useEffect(() => {
@@ -324,9 +326,12 @@ export function App() {
       const result = await sendMessage('createBookmark', {
         url: currentUrl,
         title: currentTitle,
+        tags: bookmarkTags.length > 0 ? bookmarkTags : undefined,
       });
       if (result.success) {
         setBookmarked(true);
+        setBookmarkTags([]);
+        setShowBookmarkTags(false);
       } else {
         alert('Failed to bookmark page');
       }
@@ -568,18 +573,36 @@ export function App() {
                   </div>
                 </div>
                 <button
-                  onClick={handleBookmark}
+                  onClick={() => {
+                    if (!bookmarked) setShowBookmarkTags(!showBookmarkTags);
+                  }}
                   disabled={bookmarking || bookmarked}
                   className={`p-1.5 rounded-md transition-colors ${
                     bookmarked
                       ? 'text-emerald-400'
-                      : 'text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--bg-hover)]'
+                      : showBookmarkTags
+                        ? 'text-[var(--accent)] bg-[var(--accent-subtle)]'
+                        : 'text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--bg-hover)]'
                   }`}
                   title={bookmarked ? 'Bookmarked' : 'Bookmark page'}
                 >
                   {bookmarked ? Icons.check : Icons.bookmark}
                 </button>
               </div>
+              {showBookmarkTags && !bookmarked && (
+                <div className="mt-2 pt-2 border-t border-[var(--border)]">
+                  <div className="mb-1.5">
+                    <TagInput tags={bookmarkTags} onChange={setBookmarkTags} suggestions={tagSuggestions} placeholder="Add bookmark tags..." />
+                  </div>
+                  <button
+                    onClick={handleBookmark}
+                    disabled={bookmarking}
+                    className="w-full py-1.5 bg-[var(--accent)] text-white text-xs rounded-lg font-medium hover:bg-[var(--accent-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {bookmarking ? 'Bookmarking...' : 'Bookmark page'}
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="mb-6">
@@ -958,7 +981,14 @@ function AnnotationCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-sm font-semibold">@{handle}</span>
+            <a
+              href={`${APP_URL}/profile/${author.did || ''}`}
+              target="_blank"
+              rel="noopener"
+              className="text-sm font-semibold hover:text-[var(--accent)] cursor-pointer transition-colors no-underline text-inherit"
+            >
+              @{handle}
+            </a>
             <span className="text-xs text-[var(--text-tertiary)]">
               {formatDate(item.created || item.createdAt)}
             </span>
@@ -1008,6 +1038,26 @@ function AnnotationCard({
                 >
                   {Icons.folderPlus}
                 </button>
+              )}
+              {!isHighlight && (
+                <a
+                  href={`${APP_URL}/annotation/${encodeURIComponent(item.uri || item.id || '')}`}
+                  target="_blank"
+                  rel="noopener"
+                  className="p-1 rounded text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors"
+                  title="Reply"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                  </svg>
+                </a>
               )}
             </div>
           </div>

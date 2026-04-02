@@ -51,8 +51,10 @@ async function resolveAvatarUrl(did: string): Promise<string> {
     const profile = await res.json();
     const avatar = profile.avatar || "";
     if (!avatar) return "";
-    return avatar.replace(/@[a-z]+$/, "@jpeg") +
-      (/@[a-z]+$/.test(avatar) ? "" : "@jpeg");
+    return (
+      avatar.replace(/@[a-z]+$/, "@jpeg") +
+      (/@[a-z]+$/.test(avatar) ? "" : "@jpeg")
+    );
   } catch {
     return "";
   }

@@ -252,7 +252,10 @@ function AppLayout() {
                   path="/:handle/bookmark/:rkey"
                   element={<AnnotationDetailRoute />}
                 />
-                <Route path="/annotation/:uri" element={<UriAnnotationRoute />} />
+                <Route
+                  path="/annotation/:uri"
+                  element={<UriAnnotationRoute />}
+                />
                 <Route path="/at/:did/:rkey" element={<AtAnnotationRoute />} />
                 <Route path="/profile/:did" element={<ProfileRoute />} />
                 <Route
