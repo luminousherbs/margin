@@ -321,7 +321,7 @@ export default function RightSidebar({ onNavigate }: RightSidebarProps) {
               <Coffee size={12} className="shrink-0" />
               Support on Ko-fi
             </a>
-            <span>© 2026 Margin</span>
+            <span>© 2026 Padding Labs LLC</span>
           </div>
         </div>
       </div>

@@ -666,7 +666,7 @@ export default function About() {
                 className="w-5 h-5 opacity-60"
               />
               <span className="text-sm text-surface-400 dark:text-surface-500">
-                © 2026 Margin
+                © 2026 Padding Labs LLC
               </span>
             </div>
             <div className="flex items-center gap-5 text-sm text-surface-400 dark:text-surface-500">
