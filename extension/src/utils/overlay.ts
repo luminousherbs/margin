@@ -908,14 +908,9 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
 
   let hoverRafId: number | null = null;
   let hoverIntentTimer: ReturnType<typeof setTimeout> | null = null;
-  let lastHoverX = -1;
-  let lastHoverY = -1;
 
   function handleMouseMove(e: MouseEvent) {
     if (!overlayEnabled || !overlayHost) return;
-
-    lastHoverX = e.clientX;
-    lastHoverY = e.clientY;
 
     if (hoverRafId !== null) {
       cancelAnimationFrame(hoverRafId);
@@ -924,11 +919,7 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
 
     hoverRafId = requestAnimationFrame(() => {
       hoverRafId = null;
-      if (hoverIntentTimer) clearTimeout(hoverIntentTimer);
-      hoverIntentTimer = setTimeout(() => {
-        hoverIntentTimer = null;
-        processHover(lastHoverX, lastHoverY, e);
-      }, 150);
+      processHover(e.clientX, e.clientY, e);
     });
   }
   function getAnnotationsAtPoint(
