@@ -74,7 +74,8 @@ export default function AnnotationDetail({
       }
 
       if (handle && rkey) {
-        let collection = "at.margin.annotation";
+        let collection = "at.margin.note";
+        if (type === "annotation") collection = "at.margin.annotation";
         if (type === "highlight") collection = "at.margin.highlight";
         if (type === "bookmark") collection = "at.margin.bookmark";
 
@@ -93,7 +94,7 @@ export default function AnnotationDetail({
           setLoading(false);
         }
       } else if (did && rkey) {
-        setTargetUri(`at://${did}/at.margin.annotation/${rkey}`);
+        setTargetUri(`at://${did}/at.margin.note/${rkey}`);
       }
     }
     resolve();

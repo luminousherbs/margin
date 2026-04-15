@@ -305,7 +305,17 @@ export default function Card({
         .replace(" day", "d")
     : "";
 
-  const detailUrl = `/${item.author?.handle || item.author?.did}/${type}/${(item.uri || "").split("/").pop()}`;
+  const uriCollection = item.uri?.split("/")[3] ?? "";
+  const urlSegment = uriCollection.includes("at.margin.note")
+    ? "note"
+    : uriCollection.includes("at.margin.highlight")
+      ? "highlight"
+      : uriCollection.includes("at.margin.bookmark")
+        ? "bookmark"
+        : uriCollection.includes("at.margin.annotation")
+          ? "annotation"
+          : type;
+  const detailUrl = `/${item.author?.handle || item.author?.did}/${urlSegment}/${(item.uri || "").split("/").pop()}`;
 
   const pageTitle =
     item.target?.title ||

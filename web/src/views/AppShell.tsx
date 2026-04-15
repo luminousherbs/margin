@@ -256,6 +256,10 @@ function AppLayout() {
                   element={<CollectionDetailRoute />}
                 />
                 <Route
+                  path="/:handle/note/:rkey"
+                  element={<AnnotationDetailRoute />}
+                />
+                <Route
                   path="/:handle/annotation/:rkey"
                   element={<AnnotationDetailRoute />}
                 />
