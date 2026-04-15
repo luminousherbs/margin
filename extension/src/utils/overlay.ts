@@ -217,11 +217,7 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
       sendMessage('updateBadge', { count: 0 });
     } else {
       applyTheme();
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(() => fetchAnnotations(), { timeout: 2000 });
-      } else {
-        setTimeout(() => fetchAnnotations(), 100);
-      }
+      setTimeout(() => fetchAnnotations(), 100);
     }
   });
 
@@ -1130,6 +1126,7 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
         if (currentIds === newIds) {
           popoverEl.remove();
           popoverEl = null;
+          if (hoverIndicator) hoverIndicator.classList.remove('visible');
           return;
         }
       }
@@ -1149,6 +1146,7 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
       if (popoverEl) {
         popoverEl.remove();
         popoverEl = null;
+        if (hoverIndicator) hoverIndicator.classList.remove('visible');
       }
     }
   }

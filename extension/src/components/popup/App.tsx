@@ -876,10 +876,10 @@ export function App() {
                       className="flex-1 min-w-0"
                     >
                       <div className="text-sm font-medium truncate group-hover:text-[var(--accent)] transition-colors">
-                        {item.title || 'Untitled'}
+                        {item.target?.title || item.title || 'Untitled'}
                       </div>
                       <div className="text-xs text-[var(--text-tertiary)] truncate">
-                        {item.source ? new URL(item.source).hostname : ''}
+                        {(item.target?.source || item.source) ? new URL(item.target?.source || item.source!).hostname : ''}
                       </div>
                     </a>
                     <button

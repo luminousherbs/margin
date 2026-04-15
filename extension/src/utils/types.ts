@@ -50,6 +50,10 @@ export interface Bookmark {
   image?: string;
   tags?: string[];
   createdAt?: string;
+  target?: {
+    source?: string;
+    title?: string;
+  };
 }
 
 export interface Highlight {
