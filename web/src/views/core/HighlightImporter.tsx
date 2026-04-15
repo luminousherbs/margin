@@ -9,6 +9,7 @@ import type React from "react";
 import { useRef, useState } from "react";
 import { createHighlight } from "../../api/client";
 import type { Selector } from "../../types";
+import { analytics } from "../../lib/analytics";
 
 interface Highlight {
   url: string;
@@ -214,8 +215,14 @@ https://blog.example.com,"Another highlight","Article Title","reading",blue,2024
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
+      analytics.capture("highlights_imported", {
+        total: importState.total,
+        completed: importState.completed,
+        failed: importState.failed,
+      });
       setIsImporting(false);
     } catch (error) {
+      analytics.captureException(error);
       alert(
         `Error parsing CSV: ${error instanceof Error ? error.message : "Unknown error"}`,
       );

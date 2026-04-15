@@ -9,6 +9,7 @@ import {
 import { Avatar } from "../../components/ui";
 import { useStore } from "@nanostores/react";
 import { $theme } from "../../store/theme";
+import { analytics } from "../../lib/analytics";
 
 interface LoginProps {
   initialError?: string;
@@ -36,9 +37,11 @@ export default function Login({ initialError }: LoginProps) {
     "AT Protocol",
     "Margin",
     "Bluesky",
+    "Eurosky",
     "Blacksky",
     "Tangled",
     "Northsky",
+    "selfhosted.social",
     "witchcraft.systems",
     "tophhie.social",
     "altq.net",
@@ -135,6 +138,7 @@ export default function Login({ initialError }: LoginProps) {
     setError(null);
 
     try {
+      analytics.capture("login_initiated", { handle: handle.trim() });
       const result = await startLogin(handle.trim());
       if (result.authorizationUrl) {
         const url = new URL(result.authorizationUrl);
@@ -144,6 +148,7 @@ export default function Login({ initialError }: LoginProps) {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
+      analytics.captureException(err);
       setError(message || "Failed to initiate login. Please try again.");
       setLoading(false);
     }

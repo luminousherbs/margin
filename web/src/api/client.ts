@@ -1101,6 +1101,7 @@ export interface PreferencesResponse {
   subscribedLabelers?: LabelerSubscription[];
   labelPreferences?: LabelPreference[];
   disableExternalLinkWarning?: boolean;
+  enableCommunityBookmarks?: boolean;
 }
 
 export async function getPreferences(): Promise<PreferencesResponse> {
@@ -1121,6 +1122,7 @@ export async function updatePreferences(prefs: {
   subscribedLabelers?: LabelerSubscription[];
   labelPreferences?: LabelPreference[];
   disableExternalLinkWarning?: boolean;
+  enableCommunityBookmarks?: boolean;
 }): Promise<boolean> {
   try {
     const res = await apiRequest("/api/preferences", {

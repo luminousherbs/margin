@@ -14,6 +14,7 @@ import {
   CatskyIcon,
   DeerIcon,
 } from "../common/Icons";
+import { analytics } from "../../lib/analytics";
 
 const SembleLogo = () => (
   <img src="/semble-logo.svg" alt="Semble" className="w-4 h-4 opacity-90" />
@@ -84,6 +85,11 @@ export default function ShareMenu({
     try {
       await navigator.clipboard.writeText(textToCopy);
       setCopied(key);
+      analytics.capture("item_shared", {
+        method: "copy_link",
+        destination: key,
+        item_type: type,
+      });
       setTimeout(() => {
         setCopied(null);
         setIsOpen(false);
@@ -98,6 +104,11 @@ export default function ShareMenu({
       ? `${text.substring(0, 200)}...\n\n${shareUrl}`
       : shareUrl;
     const composeUrl = `https://${domain}/intent/compose?text=${encodeURIComponent(composeText)}`;
+    analytics.capture("item_shared", {
+      method: "social_app",
+      destination: domain,
+      item_type: type,
+    });
     window.open(composeUrl, "_blank");
     setIsOpen(false);
   };

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { capture } from '@/utils/analytics';
 import { sendMessage } from '@/utils/messaging';
 import { themeItem, apiUrlItem, overlayEnabledItem } from '@/utils/storage';
 import type { MarginSession, Annotation, Bookmark, Highlight, Collection } from '@/utils/types';
@@ -59,12 +60,17 @@ export function App() {
   const [bookmarkTags, setBookmarkTags] = useState<string[]>([]);
   const [showBookmarkTags, setShowBookmarkTags] = useState(false);
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
-
   useEffect(() => {
     checkSession();
     loadCurrentTab();
     loadTheme();
     loadSettings();
+
+    sendMessage('checkSession', undefined)
+      .then((s) =>
+        capture('popup_opened', { authenticated: s?.authenticated ?? false }, s?.did ?? undefined)
+      )
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -329,6 +335,11 @@ export function App() {
         setText('');
         setTags([]);
         loadAnnotations();
+        capture(
+          'annotation_created',
+          { url: currentUrl, tag_count: tags.length, source: 'extension' },
+          session?.did ?? undefined
+        );
       } else {
         alert('Failed to post annotation');
       }
@@ -352,6 +363,11 @@ export function App() {
         setBookmarked(true);
         setBookmarkTags([]);
         setShowBookmarkTags(false);
+        capture(
+          'bookmark_created',
+          { url: currentUrl, tag_count: bookmarkTags.length, source: 'extension' },
+          session?.did ?? undefined
+        );
       } else {
         alert('Failed to bookmark page');
       }
@@ -454,15 +470,16 @@ export function App() {
             <img src="/icons/logo.svg" alt="Margin" className="w-8 h-8" />
           </div>
           <h2 className="font-display text-xl font-bold tracking-tight mb-2">Welcome to Margin</h2>
-          <p className="text-[var(--text-secondary)] text-sm leading-relaxed mb-8 max-w-[280px]">
+          <p className="text-[var(--text-secondary)] text-sm leading-relaxed mb-5 max-w-[280px]">
             Annotate, highlight, and bookmark the web with your AT Protocol identity.
           </p>
           <button
             onClick={() => browser.tabs.create({ url: `${apiUrl}/login` })}
-            className="w-full max-w-[240px] px-6 py-2.5 bg-[var(--accent)] text-white rounded-xl text-sm font-semibold hover:bg-[var(--accent-hover)] transition-colors"
+            className="w-full max-w-[280px] px-6 py-2.5 bg-[var(--accent)] text-white rounded-xl text-sm font-semibold hover:bg-[var(--accent-hover)] transition-colors"
           >
             Sign In
           </button>
+
           <button
             onClick={() => setShowSettings(true)}
             className="mt-4 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors"
@@ -577,6 +594,7 @@ export function App() {
           <button
             onClick={() => browser.tabs.create({ url: apiUrl })}
             className="text-[11px] text-[var(--text-tertiary)] hover:text-[var(--accent)] px-2 py-1 rounded-md hover:bg-[var(--bg-hover)] transition-colors"
+            style={{ display: session.handle ? undefined : 'none' }}
           >
             @{session.handle}
           </button>
@@ -591,34 +609,39 @@ export function App() {
       </header>
 
       <div className="flex border-b border-[var(--border)] px-2 gap-0.5">
-        {(['page', 'bookmarks', 'highlights', 'collections'] as Tab[]).map((tab) => {
-          const icons: Record<Tab, JSX.Element> = {
-            page: <Globe size={13} />,
-            bookmarks: <BookmarkIcon size={13} />,
-            highlights: <Highlighter size={13} />,
-            collections: <Folder size={13} />,
-          };
-          const labels: Record<Tab, string> = {
-            page: 'Page',
-            bookmarks: 'Bookmarks',
-            highlights: 'Highlights',
-            collections: 'Collections',
-          };
-          return (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2.5 text-[11px] font-medium flex items-center justify-center gap-1 border-b-2 transition-all ${
-                activeTab === tab
-                  ? 'border-[var(--accent)] text-[var(--accent)]'
-                  : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
-              }`}
-            >
-              {icons[tab]}
-              {labels[tab]}
-            </button>
-          );
-        })}
+        {(['page', 'bookmarks', 'highlights', 'collections'] as Tab[])
+          .filter((tab) => tab === 'page' || !!session.did)
+          .map((tab) => {
+            const icons: Record<Tab, JSX.Element> = {
+              page: <Globe size={13} />,
+              bookmarks: <BookmarkIcon size={13} />,
+              highlights: <Highlighter size={13} />,
+              collections: <Folder size={13} />,
+            };
+            const labels: Record<Tab, string> = {
+              page: 'Page',
+              bookmarks: 'Bookmarks',
+              highlights: 'Highlights',
+              collections: 'Collections',
+            };
+            return (
+              <button
+                key={tab}
+                onClick={() => {
+                  setActiveTab(tab);
+                  capture('extension_tab_switched', { tab }, session?.did ?? undefined);
+                }}
+                className={`flex-1 py-2.5 text-[11px] font-medium flex items-center justify-center gap-1 border-b-2 transition-all ${
+                  activeTab === tab
+                    ? 'border-[var(--accent)] text-[var(--accent)]'
+                    : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                }`}
+              >
+                {icons[tab]}
+                {labels[tab]}
+              </button>
+            );
+          })}
       </div>
 
       <div className="flex-1 overflow-y-auto">

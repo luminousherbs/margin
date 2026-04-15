@@ -1,5 +1,6 @@
 import { onMessage } from '@/utils/messaging';
 import type { Annotation } from '@/utils/types';
+import * as analytics from '@/utils/analytics';
 import {
   checkSession,
   getAnnotations,
@@ -244,8 +245,21 @@ export default defineBackground(() => {
     });
   }
 
-  browser.runtime.onInstalled.addListener(async () => {
+  browser.runtime.onInstalled.addListener(async (details) => {
     await ensureContextMenus();
+    if (details.reason === 'install') {
+      const manifest = browser.runtime.getManifest();
+      analytics.capture('extension_installed', {
+        version: manifest.version,
+        browser: import.meta.env.BROWSER ?? 'unknown',
+      });
+    } else if (details.reason === 'update' && details.previousVersion) {
+      const manifest = browser.runtime.getManifest();
+      analytics.capture('extension_updated', {
+        previous_version: details.previousVersion,
+        version: manifest.version,
+      });
+    }
   });
 
   browser.runtime.onStartup.addListener(async () => {
@@ -287,6 +301,12 @@ export default defineBackground(() => {
 
       if (result.success) {
         showNotification('Margin', 'Page bookmarked!');
+        const session = await checkSession();
+        analytics.capture(
+          'bookmark_created',
+          { url: resolveTabUrl(tab.url), tag_count: 0, source: 'extension' },
+          session.did ?? undefined
+        );
       }
       return;
     }
@@ -352,6 +372,12 @@ export default defineBackground(() => {
 
       if (result.success) {
         showNotification('Margin', 'Text highlighted!');
+        const session = await checkSession();
+        analytics.capture(
+          'highlight_created',
+          { url: highlightUrl, tag_count: 0, has_color: false, source: 'extension' },
+          session.did ?? undefined
+        );
         try {
           await browser.tabs.sendMessage(tab.id!, { type: 'REFRESH_ANNOTATIONS' });
           const uri = result.data?.uri || result.data?.id || '';
@@ -441,6 +467,12 @@ export default defineBackground(() => {
 
       if (result.success) {
         showNotification('Margin', 'Page bookmarked!');
+        const session = await checkSession();
+        analytics.capture(
+          'bookmark_created',
+          { url: resolveTabUrl(tab.url), tag_count: 0, source: 'extension' },
+          session.did ?? undefined
+        );
       }
       return;
     }
@@ -448,7 +480,7 @@ export default defineBackground(() => {
     if ((command === 'annotate-selection' || command === 'highlight-selection') && tab?.id) {
       try {
         const selection = (await browser.tabs.sendMessage(tab.id, { type: 'GET_SELECTION' })) as
-          | { text?: string }
+          | { text?: string; prefix?: string; suffix?: string }
           | undefined;
         if (!selection?.text) return;
 
@@ -462,7 +494,14 @@ export default defineBackground(() => {
         if (command === 'annotate-selection') {
           await browser.tabs.sendMessage(tab.id, {
             type: 'SHOW_INLINE_ANNOTATE',
-            data: { selector: { exact: selection.text } },
+            data: {
+              selector: {
+                type: 'TextQuoteSelector',
+                exact: selection.text,
+                prefix: selection.prefix,
+                suffix: selection.suffix,
+              },
+            },
           });
         } else if (command === 'highlight-selection') {
           const result = await createHighlight({
@@ -471,11 +510,19 @@ export default defineBackground(() => {
             selector: {
               type: 'TextQuoteSelector',
               exact: selection.text,
+              prefix: selection.prefix,
+              suffix: selection.suffix,
             },
           });
 
           if (result.success) {
             showNotification('Margin', 'Text highlighted!');
+            const session = await checkSession();
+            analytics.capture(
+              'highlight_created',
+              { url: resolveTabUrl(tab.url!), tag_count: 0, has_color: false, source: 'extension' },
+              session.did ?? undefined
+            );
             await browser.tabs.sendMessage(tab.id, { type: 'REFRESH_ANNOTATIONS' });
           }
         }

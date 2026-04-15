@@ -3,6 +3,10 @@ import { defineConfig } from "astro/config";
 import react from "@astrojs/react";
 import tailwind from "@astrojs/tailwind";
 import node from "@astrojs/node";
+import { fileURLToPath } from "url";
+import { dirname, resolve } from "path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const API_PORT = process.env.API_PORT || 8081;
 
@@ -17,6 +21,11 @@ export default defineConfig({
     defaultStrategy: "viewport",
   },
   vite: {
+    resolve: {
+      alias: {
+        "@": resolve(__dirname, "src"),
+      },
+    },
     ssr: {
       external: ["@resvg/resvg-js"],
     },

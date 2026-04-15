@@ -9,6 +9,7 @@ import {
 import type { Selector, ContentLabelValue } from "../../types";
 import { X, ShieldAlert } from "lucide-react";
 import TagInput from "../ui/TagInput";
+import { analytics } from "../../lib/analytics";
 
 const SELF_LABEL_OPTIONS: { value: ContentLabelValue; label: string }[] = [
   { value: "sexual", label: "Sexual" },
@@ -99,6 +100,11 @@ export default function Composer({
           tags: tagList,
           labels: selfLabels.length > 0 ? selfLabels : undefined,
         });
+        analytics.capture("highlight_created", {
+          url,
+          tag_count: tagList.length,
+          has_labels: selfLabels.length > 0,
+        });
       } else {
         await createAnnotation({
           url,
@@ -106,6 +112,12 @@ export default function Composer({
           selector: finalSelector || undefined,
           tags: tagList,
           labels: selfLabels.length > 0 ? selfLabels : undefined,
+        });
+        analytics.capture("annotation_created", {
+          url,
+          has_quote: !!finalSelector,
+          tag_count: tagList.length,
+          has_labels: selfLabels.length > 0,
         });
       }
 
@@ -115,6 +127,7 @@ export default function Composer({
       setSelector(null);
       if (onSuccess) onSuccess();
     } catch (err) {
+      analytics.captureException(err);
       setError(
         (err instanceof Error ? err.message : "Unknown error") ||
           "Failed to post",

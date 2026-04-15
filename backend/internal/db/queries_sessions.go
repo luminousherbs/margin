@@ -35,3 +35,12 @@ func (db *DB) DeleteExpiredSessions() error {
 	_, err := db.Exec(`DELETE FROM sessions WHERE expires_at <= $1`, time.Now())
 	return err
 }
+
+func (db *DB) CountSessionsByDID(did string) (int, error) {
+	var n int
+	err := db.QueryRow(
+		`SELECT COUNT(*) FROM sessions WHERE did = $1 AND expires_at > $2`,
+		did, time.Now(),
+	).Scan(&n)
+	return n, err
+}

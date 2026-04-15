@@ -20,6 +20,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { getAvatarUrl } from "../../api/client";
+import { analytics } from "../../lib/analytics";
 
 interface AnnotationDetailProps {
   handle?: string;
@@ -159,6 +160,10 @@ export default function AnnotationDetail({
         replyText,
       );
 
+      analytics.capture("reply_created", {
+        parent_uri: parentUri,
+        root_uri: targetUri,
+      });
       setReplyText("");
       setReplyingTo(null);
       await refreshReplies();

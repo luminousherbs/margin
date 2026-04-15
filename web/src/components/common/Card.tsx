@@ -19,6 +19,7 @@ import {
   Tag,
   Send,
   X,
+  Bookmark,
 } from "lucide-react";
 import ShareMenu from "../modals/ShareMenu";
 import AddToCollectionModal from "../modals/AddToCollectionModal";
@@ -47,6 +48,7 @@ import type {
 import { Avatar } from "../ui";
 import CollectionIcon from "./CollectionIcon";
 import ProfileHoverCard from "./ProfileHoverCard";
+import { analytics } from "../../lib/analytics";
 
 const LABEL_DESCRIPTIONS: Record<string, string> = {
   sexual: "Sexual Content",
@@ -172,6 +174,10 @@ export default function Card({
   const isSemble =
     item.uri?.includes("network.cosmik") || item.uri?.includes("semble");
 
+  const isCommunityBookmark = item.uri?.includes(
+    "community.lexicon.bookmarks.bookmark",
+  );
+
   const safeUrlHostname = (url: string | null | undefined) => {
     if (!url) return null;
     try {
@@ -212,13 +218,21 @@ export default function Card({
     if (!success) {
       setLiked(prev.liked);
       setLikes(prev.likes);
+    } else {
+      analytics.capture("item_liked", {
+        type,
+        action: liked ? "unlike" : "like",
+      });
     }
   };
 
   const handleDelete = async () => {
     if (window.confirm("Delete this item?")) {
       const success = await deleteItem(item.uri, type);
-      if (success && onDelete) onDelete(item.uri);
+      if (success && onDelete) {
+        analytics.capture("item_deleted", { type });
+        onDelete(item.uri);
+      }
     }
   };
 
@@ -479,6 +493,24 @@ export default function Card({
                   </span>
                 );
               })()}
+
+            {isCommunityBookmark && (
+              <span className="relative inline-flex items-center">
+                <span className="text-surface-300 dark:text-surface-600">
+                  ·
+                </span>
+                <span className="group/cb relative inline-flex items-center ml-1">
+                  <Bookmark
+                    size={12}
+                    className="text-surface-400 dark:text-surface-500 fill-current"
+                  />
+                  <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1 rounded-lg bg-surface-800 dark:bg-surface-700 text-white text-[11px] font-medium whitespace-nowrap opacity-0 group-hover/cb:opacity-100 transition-opacity shadow-lg">
+                    Community bookmark
+                    <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-surface-800 dark:border-t-surface-700" />
+                  </span>
+                </span>
+              </span>
+            )}
           </div>
 
           {pageUrl && !isBookmark && !(contentWarning && !contentRevealed) && (
@@ -638,7 +670,7 @@ export default function Card({
                   const url = `${pageUrl}#:~:text=${sel.prefix ? encodeURIComponent(sel.prefix) + "-," : ""}${encodeURIComponent(sel.exact)}${sel.suffix ? ",-" + encodeURIComponent(sel.suffix) : ""}`;
                   handleExternalClick(e, url);
                 }}
-                className="block"
+                className="block break-words"
               >
                 "{item.target?.selector?.exact}"
               </a>

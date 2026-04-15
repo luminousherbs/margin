@@ -16,6 +16,7 @@ import { EmptyState } from "../../components/ui";
 import LayoutToggle from "../../components/ui/LayoutToggle";
 import { $user } from "../../store/auth";
 import { $feedLayout } from "../../store/feedLayout";
+import { analytics } from "../../lib/analytics";
 
 const searchCache = new Map<
   string,
@@ -165,6 +166,7 @@ export default function Search({
       const url = new URL(window.location.href);
       url.searchParams.set("q", query.trim());
       window.history.replaceState({}, "", url.toString());
+      analytics.capture("search_performed", { query: query.trim() });
       doSearch(query.trim());
     }
   };

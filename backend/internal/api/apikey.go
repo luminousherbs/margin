@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
@@ -154,9 +155,10 @@ func (h *APIKeyHandler) DeleteKey(w http.ResponseWriter, r *http.Request) {
 }
 
 type QuickBookmarkRequest struct {
-	URL         string `json:"url"`
-	Title       string `json:"title,omitempty"`
-	Description string `json:"description,omitempty"`
+	URL         string   `json:"url"`
+	Title       string   `json:"title,omitempty"`
+	Description string   `json:"description,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
 }
 
 func (h *APIKeyHandler) QuickBookmark(w http.ResponseWriter, r *http.Request) {
@@ -179,52 +181,98 @@ func (h *APIKeyHandler) QuickBookmark(w http.ResponseWriter, r *http.Request) {
 
 	session, err := h.getSessionByDID(apiKey.OwnerDID)
 	if err != nil {
+		logger.Error("[QuickBookmark] session lookup failed for DID %s: %v", apiKey.OwnerDID, err)
 		WriteUnauthorized(w, "User session not found. Please log in to margin.at first.")
 		return
 	}
 
+	for i, t := range req.Tags {
+		req.Tags[i] = strings.ToLower(t)
+	}
+
 	urlHash := db.HashURL(req.URL)
-	record := xrpc.NewBookmarkRecord(req.URL, urlHash, req.Title, req.Description)
+	record := xrpc.NewNoteRecord(req.URL, urlHash, "", nil, req.Title, "", req.Description, "bookmarking")
+	if len(req.Tags) > 0 {
+		record.Tags = req.Tags
+	}
 
 	if err := record.Validate(); err != nil {
+		logger.Error("[QuickBookmark] record validation failed for DID %s url=%s: %v", apiKey.OwnerDID, req.URL, err)
 		WriteBadRequest(w, "Validation error: "+err.Error())
 		return
 	}
 
+	logger.Info("[QuickBookmark] creating record for DID %s url=%s", apiKey.OwnerDID, req.URL)
+
 	var result *xrpc.CreateRecordOutput
 	err = h.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
 		var createErr error
-		result, createErr = client.CreateRecord(r.Context(), did, xrpc.CollectionBookmark, record)
+		result, createErr = client.CreateRecord(r.Context(), did, xrpc.CollectionNote, record)
 		return createErr
 	})
 	if err != nil {
+		logger.Error("[QuickBookmark] PDS CreateRecord failed for DID %s url=%s: %v", apiKey.OwnerDID, req.URL, err)
 		WriteInternalError(w, "Failed to create bookmark")
 		return
 	}
 
+	logger.Info("[QuickBookmark] created record URI=%s for DID %s", result.URI, apiKey.OwnerDID)
+
 	h.db.UpdateAPIKeyLastUsed(apiKey.ID)
 
-	var titlePtr, descPtr *string
+	capturedTags := append([]string(nil), req.Tags...)
+	go func(did, url string) {
+		prefs, dbErr := h.db.GetPreferences(did)
+		communityEnabled := dbErr == nil && prefs != nil && (prefs.EnableCommunityBookmarks == nil || *prefs.EnableCommunityBookmarks)
+		if !communityEnabled {
+			return
+		}
+		sess, err := h.getSessionByDID(did)
+		if err != nil {
+			return
+		}
+		client := h.refresher.CreateClientFromSession(sess)
+		communityRecord := map[string]interface{}{
+			"$type":     xrpc.CollectionCommunityBookmark,
+			"subject":   url,
+			"createdAt": time.Now().UTC().Format(time.RFC3339),
+		}
+		if len(capturedTags) > 0 {
+			communityRecord["tags"] = capturedTags
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_, _ = client.CreateRecord(ctx, did, xrpc.CollectionCommunityBookmark, communityRecord)
+	}(apiKey.OwnerDID, req.URL)
+
+	var titlePtr, bodyValuePtr, tagsJSONPtr *string
 	if req.Title != "" {
 		titlePtr = &req.Title
 	}
 	if req.Description != "" {
-		descPtr = &req.Description
+		bodyValuePtr = &req.Description
+	}
+	if len(req.Tags) > 0 {
+		b, _ := json.Marshal(req.Tags)
+		s := string(b)
+		tagsJSONPtr = &s
 	}
 
 	cid := result.CID
-	bookmark := &db.Bookmark{
-		URI:         result.URI,
-		AuthorDID:   apiKey.OwnerDID,
-		Source:      req.URL,
-		SourceHash:  urlHash,
-		Title:       titlePtr,
-		Description: descPtr,
-		CreatedAt:   time.Now(),
-		IndexedAt:   time.Now(),
-		CID:         &cid,
+	note := &db.Note{
+		URI:          result.URI,
+		AuthorDID:    apiKey.OwnerDID,
+		Motivation:   "bookmarking",
+		TargetSource: req.URL,
+		TargetHash:   urlHash,
+		TargetTitle:  titlePtr,
+		BodyValue:    bodyValuePtr,
+		TagsJSON:     tagsJSONPtr,
+		CreatedAt:    time.Now(),
+		IndexedAt:    time.Now(),
+		CID:          &cid,
 	}
-	h.db.CreateBookmark(bookmark)
+	h.db.CreateNote(note)
 
 	WriteSuccess(w, map[string]string{
 		"uri":     result.URI,
@@ -236,8 +284,10 @@ func (h *APIKeyHandler) QuickBookmark(w http.ResponseWriter, r *http.Request) {
 type QuickSaveRequest struct {
 	URL      string          `json:"url"`
 	Text     string          `json:"text,omitempty"`
+	Title    string          `json:"title,omitempty"`
 	Selector json.RawMessage `json:"selector,omitempty"`
 	Color    string          `json:"color,omitempty"`
+	Tags     []string        `json:"tags,omitempty"`
 }
 
 func (h *APIKeyHandler) QuickSave(w http.ResponseWriter, r *http.Request) {
@@ -274,12 +324,26 @@ func (h *APIKeyHandler) QuickSave(w http.ResponseWriter, r *http.Request) {
 	var result *xrpc.CreateRecordOutput
 	var createErr error
 
+	for i, t := range req.Tags {
+		req.Tags[i] = strings.ToLower(t)
+	}
+
+	var tagsJSONPtr *string
+	if len(req.Tags) > 0 {
+		b, _ := json.Marshal(req.Tags)
+		s := string(b)
+		tagsJSONPtr = &s
+	}
+
 	if isHighlight {
 		color := req.Color
 		if color == "" {
 			color = "yellow"
 		}
-		record := xrpc.NewHighlightRecord(req.URL, urlHash, req.Selector, color, nil)
+		record := xrpc.NewNoteRecord(req.URL, urlHash, "", req.Selector, req.Title, color, "", "highlighting")
+		if len(req.Tags) > 0 {
+			record.Tags = req.Tags
+		}
 
 		if err := record.Validate(); err != nil {
 			WriteBadRequest(w, "Validation error: "+err.Error())
@@ -287,7 +351,7 @@ func (h *APIKeyHandler) QuickSave(w http.ResponseWriter, r *http.Request) {
 		}
 
 		err = h.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
-			result, createErr = client.CreateRecord(r.Context(), did, xrpc.CollectionHighlight, record)
+			result, createErr = client.CreateRecord(r.Context(), did, xrpc.CollectionNote, record)
 			return createErr
 		})
 		if err == nil {
@@ -296,26 +360,37 @@ func (h *APIKeyHandler) QuickSave(w http.ResponseWriter, r *http.Request) {
 			selectorStr := string(selectorJSON)
 			colorPtr := &color
 
-			highlight := &db.Highlight{
+			var titlePtr *string
+			if req.Title != "" {
+				titlePtr = &req.Title
+			}
+
+			note := &db.Note{
 				URI:          result.URI,
 				AuthorDID:    apiKey.OwnerDID,
+				Motivation:   "highlighting",
 				TargetSource: req.URL,
 				TargetHash:   urlHash,
+				TargetTitle:  titlePtr,
 				SelectorJSON: &selectorStr,
 				Color:        colorPtr,
+				TagsJSON:     tagsJSONPtr,
 				CreatedAt:    time.Now(),
 				IndexedAt:    time.Now(),
 				CID:          &result.CID,
 			}
 			go func() {
-				if err := h.db.CreateHighlight(highlight); err != nil {
-					fmt.Printf("Warning: failed to index highlight in local DB: %v\n", err)
+				if err := h.db.CreateNote(note); err != nil {
+					logger.Error("Warning: failed to index highlight note in local DB: %v", err)
 				}
 			}()
 		}
 
 	} else {
-		record := xrpc.NewAnnotationRecord(req.URL, urlHash, req.Text, req.Selector, "")
+		record := xrpc.NewNoteRecord(req.URL, urlHash, req.Text, req.Selector, req.Title, "", "", "commenting")
+		if len(req.Tags) > 0 {
+			record.Tags = req.Tags
+		}
 
 		if err := record.Validate(); err != nil {
 			WriteBadRequest(w, "Validation error: "+err.Error())
@@ -323,7 +398,7 @@ func (h *APIKeyHandler) QuickSave(w http.ResponseWriter, r *http.Request) {
 		}
 
 		err = h.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
-			result, createErr = client.CreateRecord(r.Context(), did, xrpc.CollectionAnnotation, record)
+			result, createErr = client.CreateRecord(r.Context(), did, xrpc.CollectionNote, record)
 			return createErr
 		})
 		if err == nil {
@@ -336,26 +411,30 @@ func (h *APIKeyHandler) QuickSave(w http.ResponseWriter, r *http.Request) {
 				selectorStrPtr = &s
 			}
 
-			bodyValue := req.Text
-			var bodyValuePtr *string
-			if bodyValue != "" {
-				bodyValuePtr = &bodyValue
+			var bodyValuePtr, titlePtr *string
+			if req.Text != "" {
+				bodyValuePtr = &req.Text
+			}
+			if req.Title != "" {
+				titlePtr = &req.Title
 			}
 
-			annotation := &db.Annotation{
+			note := &db.Note{
 				URI:          result.URI,
 				AuthorDID:    apiKey.OwnerDID,
 				Motivation:   "commenting",
 				BodyValue:    bodyValuePtr,
 				TargetSource: req.URL,
 				TargetHash:   urlHash,
+				TargetTitle:  titlePtr,
 				SelectorJSON: selectorStrPtr,
+				TagsJSON:     tagsJSONPtr,
 				CreatedAt:    time.Now(),
 				IndexedAt:    time.Now(),
 				CID:          &result.CID,
 			}
 			go func() {
-				h.db.CreateAnnotation(annotation)
+				h.db.CreateNote(note)
 			}()
 		}
 	}
@@ -374,8 +453,10 @@ func (h *APIKeyHandler) QuickSave(w http.ResponseWriter, r *http.Request) {
 
 type QuickHighlightRequest struct {
 	URL      string      `json:"url"`
+	Title    string      `json:"title,omitempty"`
 	Selector interface{} `json:"selector"`
 	Color    string      `json:"color,omitempty"`
+	Tags     []string    `json:"tags,omitempty"`
 }
 
 func (h *APIKeyHandler) QuickHighlight(w http.ResponseWriter, r *http.Request) {
@@ -402,13 +483,20 @@ func (h *APIKeyHandler) QuickHighlight(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	for i, t := range req.Tags {
+		req.Tags[i] = strings.ToLower(t)
+	}
+
 	urlHash := db.HashURL(req.URL)
 	color := req.Color
 	if color == "" {
 		color = "yellow"
 	}
 
-	record := xrpc.NewHighlightRecord(req.URL, urlHash, req.Selector, color, nil)
+	record := xrpc.NewNoteRecord(req.URL, urlHash, "", req.Selector, req.Title, color, "", "highlighting")
+	if len(req.Tags) > 0 {
+		record.Tags = req.Tags
+	}
 
 	if err := record.Validate(); err != nil {
 		WriteBadRequest(w, "Validation error: "+err.Error())
@@ -418,7 +506,7 @@ func (h *APIKeyHandler) QuickHighlight(w http.ResponseWriter, r *http.Request) {
 	var result *xrpc.CreateRecordOutput
 	err = h.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
 		var createErr error
-		result, createErr = client.CreateRecord(r.Context(), did, xrpc.CollectionHighlight, record)
+		result, createErr = client.CreateRecord(r.Context(), did, xrpc.CollectionNote, record)
 		return createErr
 	})
 	if err != nil {
@@ -432,25 +520,69 @@ func (h *APIKeyHandler) QuickHighlight(w http.ResponseWriter, r *http.Request) {
 	selectorStr := string(selectorJSON)
 	colorPtr := &color
 
-	highlight := &db.Highlight{
+	var titlePtr, tagsJSONPtr *string
+	if req.Title != "" {
+		titlePtr = &req.Title
+	}
+	if len(req.Tags) > 0 {
+		b, _ := json.Marshal(req.Tags)
+		s := string(b)
+		tagsJSONPtr = &s
+	}
+
+	note := &db.Note{
 		URI:          result.URI,
 		AuthorDID:    apiKey.OwnerDID,
+		Motivation:   "highlighting",
 		TargetSource: req.URL,
 		TargetHash:   urlHash,
+		TargetTitle:  titlePtr,
 		SelectorJSON: &selectorStr,
 		Color:        colorPtr,
+		TagsJSON:     tagsJSONPtr,
 		CreatedAt:    time.Now(),
 		IndexedAt:    time.Now(),
 		CID:          &result.CID,
 	}
-	if err := h.db.CreateHighlight(highlight); err != nil {
-		fmt.Printf("Warning: failed to index highlight in local DB: %v\n", err)
+	if err := h.db.CreateNote(note); err != nil {
+		logger.Error("Warning: failed to index highlight note in local DB: %v", err)
 	}
 
 	WriteSuccess(w, map[string]string{
 		"uri":     result.URI,
 		"cid":     result.CID,
 		"message": "Highlight created successfully",
+	})
+}
+
+func (h *APIKeyHandler) GetMe(w http.ResponseWriter, r *http.Request) {
+	apiKey, err := h.authenticateAPIKey(r)
+	if err == nil {
+		session, err := h.getSessionByDID(apiKey.OwnerDID)
+		if err != nil {
+			WriteUnauthorized(w, "User session not found. Please log in to margin.at first.")
+			return
+		}
+		WriteSuccess(w, map[string]string{
+			"did":    session.DID,
+			"handle": session.Handle,
+		})
+		return
+	}
+
+	token := r.Header.Get("X-Session-Token")
+	if token == "" {
+		WriteUnauthorized(w, "Unauthorized")
+		return
+	}
+	did, handle, _, _, _, err := h.db.GetSession(token)
+	if err != nil {
+		WriteUnauthorized(w, "Invalid session")
+		return
+	}
+	WriteSuccess(w, map[string]string{
+		"did":    did,
+		"handle": handle,
 	})
 }
 

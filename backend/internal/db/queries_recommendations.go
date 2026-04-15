@@ -54,46 +54,6 @@ type UserProfile struct {
 	UpdatedAt       time.Time `json:"updatedAt"`
 }
 
-func (db *DB) MigrateRecommendations() error {
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS document_embeddings (
-			document_uri TEXT PRIMARY KEY,
-			embedding TEXT NOT NULL,
-			updated_at TIMESTAMP NOT NULL
-		)`)
-	if err != nil {
-		return fmt.Errorf("create document_embeddings table: %w", err)
-	}
-
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS annotation_embeddings (
-			annotation_uri TEXT PRIMARY KEY,
-			author_did TEXT NOT NULL,
-			document_uri TEXT,
-			embedding TEXT NOT NULL,
-			updated_at TIMESTAMP NOT NULL
-		)`)
-	if err != nil {
-		return fmt.Errorf("create annotation_embeddings table: %w", err)
-	}
-	db.Exec(`CREATE INDEX IF NOT EXISTS idx_ann_emb_author ON annotation_embeddings(author_did)`)
-	db.Exec(`CREATE INDEX IF NOT EXISTS idx_ann_emb_document ON annotation_embeddings(document_uri)`)
-
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS user_profiles (
-			author_did TEXT PRIMARY KEY,
-			embedding TEXT NOT NULL,
-			tag_affinities TEXT DEFAULT '{}',
-			annotation_count INTEGER NOT NULL DEFAULT 0,
-			updated_at TIMESTAMP NOT NULL
-		)`)
-	if err != nil {
-		return fmt.Errorf("create user_profiles table: %w", err)
-	}
-
-	return nil
-}
-
 func (db *DB) UpsertPublication(p *Publication) error {
 	query := `
 		INSERT INTO publications (uri, author_did, url, name, description, show_in_discover, indexed_at)

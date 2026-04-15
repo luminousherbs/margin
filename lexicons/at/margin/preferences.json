@@ -44,6 +44,11 @@
           "disableExternalLinkWarning": {
             "type": "boolean",
             "description": "If true, do not show the confirmation modal when opening external links."
+          },
+          "enableCommunityBookmarks": {
+            "type": "boolean",
+            "description": "If true, dual-write bookmarks to the   standard for ATProto interop.",
+            "default": false
           }
         }
       }

@@ -93,6 +93,8 @@ func NewIngester(database *db.DB, syncService *internal_sync.Service) *Ingester 
 	i.RegisterHandler(CollectionSembleCollection, i.handleSembleCollection)
 	i.RegisterHandler(xrpc.CollectionSembleCollectionLink, i.handleSembleCollectionLink)
 	i.RegisterHandler(CollectionDocument, i.handleDocument)
+	i.RegisterHandler(xrpc.CollectionNote, i.handleNote)
+	i.RegisterHandler(xrpc.CollectionCommunityBookmark, i.handleCommunityBookmark)
 
 	return i
 }
@@ -325,6 +327,10 @@ func (i *Ingester) handleDelete(collection, uri string) {
 		i.db.RemoveFromCollection(uri)
 	case CollectionDocument:
 		i.db.DeleteDocument(uri)
+	case xrpc.CollectionNote:
+		i.db.DeleteNote(uri)
+	case xrpc.CollectionCommunityBookmark:
+		i.db.DeleteNote(uri)
 	}
 }
 
@@ -457,6 +463,156 @@ func (i *Ingester) handleAnnotation(event *FirehoseEvent) {
 			default:
 			}
 		}
+	}
+}
+
+func (i *Ingester) handleNote(event *FirehoseEvent) {
+	var record struct {
+		Motivation  string `json:"motivation"`
+		Color       string `json:"color"`
+		Description string `json:"description"`
+		Body        struct {
+			Value  string `json:"value"`
+			Format string `json:"format"`
+			URI    string `json:"uri"`
+		} `json:"body"`
+		Target struct {
+			Source     string          `json:"source"`
+			SourceHash string          `json:"sourceHash"`
+			Title      string          `json:"title"`
+			Selector   json.RawMessage `json:"selector"`
+		} `json:"target"`
+		Tags      []string `json:"tags"`
+		CreatedAt string   `json:"createdAt"`
+	}
+
+	if err := json.Unmarshal(event.Record, &record); err != nil {
+		return
+	}
+
+	uri := fmt.Sprintf("at://%s/%s/%s", event.Repo, event.Collection, event.Rkey)
+
+	createdAt, err := time.Parse(time.RFC3339, record.CreatedAt)
+	if err != nil {
+		createdAt = time.Now()
+	}
+
+	targetSource := record.Target.Source
+	var targetHash string
+	if targetSource != "" {
+		targetHash = db.HashURL(targetSource)
+	}
+
+	motivation := record.Motivation
+	if motivation == "" {
+		motivation = "commenting"
+	}
+
+	bodyText := record.Body.Value
+	if bodyText == "" && record.Description != "" {
+		bodyText = record.Description
+	}
+
+	var bodyValuePtr, bodyFormatPtr, bodyURIPtr, targetTitlePtr, selectorJSONPtr, tagsJSONPtr, colorPtr *string
+	if bodyText != "" {
+		bodyValuePtr = &bodyText
+	}
+	if record.Body.Format != "" {
+		bodyFormatPtr = &record.Body.Format
+	}
+	if record.Body.URI != "" {
+		bodyURIPtr = &record.Body.URI
+	}
+	if record.Target.Title != "" {
+		targetTitlePtr = &record.Target.Title
+	}
+	if len(record.Target.Selector) > 0 && string(record.Target.Selector) != "null" {
+		selectorStr := string(record.Target.Selector)
+		selectorJSONPtr = &selectorStr
+	}
+	if len(record.Tags) > 0 {
+		tagsBytes, _ := json.Marshal(record.Tags)
+		tagsStr := string(tagsBytes)
+		tagsJSONPtr = &tagsStr
+	}
+	if record.Color != "" {
+		colorPtr = &record.Color
+	}
+
+	note := &db.Note{
+		URI:          uri,
+		AuthorDID:    event.Repo,
+		Motivation:   motivation,
+		Color:        colorPtr,
+		BodyValue:    bodyValuePtr,
+		BodyFormat:   bodyFormatPtr,
+		BodyURI:      bodyURIPtr,
+		TargetSource: targetSource,
+		TargetHash:   targetHash,
+		TargetTitle:  targetTitlePtr,
+		SelectorJSON: selectorJSONPtr,
+		TagsJSON:     tagsJSONPtr,
+		CreatedAt:    createdAt,
+		IndexedAt:    time.Now(),
+	}
+
+	if err := i.db.CreateNote(note); err != nil {
+		logger.Error("Failed to index note: %v", err)
+	} else {
+		logger.Info("Indexed note from %s on %s", event.Repo, targetSource)
+	}
+}
+
+func (i *Ingester) handleCommunityBookmark(event *FirehoseEvent) {
+	var record struct {
+		Subject   string   `json:"subject"`
+		Tags      []string `json:"tags"`
+		CreatedAt string   `json:"createdAt"`
+	}
+
+	if err := json.Unmarshal(event.Record, &record); err != nil {
+		return
+	}
+
+	if record.Subject == "" {
+		return
+	}
+
+	uri := fmt.Sprintf("at://%s/%s/%s", event.Repo, event.Collection, event.Rkey)
+
+	createdAt, err := time.Parse(time.RFC3339, record.CreatedAt)
+	if err != nil {
+		createdAt = time.Now()
+	}
+
+	targetHash := db.HashURL(record.Subject)
+
+	if exists, err := i.db.MarginNoteBookmarkExists(event.Repo, targetHash); err == nil && exists {
+		return
+	}
+
+	var tagsJSONPtr *string
+	if len(record.Tags) > 0 {
+		tagsBytes, _ := json.Marshal(record.Tags)
+		tagsStr := string(tagsBytes)
+		tagsJSONPtr = &tagsStr
+	}
+
+	note := &db.Note{
+		URI:          uri,
+		AuthorDID:    event.Repo,
+		Motivation:   "bookmarking",
+		TargetSource: record.Subject,
+		TargetHash:   targetHash,
+		TagsJSON:     tagsJSONPtr,
+		CreatedAt:    createdAt,
+		IndexedAt:    time.Now(),
+	}
+
+	if err := i.db.CreateNote(note); err != nil {
+		logger.Error("Failed to index community bookmark: %v", err)
+	} else {
+		logger.Info("Indexed community bookmark from %s on %s", event.Repo, record.Subject)
 	}
 }
 
@@ -842,6 +998,7 @@ func (i *Ingester) handlePreferences(event *FirehoseEvent) {
 		SubscribedLabelers           json.RawMessage `json:"subscribedLabelers"`
 		LabelPreferences             json.RawMessage `json:"labelPreferences"`
 		DisableExternalLinkWarning   *bool           `json:"disableExternalLinkWarning,omitempty"`
+		EnableCommunityBookmarks     *bool           `json:"enableCommunityBookmarks,omitempty"`
 		CreatedAt                    string          `json:"createdAt"`
 	}
 
@@ -886,6 +1043,7 @@ func (i *Ingester) handlePreferences(event *FirehoseEvent) {
 		ExternalLinkSkippedHostnames: skippedHostnamesPtr,
 		SubscribedLabelers:           subscribedLabelersPtr,
 		DisableExternalLinkWarning:   record.DisableExternalLinkWarning,
+		EnableCommunityBookmarks:     record.EnableCommunityBookmarks,
 		LabelPreferences:             labelPrefsPtr,
 		CreatedAt:                    createdAt,
 		IndexedAt:                    time.Now(),

@@ -14,6 +14,7 @@ const EmojiPicker = React.lazy(() => import("emoji-picker-react"));
 import { useStore } from "@nanostores/react";
 import { $user } from "../../store/auth";
 import { $theme } from "../../store/theme";
+import { analytics } from "../../lib/analytics";
 import {
   getCollections,
   addCollectionItem,
@@ -88,6 +89,7 @@ export default function AddToCollectionModal({
       setAddingTo(collectionUri);
       await addCollectionItem(collectionUri, annotationUri);
       setAddedTo((prev) => new Set([...prev, collectionUri]));
+      analytics.capture("item_added_to_collection");
     } catch (err) {
       console.error(err);
       setError("Failed to add to collection");

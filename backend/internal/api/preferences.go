@@ -27,6 +27,7 @@ type PreferencesResponse struct {
 	SubscribedLabelers           []LabelerSubscription `json:"subscribedLabelers"`
 	LabelPreferences             []LabelPreference     `json:"labelPreferences"`
 	DisableExternalLinkWarning   bool                  `json:"disableExternalLinkWarning"`
+	EnableCommunityBookmarks     bool                  `json:"enableCommunityBookmarks"`
 }
 
 func (h *Handler) GetPreferences(w http.ResponseWriter, r *http.Request) {
@@ -72,11 +73,17 @@ func (h *Handler) GetPreferences(w http.ResponseWriter, r *http.Request) {
 		disableWarning = *prefs.DisableExternalLinkWarning
 	}
 
+	enableCommunityBookmarks := true
+	if prefs != nil && prefs.EnableCommunityBookmarks != nil {
+		enableCommunityBookmarks = *prefs.EnableCommunityBookmarks
+	}
+
 	WriteSuccess(w, PreferencesResponse{
 		ExternalLinkSkippedHostnames: hostnames,
 		SubscribedLabelers:           labelers,
 		LabelPreferences:             labelPrefs,
 		DisableExternalLinkWarning:   disableWarning,
+		EnableCommunityBookmarks:     enableCommunityBookmarks,
 	})
 }
 
@@ -110,7 +117,7 @@ func (h *Handler) UpdatePreferences(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	record := xrpc.NewPreferencesRecord(input.ExternalLinkSkippedHostnames, xrpcLabelers, xrpcLabelPrefs, &input.DisableExternalLinkWarning)
+	record := xrpc.NewPreferencesRecord(input.ExternalLinkSkippedHostnames, xrpcLabelers, xrpcLabelPrefs, &input.DisableExternalLinkWarning, &input.EnableCommunityBookmarks)
 	if err := record.Validate(); err != nil {
 		WriteBadRequest(w, fmt.Sprintf("Invalid record: %v", err))
 		return
@@ -152,6 +159,7 @@ func (h *Handler) UpdatePreferences(w http.ResponseWriter, r *http.Request) {
 		SubscribedLabelers:           subscribedLabelersPtr,
 		LabelPreferences:             labelPrefsPtr,
 		DisableExternalLinkWarning:   &input.DisableExternalLinkWarning,
+		EnableCommunityBookmarks:     &input.EnableCommunityBookmarks,
 		CreatedAt:                    createdAt,
 		IndexedAt:                    time.Now(),
 	})

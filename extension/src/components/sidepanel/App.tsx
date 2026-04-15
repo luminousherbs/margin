@@ -592,7 +592,12 @@ export function App() {
               {showBookmarkTags && !bookmarked && (
                 <div className="mt-2 pt-2 border-t border-[var(--border)]">
                   <div className="mb-1.5">
-                    <TagInput tags={bookmarkTags} onChange={setBookmarkTags} suggestions={tagSuggestions} placeholder="Add bookmark tags..." />
+                    <TagInput
+                      tags={bookmarkTags}
+                      onChange={setBookmarkTags}
+                      suggestions={tagSuggestions}
+                      placeholder="Add bookmark tags..."
+                    />
                   </div>
                   <button
                     onClick={handleBookmark}

@@ -23,6 +23,8 @@ import MobileNav from "../components/navigation/MobileNav";
 import RightSidebar from "../components/navigation/RightSidebar";
 import Sidebar from "../components/navigation/Sidebar";
 import { $user } from "../store/auth";
+import { analytics } from "../lib/analytics";
+
 import AdminModeration from "./core/AdminModeration";
 import Discover from "./core/Discover";
 import Feed from "./core/Feed";
@@ -112,6 +114,19 @@ function AppLayout() {
   useEffect(() => {
     document.title = PAGE_TITLES[location.pathname] ?? "Margin";
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (searchParams.get("logged_in") !== "true") return;
+    const user = $user.get();
+    analytics.capture("login_success", {
+      handle: user?.handle ?? "",
+      pds: undefined,
+    });
+    const url = new URL(window.location.href);
+    url.searchParams.delete("logged_in");
+    window.history.replaceState({}, "", url.toString());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
 
   useEffect(() => {
     const SERVER_PATHS = [

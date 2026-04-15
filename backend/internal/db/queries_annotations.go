@@ -28,7 +28,7 @@ func (db *DB) GetAnnotationByURI(uri string) (*Annotation, error) {
 	var a Annotation
 	err := db.QueryRow(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
+		FROM all_annotations
 		WHERE uri = $1
 	`, uri).Scan(&a.URI, &a.AuthorDID, &a.Motivation, &a.BodyValue, &a.BodyFormat, &a.BodyURI, &a.TargetSource, &a.TargetHash, &a.TargetTitle, &a.SelectorJSON, &a.TagsJSON, &a.CreatedAt, &a.IndexedAt, &a.CID)
 	if err != nil {
@@ -40,7 +40,7 @@ func (db *DB) GetAnnotationByURI(uri string) (*Annotation, error) {
 func (db *DB) GetAnnotationsByTargetHash(targetHash string, limit, offset int) ([]Annotation, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
+		FROM all_annotations
 		WHERE target_hash = $1
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
@@ -56,7 +56,7 @@ func (db *DB) GetAnnotationsByTargetHash(targetHash string, limit, offset int) (
 func (db *DB) GetAnnotationsByAuthor(authorDID string, limit, offset int) ([]Annotation, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
+		FROM all_annotations
 		WHERE author_did = $1
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
@@ -72,7 +72,7 @@ func (db *DB) GetAnnotationsByAuthor(authorDID string, limit, offset int) ([]Ann
 func (db *DB) GetMarginAnnotationsByAuthor(authorDID string, limit, offset int) ([]Annotation, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
+		FROM all_annotations
 		WHERE author_did = $1 AND uri NOT LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
@@ -88,7 +88,7 @@ func (db *DB) GetMarginAnnotationsByAuthor(authorDID string, limit, offset int) 
 func (db *DB) GetSembleAnnotationsByAuthor(authorDID string, limit, offset int) ([]Annotation, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
+		FROM all_annotations
 		WHERE author_did = $1 AND uri LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
@@ -104,7 +104,7 @@ func (db *DB) GetSembleAnnotationsByAuthor(authorDID string, limit, offset int) 
 func (db *DB) GetAnnotationsByMotivation(motivation string, limit, offset int) ([]Annotation, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
+		FROM all_annotations
 		WHERE motivation = $1
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
@@ -120,7 +120,7 @@ func (db *DB) GetAnnotationsByMotivation(motivation string, limit, offset int) (
 func (db *DB) GetRecentAnnotations(limit, offset int) ([]Annotation, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
+		FROM all_annotations
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
 	`, limit, offset)
@@ -139,7 +139,7 @@ func (db *DB) GetPopularAnnotations(limit, offset int) ([]Annotation, error) {
 			a.uri, a.author_did, a.motivation, a.body_value, a.body_format,
 			a.body_uri, a.target_source, a.target_hash, a.target_title,
 			a.selector_json, a.tags_json, a.created_at, a.indexed_at, a.cid
-		FROM annotations a
+		FROM all_annotations a
 		LEFT JOIN LATERAL (
 			SELECT COUNT(*) as cnt FROM likes WHERE subject_uri = a.uri
 		) l ON true
@@ -166,7 +166,7 @@ func (db *DB) GetShelvedAnnotations(limit, offset int) ([]Annotation, error) {
 			a.uri, a.author_did, a.motivation, a.body_value, a.body_format,
 			a.body_uri, a.target_source, a.target_hash, a.target_title,
 			a.selector_json, a.tags_json, a.created_at, a.indexed_at, a.cid
-		FROM annotations a
+		FROM all_annotations a
 		WHERE a.created_at < $1 AND a.created_at > $2
 			AND NOT EXISTS (SELECT 1 FROM likes WHERE subject_uri = a.uri)
 			AND NOT EXISTS (SELECT 1 FROM replies WHERE root_uri = a.uri)
@@ -184,7 +184,7 @@ func (db *DB) GetShelvedAnnotations(limit, offset int) ([]Annotation, error) {
 func (db *DB) GetMarginAnnotations(limit, offset int) ([]Annotation, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
+		FROM all_annotations
 		WHERE uri NOT LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
@@ -200,7 +200,7 @@ func (db *DB) GetMarginAnnotations(limit, offset int) ([]Annotation, error) {
 func (db *DB) GetSembleAnnotations(limit, offset int) ([]Annotation, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
+		FROM all_annotations
 		WHERE uri LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
@@ -216,7 +216,7 @@ func (db *DB) GetSembleAnnotations(limit, offset int) ([]Annotation, error) {
 func (db *DB) GetAnnotationsByTag(tag string, limit, offset int) ([]Annotation, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
+		FROM all_annotations
 		WHERE EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $1)
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
@@ -232,7 +232,7 @@ func (db *DB) GetAnnotationsByTag(tag string, limit, offset int) ([]Annotation, 
 func (db *DB) GetMarginAnnotationsByTag(tag string, limit, offset int) ([]Annotation, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
+		FROM all_annotations
 		WHERE EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $1) AND uri NOT LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
@@ -248,7 +248,7 @@ func (db *DB) GetMarginAnnotationsByTag(tag string, limit, offset int) ([]Annota
 func (db *DB) GetSembleAnnotationsByTag(tag string, limit, offset int) ([]Annotation, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
+		FROM all_annotations
 		WHERE EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $1) AND uri LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
@@ -278,7 +278,7 @@ func (db *DB) UpdateAnnotation(uri, bodyValue, tagsJSON, cid string) error {
 func (db *DB) GetAnnotationsByTagAndAuthor(tag, authorDID string, limit, offset int) ([]Annotation, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
+		FROM all_annotations
 		WHERE author_did = $1 AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $2)
 		ORDER BY created_at DESC
 		LIMIT $3 OFFSET $4
@@ -294,7 +294,7 @@ func (db *DB) GetAnnotationsByTagAndAuthor(tag, authorDID string, limit, offset 
 func (db *DB) GetMarginAnnotationsByTagAndAuthor(tag, authorDID string, limit, offset int) ([]Annotation, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
+		FROM all_annotations
 		WHERE author_did = $1 AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $2) AND uri NOT LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $3 OFFSET $4
@@ -310,7 +310,7 @@ func (db *DB) GetMarginAnnotationsByTagAndAuthor(tag, authorDID string, limit, o
 func (db *DB) GetSembleAnnotationsByTagAndAuthor(tag, authorDID string, limit, offset int) ([]Annotation, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
+		FROM all_annotations
 		WHERE author_did = $1 AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $2) AND uri LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $3 OFFSET $4
@@ -326,7 +326,7 @@ func (db *DB) GetSembleAnnotationsByTagAndAuthor(tag, authorDID string, limit, o
 func (db *DB) GetAnnotationsByAuthorAndTargetHash(authorDID, targetHash string, limit, offset int) ([]Annotation, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
+		FROM all_annotations
 		WHERE author_did = $1 AND target_hash = $2
 		ORDER BY created_at DESC
 		LIMIT $3 OFFSET $4
@@ -346,7 +346,7 @@ func (db *DB) GetAnnotationsByURIs(uris []string) ([]Annotation, error) {
 
 	query := `
 		SELECT uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
-		FROM annotations
+		FROM all_annotations
 		WHERE uri = ANY($1)
 	`
 
@@ -361,7 +361,7 @@ func (db *DB) GetAnnotationsByURIs(uris []string) ([]Annotation, error) {
 
 func (db *DB) GetAnnotationURIs(authorDID string) ([]string, error) {
 	rows, err := db.Query(`
-		SELECT uri FROM annotations WHERE author_did = $1
+		SELECT uri FROM all_annotations WHERE author_did = $1
 	`, authorDID)
 	if err != nil {
 		return nil, err

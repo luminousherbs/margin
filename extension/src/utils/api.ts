@@ -1,4 +1,4 @@
-import type { MarginSession, TextSelector } from './types';
+import type { MarginSession, TextSelector, Annotation } from './types';
 import { apiUrlItem } from './storage';
 
 async function getApiUrl(): Promise<string> {
@@ -24,25 +24,16 @@ export async function checkSession(): Promise<MarginSession> {
     const apiUrl = await getApiUrl();
     const cookie = await getSessionCookie();
 
-    if (!cookie) {
-      return { authenticated: false };
-    }
+    if (!cookie) return { authenticated: false };
 
     const res = await fetch(`${apiUrl}/auth/session`, {
-      headers: {
-        'X-Session-Token': cookie,
-      },
+      headers: { 'X-Session-Token': cookie },
     });
 
-    if (!res.ok) {
-      return { authenticated: false };
-    }
+    if (!res.ok) return { authenticated: false };
 
     const sessionData = await res.json();
-
-    if (!sessionData.did || !sessionData.handle) {
-      return { authenticated: false };
-    }
+    if (!sessionData.did || !sessionData.handle) return { authenticated: false };
 
     return {
       authenticated: true,
@@ -81,6 +72,25 @@ async function apiRequest(path: string, options: RequestInit = {}): Promise<Resp
   return response;
 }
 
+async function hashUrl(rawUrl: string): Promise<string> {
+  let toHash: string;
+  try {
+    const parsed = new URL(rawUrl);
+    let host = parsed.host.toLowerCase();
+    if (host.startsWith('www.')) host = host.slice(4);
+    let normalized = host + parsed.pathname;
+    if (parsed.search) normalized += parsed.search;
+    normalized = normalized.replace(/\/$/, '');
+    toHash = normalized;
+  } catch {
+    toHash = rawUrl;
+  }
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(toHash));
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 export async function getAnnotations(
   url: string,
   citedUrls: string[] = [],
@@ -90,37 +100,28 @@ export async function getAnnotations(
     const apiUrl = await getApiUrl();
     const uniqueUrls = [...new Set([url, ...citedUrls])];
 
-    const fetchPromises = uniqueUrls.map(async (u) => {
-      try {
-        let requestUrl = `${apiUrl}/api/targets?source=${encodeURIComponent(u)}`;
-        if (cacheBust) {
-          requestUrl += `&t=${Date.now()}`;
-        }
-        const res = await fetch(requestUrl);
-        if (!res.ok) return { annotations: [], highlights: [], bookmarks: [] };
-        return await res.json();
-      } catch {
-        return { annotations: [], highlights: [], bookmarks: [] };
-      }
-    });
+    const hashes = await Promise.all(uniqueUrls.map(hashUrl));
 
-    const results = await Promise.all(fetchPromises);
+    const params = new URLSearchParams();
+    hashes.forEach((h) => params.append('h', h));
+    if (cacheBust) params.append('t', Date.now().toString());
+
+    const res = await fetch(`${apiUrl}/api/targets/hash?${params}`);
+    const data = res.ok ? await res.json() : { annotations: [], highlights: [], bookmarks: [] };
+
     const allItems: any[] = [];
     const seenIds = new Set<string>();
-
-    results.forEach((data) => {
-      const items = [
-        ...(data.annotations || []),
-        ...(data.highlights || []),
-        ...(data.bookmarks || []),
-      ];
-      items.forEach((item: any) => {
-        const id = item.uri || item.id;
-        if (id && !seenIds.has(id)) {
-          seenIds.add(id);
-          allItems.push(item);
-        }
-      });
+    const items = [
+      ...(data.annotations || []),
+      ...(data.highlights || []),
+      ...(data.bookmarks || []),
+    ];
+    items.forEach((item: any) => {
+      const id = item.uri || item.id;
+      if (id && !seenIds.has(id)) {
+        seenIds.add(id);
+        allItems.push(item);
+      }
     });
 
     return allItems;
@@ -136,7 +137,7 @@ export async function createAnnotation(data: {
   title?: string;
   selector?: TextSelector;
   tags?: string[];
-}) {
+}): Promise<{ success: boolean; data?: Annotation; error?: string }> {
   try {
     const res = await apiRequest('/annotations', {
       method: 'POST',

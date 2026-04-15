@@ -1,8 +1,8 @@
 {
   "lexicon": 1,
-  "id": "at.margin.annotation",
-  "revision": 2,
-  "description": "W3C Web Annotation Data Model compliant annotation record for ATProto",
+  "id": "at.margin.note",
+  "revision": 3,
+  "description": "W3C Web Annotation Data Model compliant unified note record for ATProto",
   "defs": {
     "main": {
       "type": "record",
@@ -10,7 +10,7 @@
       "key": "tid",
       "record": {
         "type": "object",
-        "required": ["target", "createdAt"],
+        "required": ["motivation", "target", "createdAt"],
         "properties": {
           "motivation": {
             "type": "string",
@@ -28,10 +28,15 @@
               "assessing"
             ]
           },
+          "color": {
+            "type": "string",
+            "description": "Highlight color tint",
+            "maxLength": 20
+          },
           "body": {
             "type": "ref",
             "ref": "#body",
-            "description": "The annotation content (text or reference)"
+            "description": "The annotation content (text or reference). For bookmarks, use body.value for the description."
           },
           "target": {
             "type": "ref",
@@ -47,6 +52,14 @@
               "maxGraphemes": 32
             },
             "maxLength": 10
+          },
+          "facets": {
+            "type": "array",
+            "description": "Rich text facets (e.g. mentions, links)",
+            "items": {
+              "type": "ref",
+              "ref": "app.bsky.richtext.facet"
+            }
           },
           "generator": {
             "type": "ref",
@@ -66,6 +79,11 @@
           "createdAt": {
             "type": "string",
             "format": "datetime"
+          },
+          "modifiedAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When this record was last modified"
           }
         }
       }
@@ -95,16 +113,12 @@
           "type": "string",
           "maxLength": 10000,
           "maxGraphemes": 3000,
-          "description": "Text content of the annotation"
+          "description": "Text content of the annotation. For bookmarks, this is the description."
         },
         "format": {
           "type": "string",
           "description": "MIME type of the body content",
           "default": "text/plain"
-        },
-        "language": {
-          "type": "string",
-          "description": "BCP47 language tag"
         },
         "uri": {
           "type": "string",
@@ -133,16 +147,9 @@
           "description": "Page title at time of annotation"
         },
         "selector": {
-          "type": "union",
-          "description": "Selector to identify the specific segment",
-          "refs": [
-            "#textQuoteSelector",
-            "#textPositionSelector",
-            "#cssSelector",
-            "#xpathSelector",
-            "#fragmentSelector",
-            "#rangeSelector"
-          ]
+          "type": "ref",
+          "ref": "#selector",
+          "description": "W3C Selector to identify the annotated segment. Uses W3C 'type' field (not ATProto $type) per the Web Annotation Data Model."
         },
         "state": {
           "type": "ref",
@@ -151,137 +158,60 @@
         }
       }
     },
-    "textQuoteSelector": {
+    "selector": {
       "type": "object",
-      "description": "W3C TextQuoteSelector - select text by quoting it with context",
-      "required": ["exact"],
+      "description": "W3C Web Annotation Selector. The 'type' field discriminates the selector kind using W3C type names (e.g. TextQuoteSelector). This follows W3C conventions, not ATProto union $type.",
+      "required": ["type"],
       "properties": {
         "type": {
           "type": "string",
-          "const": "TextQuoteSelector"
+          "description": "W3C selector type identifier",
+          "knownValues": [
+            "TextQuoteSelector",
+            "TextPositionSelector",
+            "CssSelector",
+            "XPathSelector",
+            "FragmentSelector",
+            "RangeSelector"
+          ]
         },
         "exact": {
           "type": "string",
           "maxLength": 5000,
           "maxGraphemes": 1500,
-          "description": "The exact text to match"
+          "description": "TextQuoteSelector: the exact text being selected"
         },
         "prefix": {
           "type": "string",
           "maxLength": 500,
           "maxGraphemes": 150,
-          "description": "Text immediately before the selection"
+          "description": "TextQuoteSelector: text immediately before the selection, for disambiguation"
         },
         "suffix": {
           "type": "string",
           "maxLength": 500,
           "maxGraphemes": 150,
-          "description": "Text immediately after the selection"
-        }
-      }
-    },
-    "textPositionSelector": {
-      "type": "object",
-      "description": "W3C TextPositionSelector - select by character offsets",
-      "required": ["start", "end"],
-      "properties": {
-        "type": {
-          "type": "string",
-          "const": "TextPositionSelector"
+          "description": "TextQuoteSelector: text immediately after the selection, for disambiguation"
         },
         "start": {
           "type": "integer",
           "minimum": 0,
-          "description": "Starting character position (0-indexed, inclusive)"
+          "description": "TextPositionSelector: start character offset (inclusive)"
         },
         "end": {
           "type": "integer",
           "minimum": 0,
-          "description": "Ending character position (exclusive)"
-        }
-      }
-    },
-    "cssSelector": {
-      "type": "object",
-      "description": "W3C CssSelector - select DOM elements by CSS selector",
-      "required": ["value"],
-      "properties": {
-        "type": {
-          "type": "string",
-          "const": "CssSelector"
+          "description": "TextPositionSelector: end character offset (exclusive)"
         },
         "value": {
           "type": "string",
           "maxLength": 2000,
-          "description": "CSS selector string"
-        }
-      }
-    },
-    "xpathSelector": {
-      "type": "object",
-      "description": "W3C XPathSelector - select by XPath expression",
-      "required": ["value"],
-      "properties": {
-        "type": {
-          "type": "string",
-          "const": "XPathSelector"
-        },
-        "value": {
-          "type": "string",
-          "maxLength": 2000,
-          "description": "XPath expression"
-        }
-      }
-    },
-    "fragmentSelector": {
-      "type": "object",
-      "description": "W3C FragmentSelector - select by URI fragment",
-      "required": ["value"],
-      "properties": {
-        "type": {
-          "type": "string",
-          "const": "FragmentSelector"
-        },
-        "value": {
-          "type": "string",
-          "maxLength": 1000,
-          "description": "Fragment identifier value"
+          "description": "CssSelector/XPathSelector/FragmentSelector: the selector expression or fragment value"
         },
         "conformsTo": {
           "type": "string",
           "format": "uri",
-          "description": "Specification the fragment conforms to"
-        }
-      }
-    },
-    "rangeSelector": {
-      "type": "object",
-      "description": "W3C RangeSelector - select range between two selectors",
-      "required": ["startSelector", "endSelector"],
-      "properties": {
-        "type": {
-          "type": "string",
-          "const": "RangeSelector"
-        },
-        "startSelector": {
-          "type": "union",
-          "description": "Selector for range start",
-          "refs": [
-            "#textQuoteSelector",
-            "#textPositionSelector",
-            "#cssSelector",
-            "#xpathSelector"
-          ]
-        },
-        "endSelector": {
-          "type": "union",
-          "description": "Selector for range end",
-          "refs": [
-            "#textQuoteSelector",
-            "#textPositionSelector",
-            "#cssSelector",
-            "#xpathSelector"
-          ]
+          "description": "FragmentSelector: URI of the specification the fragment conforms to"
         }
       }
     },

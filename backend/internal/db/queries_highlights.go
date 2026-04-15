@@ -25,7 +25,7 @@ func (db *DB) GetHighlightByURI(uri string) (*Highlight, error) {
 	var h Highlight
 	err := db.QueryRow(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
-		FROM highlights
+		FROM all_highlights
 		WHERE uri = $1
 	`, uri).Scan(&h.URI, &h.AuthorDID, &h.TargetSource, &h.TargetHash, &h.TargetTitle, &h.SelectorJSON, &h.Color, &h.TagsJSON, &h.CreatedAt, &h.IndexedAt, &h.CID)
 	if err != nil {
@@ -37,7 +37,7 @@ func (db *DB) GetHighlightByURI(uri string) (*Highlight, error) {
 func (db *DB) GetRecentHighlights(limit, offset int) ([]Highlight, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
-		FROM highlights
+		FROM all_highlights
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
 	`, limit, offset)
@@ -55,7 +55,7 @@ func (db *DB) GetPopularHighlights(limit, offset int) ([]Highlight, error) {
 		SELECT
 			h.uri, h.author_did, h.target_source, h.target_hash, h.target_title,
 			h.selector_json, h.color, h.tags_json, h.created_at, h.indexed_at, h.cid
-		FROM highlights h
+		FROM all_highlights h
 		LEFT JOIN LATERAL (
 			SELECT COUNT(*) as cnt FROM likes WHERE subject_uri = h.uri
 		) l ON true
@@ -81,7 +81,7 @@ func (db *DB) GetShelvedHighlights(limit, offset int) ([]Highlight, error) {
 		SELECT
 			h.uri, h.author_did, h.target_source, h.target_hash, h.target_title,
 			h.selector_json, h.color, h.tags_json, h.created_at, h.indexed_at, h.cid
-		FROM highlights h
+		FROM all_highlights h
 		WHERE h.created_at < $1 AND h.created_at > $2
 			AND NOT EXISTS (SELECT 1 FROM likes WHERE subject_uri = h.uri)
 			AND NOT EXISTS (SELECT 1 FROM replies WHERE root_uri = h.uri)
@@ -99,7 +99,7 @@ func (db *DB) GetShelvedHighlights(limit, offset int) ([]Highlight, error) {
 func (db *DB) GetMarginHighlights(limit, offset int) ([]Highlight, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
-		FROM highlights
+		FROM all_highlights
 		WHERE uri NOT LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
@@ -115,7 +115,7 @@ func (db *DB) GetMarginHighlights(limit, offset int) ([]Highlight, error) {
 func (db *DB) GetSembleHighlights(limit, offset int) ([]Highlight, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
-		FROM highlights
+		FROM all_highlights
 		WHERE uri LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
@@ -131,7 +131,7 @@ func (db *DB) GetSembleHighlights(limit, offset int) ([]Highlight, error) {
 func (db *DB) GetHighlightsByTag(tag string, limit, offset int) ([]Highlight, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
-		FROM highlights
+		FROM all_highlights
 		WHERE EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $1)
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
@@ -147,7 +147,7 @@ func (db *DB) GetHighlightsByTag(tag string, limit, offset int) ([]Highlight, er
 func (db *DB) GetMarginHighlightsByTag(tag string, limit, offset int) ([]Highlight, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
-		FROM highlights
+		FROM all_highlights
 		WHERE EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $1) AND uri NOT LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
@@ -163,7 +163,7 @@ func (db *DB) GetMarginHighlightsByTag(tag string, limit, offset int) ([]Highlig
 func (db *DB) GetSembleHighlightsByTag(tag string, limit, offset int) ([]Highlight, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
-		FROM highlights
+		FROM all_highlights
 		WHERE EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $1) AND uri LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
@@ -179,7 +179,7 @@ func (db *DB) GetSembleHighlightsByTag(tag string, limit, offset int) ([]Highlig
 func (db *DB) GetHighlightsByTagAndAuthor(tag, authorDID string, limit, offset int) ([]Highlight, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
-		FROM highlights
+		FROM all_highlights
 		WHERE author_did = $1 AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $2)
 		ORDER BY created_at DESC
 		LIMIT $3 OFFSET $4
@@ -195,7 +195,7 @@ func (db *DB) GetHighlightsByTagAndAuthor(tag, authorDID string, limit, offset i
 func (db *DB) GetMarginHighlightsByTagAndAuthor(tag, authorDID string, limit, offset int) ([]Highlight, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
-		FROM highlights
+		FROM all_highlights
 		WHERE author_did = $1 AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $2) AND uri NOT LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $3 OFFSET $4
@@ -211,7 +211,7 @@ func (db *DB) GetMarginHighlightsByTagAndAuthor(tag, authorDID string, limit, of
 func (db *DB) GetSembleHighlightsByTagAndAuthor(tag, authorDID string, limit, offset int) ([]Highlight, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
-		FROM highlights
+		FROM all_highlights
 		WHERE author_did = $1 AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(tags_json::jsonb) elem WHERE lower(elem) = $2) AND uri LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $3 OFFSET $4
@@ -227,7 +227,7 @@ func (db *DB) GetSembleHighlightsByTagAndAuthor(tag, authorDID string, limit, of
 func (db *DB) GetHighlightsByTargetHash(targetHash string, limit, offset int) ([]Highlight, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
-		FROM highlights
+		FROM all_highlights
 		WHERE target_hash = $1
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
@@ -243,7 +243,7 @@ func (db *DB) GetHighlightsByTargetHash(targetHash string, limit, offset int) ([
 func (db *DB) GetHighlightsByAuthor(authorDID string, limit, offset int) ([]Highlight, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
-		FROM highlights
+		FROM all_highlights
 		WHERE author_did = $1
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
@@ -259,7 +259,7 @@ func (db *DB) GetHighlightsByAuthor(authorDID string, limit, offset int) ([]High
 func (db *DB) GetMarginHighlightsByAuthor(authorDID string, limit, offset int) ([]Highlight, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
-		FROM highlights
+		FROM all_highlights
 		WHERE author_did = $1 AND uri NOT LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
@@ -275,7 +275,7 @@ func (db *DB) GetMarginHighlightsByAuthor(authorDID string, limit, offset int) (
 func (db *DB) GetSembleHighlightsByAuthor(authorDID string, limit, offset int) ([]Highlight, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
-		FROM highlights
+		FROM all_highlights
 		WHERE author_did = $1 AND uri LIKE '%network.cosmik%'
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
@@ -291,7 +291,7 @@ func (db *DB) GetSembleHighlightsByAuthor(authorDID string, limit, offset int) (
 func (db *DB) GetHighlightsByAuthorAndTargetHash(authorDID, targetHash string, limit, offset int) ([]Highlight, error) {
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
-		FROM highlights
+		FROM all_highlights
 		WHERE author_did = $1 AND target_hash = $2
 		ORDER BY created_at DESC
 		LIMIT $3 OFFSET $4
@@ -325,7 +325,7 @@ func (db *DB) GetHighlightsByURIs(uris []string) ([]Highlight, error) {
 
 	rows, err := db.Query(`
 		SELECT uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid
-		FROM highlights
+		FROM all_highlights
 		WHERE uri = ANY($1)
 	`, pqStringArray(uris))
 	if err != nil {
@@ -338,7 +338,7 @@ func (db *DB) GetHighlightsByURIs(uris []string) ([]Highlight, error) {
 
 func (db *DB) GetHighlightURIs(authorDID string) ([]string, error) {
 	rows, err := db.Query(`
-		SELECT uri FROM highlights WHERE author_did = $1
+		SELECT uri FROM all_highlights WHERE author_did = $1
 	`, authorDID)
 	if err != nil {
 		return nil, err

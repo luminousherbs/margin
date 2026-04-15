@@ -48,7 +48,7 @@ func (tr *TokenRefresher) getOAuthClient(r *http.Request) *oauth.Client {
 		baseURL = baseURL[:len(baseURL)-1]
 	}
 
-	clientID := baseURL + "/client-metadata.json"
+	clientID := baseURL + "/oauth-client-metadata.json"
 	redirectURI := baseURL + "/auth/callback"
 
 	return oauth.NewClient(clientID, redirectURI, tr.privateKey)

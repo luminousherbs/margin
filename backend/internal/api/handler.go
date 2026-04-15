@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,10 +14,14 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"margin.at/internal/analytics"
 	"margin.at/internal/config"
 	"margin.at/internal/db"
+	"margin.at/internal/domain"
 	"margin.at/internal/logger"
 	"margin.at/internal/recommendations"
+	"margin.at/internal/repository/postgres"
+	"margin.at/internal/service"
 	internal_sync "margin.at/internal/sync"
 	"margin.at/internal/xrpc"
 )
@@ -77,28 +80,51 @@ func (c *urlMetaCache) evictLoop() {
 }
 
 type Handler struct {
-	db                *db.DB
-	annotationService *AnnotationService
-	refresher         *TokenRefresher
-	apiKeys           *APIKeyHandler
-	syncService       *internal_sync.Service
-	moderation        *ModerationHandler
-	recommendations   *recommendations.Service
-	metaCache         *urlMetaCache
-	metaSem           chan struct{}
+	db               *db.DB
+	noteRepo         domain.NoteRepository
+	engagementRepo   domain.EngagementRepository
+	notificationRepo domain.NotificationRepository
+	sessionRepo      domain.SessionRepository
+	noteWriter       *NoteWriteService
+	refresher        *TokenRefresher
+	apiKeys          *APIKeyHandler
+	syncService      *internal_sync.Service
+	moderation       *ModerationHandler
+	recommendations  *recommendations.Service
+	feedSvc          *service.FeedService
+	hydration        *service.HydrationService
+	metaCache        *urlMetaCache
+	metaSem          chan struct{}
+	analytics        *analytics.Client
 }
 
-func NewHandler(database *db.DB, annotationService *AnnotationService, refresher *TokenRefresher, syncService *internal_sync.Service, recService *recommendations.Service) *Handler {
+func NewHandler(database *db.DB, noteWriter *NoteWriteService, refresher *TokenRefresher, syncService *internal_sync.Service, recService *recommendations.Service, ac *analytics.Client) *Handler {
+	noteRepo := postgres.NewNoteRepository(database.DB)
+	engagementRepo := postgres.NewEngagementRepository(database.DB)
+	notificationRepo := postgres.NewNotificationRepository(database.DB)
+	sessionRepo := postgres.NewSessionRepository(database.DB)
+	profileRepo := &fullProfileRepository{db: database}  // rich resolution: cache → DB → bsky.social
+	profileSvc := service.NewProfileService(profileRepo) // service-lifetime TTL cache on top
+	hydration := service.NewHydrationService(engagementRepo, profileSvc)
+	feedSvc := service.NewFeedService(noteRepo, hydration, database)
+
 	return &Handler{
-		db:                database,
-		annotationService: annotationService,
-		refresher:         refresher,
-		apiKeys:           NewAPIKeyHandler(database, refresher),
-		syncService:       syncService,
-		moderation:        NewModerationHandler(database, refresher),
-		recommendations:   recService,
-		metaCache:         newURLMetaCache(),
-		metaSem:           make(chan struct{}, 5),
+		db:               database,
+		noteRepo:         noteRepo,
+		engagementRepo:   engagementRepo,
+		notificationRepo: notificationRepo,
+		sessionRepo:      sessionRepo,
+		noteWriter:       noteWriter,
+		refresher:        refresher,
+		apiKeys:          NewAPIKeyHandler(database, refresher),
+		syncService:      syncService,
+		moderation:       NewModerationHandler(database, refresher),
+		recommendations:  recService,
+		feedSvc:          feedSvc,
+		hydration:        hydration,
+		metaCache:        newURLMetaCache(),
+		metaSem:          make(chan struct{}, 5),
+		analytics:        ac,
 	}
 }
 
@@ -113,27 +139,27 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/annotations/feed", h.GetFeed)
 		r.Get("/annotation", h.GetAnnotation)
 		r.Get("/annotations/history", h.GetEditHistory)
-		r.Post("/annotations", h.annotationService.CreateAnnotation)
-		r.Put("/annotations", h.annotationService.UpdateAnnotation)
-		r.Delete("/annotations", h.annotationService.DeleteAnnotation)
-		r.Post("/annotations/like", h.annotationService.LikeAnnotation)
-		r.Delete("/annotations/like", h.annotationService.UnlikeAnnotation)
-		r.Post("/annotations/reply", h.annotationService.CreateReply)
-		r.Delete("/annotations/reply", h.annotationService.DeleteReply)
+		r.Post("/annotations", h.noteWriter.CreateAnnotation)
+		r.Put("/annotations", h.noteWriter.UpdateAnnotation)
+		r.Delete("/annotations", h.noteWriter.DeleteAnnotation)
+		r.Post("/annotations/like", h.noteWriter.LikeAnnotation)
+		r.Delete("/annotations/like", h.noteWriter.UnlikeAnnotation)
+		r.Post("/annotations/reply", h.noteWriter.CreateReply)
+		r.Delete("/annotations/reply", h.noteWriter.DeleteReply)
 		r.Get("/replies", h.GetReplies)
 		r.Get("/likes", h.GetLikeCount)
 
 		// Highlights
 		r.Get("/highlights", h.GetHighlights)
-		r.Post("/highlights", h.annotationService.CreateHighlight)
-		r.Put("/highlights", h.annotationService.UpdateHighlight)
-		r.Delete("/highlights", h.annotationService.DeleteHighlight)
+		r.Post("/highlights", h.noteWriter.CreateHighlight)
+		r.Put("/highlights", h.noteWriter.UpdateHighlight)
+		r.Delete("/highlights", h.noteWriter.DeleteAnnotation)
 
 		// Bookmarks
 		r.Get("/bookmarks", h.GetBookmarks)
-		r.Post("/bookmarks", h.annotationService.CreateBookmark)
-		r.Put("/bookmarks", h.annotationService.UpdateBookmark)
-		r.Delete("/bookmarks", h.annotationService.DeleteBookmark)
+		r.Post("/bookmarks", h.noteWriter.CreateBookmark)
+		r.Put("/bookmarks", h.noteWriter.UpdateBookmark)
+		r.Delete("/bookmarks", h.noteWriter.DeleteAnnotation)
 
 		// Collections
 		r.Post("/collections", collectionService.CreateCollection)
@@ -148,6 +174,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 		// Targets & discovery
 		r.Get("/targets", h.GetByTarget)
+		r.Get("/targets/hash", h.GetByTargetHash)
 		r.Get("/discover", h.DiscoverForURL)
 		r.Get("/url-metadata", h.GetURLMetadata)
 
@@ -182,11 +209,13 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/sync", h.SyncAll)
 
 		// API keys
+		r.Get("/me", h.apiKeys.GetMe)
 		r.Post("/keys", h.apiKeys.CreateKey)
 		r.Get("/keys", h.apiKeys.ListKeys)
 		r.Delete("/keys/{id}", h.apiKeys.DeleteKey)
 		r.Post("/quick/bookmark", h.apiKeys.QuickBookmark)
 		r.Post("/quick/save", h.apiKeys.QuickSave)
+		r.Post("/quick/highlight", h.apiKeys.QuickHighlight)
 
 		// Moderation
 		r.Post("/moderation/block", h.moderation.BlockUser)
@@ -208,6 +237,9 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 		// Admin
 		r.Post("/admin/backfill", h.AdminBackfill)
+
+		// Analytics proxy
+		r.Post("/analytics/capture", h.CaptureEvent)
 	})
 }
 
@@ -216,44 +248,122 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	WriteSuccess(w, map[string]string{"status": "ok", "version": "1.0"})
 }
 
+func (h *Handler) CaptureEvent(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Event      string                 `json:"event"`
+		DistinctID string                 `json:"distinct_id"`
+		Properties map[string]interface{} `json:"properties"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&body); err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	if body.Event == "" {
+		http.Error(w, "event is required", http.StatusBadRequest)
+		return
+	}
+	if body.DistinctID == "" {
+		body.DistinctID = "anonymous_extension"
+	}
+	if h.analytics != nil {
+		if body.Properties == nil {
+			body.Properties = map[string]interface{}{}
+		}
+		body.Properties["$lib"] = "margin-extension"
+		h.analytics.Capture(body.DistinctID, body.Event, body.Properties)
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *Handler) GetAnnotations(w http.ResponseWriter, r *http.Request) {
 	source := r.URL.Query().Get("source")
 	if source == "" {
 		source = r.URL.Query().Get("url")
 	}
-
 	limit := parseIntParam(r, "limit", 50)
 	offset := parseIntParam(r, "offset", 0)
 	motivation := r.URL.Query().Get("motivation")
 	tag := r.URL.Query().Get("tag")
 
-	var annotations []db.Annotation
-	var err error
-
+	filter := db.NoteFilter{Limit: limit, Offset: offset}
 	if source != "" {
-		urlHash := db.HashURL(source)
-		annotations, err = h.db.GetAnnotationsByTargetHash(urlHash, limit, offset)
-	} else if motivation != "" {
-		annotations, err = h.db.GetAnnotationsByMotivation(motivation, limit, offset)
-	} else if tag != "" {
-		annotations, err = h.db.GetAnnotationsByTag(tag, limit, offset)
-	} else {
-		annotations, err = h.db.GetRecentAnnotations(limit, offset)
+		filter.TargetHash = db.HashURL(source)
+	}
+	if motivation != "" {
+		filter.Motivations = []string{motivation}
+	}
+	if tag != "" {
+		filter.Tag = tag
 	}
 
+	notes, err := h.noteRepo.List(r.Context(), filter)
 	if err != nil {
 		WriteInternalError(w, "Internal server error")
 		return
 	}
 
-	enriched, _ := hydrateAnnotations(h.db, annotations, h.getViewerDID(r))
+	lc, _ := h.hydration.Load(r.Context(), notes, h.getViewerDID(r))
+	items := make([]service.APINote, len(notes))
+	for i, n := range notes {
+		items[i] = h.hydration.ToAPINote(n, lc)
+	}
 
 	WriteSuccess(w, map[string]interface{}{
 		"@context":   "http://www.w3.org/ns/anno.jsonld",
 		"type":       "AnnotationCollection",
-		"items":      enriched,
-		"totalItems": len(enriched),
+		"items":      items,
+		"totalItems": len(items),
 	})
+}
+
+func parseFeedType(s string) db.FeedType {
+	switch s {
+	case "popular":
+		return db.FeedTypePopular
+	case "shelved":
+		return db.FeedTypeShelved
+	case "margin":
+		return db.FeedTypeMargin
+	case "semble":
+		return db.FeedTypeSemble
+	default:
+		return db.FeedTypeRecent
+	}
+}
+
+func notesByMotivation(notes []service.APINote) (annotations, highlights, bookmarks []service.APINote) {
+	annotations = []service.APINote{}
+	highlights = []service.APINote{}
+	bookmarks = []service.APINote{}
+	for _, n := range notes {
+		switch n.Motivation {
+		case "highlighting":
+			highlights = append(highlights, n)
+		case "bookmarking":
+			bookmarks = append(bookmarks, n)
+		default:
+			annotations = append(annotations, n)
+		}
+	}
+	return
+}
+
+func mergeNotes(a, b []db.Note) []db.Note {
+	seen := make(map[string]bool, len(a))
+	result := make([]db.Note, 0, len(a)+len(b))
+	for _, n := range a {
+		if !seen[n.URI] {
+			seen[n.URI] = true
+			result = append(result, n)
+		}
+	}
+	for _, n := range b {
+		if !seen[n.URI] {
+			seen[n.URI] = true
+			result = append(result, n)
+		}
+	}
+	return result
 }
 
 func (h *Handler) GetFeed(w http.ResponseWriter, r *http.Request) {
@@ -261,428 +371,37 @@ func (h *Handler) GetFeed(w http.ResponseWriter, r *http.Request) {
 	offset := parseIntParam(r, "offset", 0)
 	tag := strings.ToLower(r.URL.Query().Get("tag"))
 	creator := r.URL.Query().Get("creator")
-	feedType := r.URL.Query().Get("type")
-
-	viewerDID := h.getViewerDID(r)
-
-	var annotations []db.Annotation
-	var highlights []db.Highlight
-	var bookmarks []db.Bookmark
-	var collectionItems []db.CollectionItem
-	var err error
-
 	motivation := r.URL.Query().Get("motivation")
+	feedTypeStr := r.URL.Query().Get("type")
 
-	fetchLimit := limit + offset
-
-	perTypeFetchLimit := fetchLimit
-	if motivation == "" {
-		perTypeFetchLimit = fetchLimit/2 + 10
+	var motivations []string
+	if motivation != "" {
+		motivations = []string{motivation}
 	}
 
-	if tag != "" {
-		if creator != "" {
-			if motivation == "" || motivation == "commenting" {
-				switch feedType {
-				case "margin":
-					annotations, _ = h.db.GetMarginAnnotationsByTagAndAuthor(tag, creator, fetchLimit, 0)
-				case "semble":
-					annotations, _ = h.db.GetSembleAnnotationsByTagAndAuthor(tag, creator, fetchLimit, 0)
-				default:
-					annotations, _ = h.db.GetAnnotationsByTagAndAuthor(tag, creator, fetchLimit, 0)
-				}
-			}
-			if motivation == "" || motivation == "highlighting" {
-				switch feedType {
-				case "margin":
-					highlights, _ = h.db.GetMarginHighlightsByTagAndAuthor(tag, creator, fetchLimit, 0)
-				case "semble":
-					highlights, _ = h.db.GetSembleHighlightsByTagAndAuthor(tag, creator, fetchLimit, 0)
-				default:
-					highlights, _ = h.db.GetHighlightsByTagAndAuthor(tag, creator, fetchLimit, 0)
-				}
-			}
-			if motivation == "" || motivation == "bookmarking" {
-				switch feedType {
-				case "margin":
-					bookmarks, _ = h.db.GetMarginBookmarksByTagAndAuthor(tag, creator, fetchLimit, 0)
-				case "semble":
-					bookmarks, _ = h.db.GetSembleBookmarksByTagAndAuthor(tag, creator, fetchLimit, 0)
-				default:
-					bookmarks, _ = h.db.GetBookmarksByTagAndAuthor(tag, creator, fetchLimit, 0)
-				}
-			}
-			collectionItems = []db.CollectionItem{}
-		} else {
-			if motivation == "" || motivation == "commenting" {
-				switch feedType {
-				case "margin":
-					annotations, _ = h.db.GetMarginAnnotationsByTag(tag, fetchLimit, 0)
-				case "semble":
-					annotations, _ = h.db.GetSembleAnnotationsByTag(tag, fetchLimit, 0)
-				default:
-					annotations, _ = h.db.GetAnnotationsByTag(tag, fetchLimit, 0)
-				}
-			}
-			if motivation == "" || motivation == "highlighting" {
-				switch feedType {
-				case "margin":
-					highlights, _ = h.db.GetMarginHighlightsByTag(tag, fetchLimit, 0)
-				case "semble":
-					highlights, _ = h.db.GetSembleHighlightsByTag(tag, fetchLimit, 0)
-				default:
-					highlights, _ = h.db.GetHighlightsByTag(tag, fetchLimit, 0)
-				}
-			}
-			if motivation == "" || motivation == "bookmarking" {
-				switch feedType {
-				case "margin":
-					bookmarks, _ = h.db.GetMarginBookmarksByTag(tag, fetchLimit, 0)
-				case "semble":
-					bookmarks, _ = h.db.GetSembleBookmarksByTag(tag, fetchLimit, 0)
-				default:
-					bookmarks, _ = h.db.GetBookmarksByTag(tag, fetchLimit, 0)
-				}
-			}
-			collectionItems = []db.CollectionItem{}
-		}
-	} else if creator != "" {
-		if motivation == "" || motivation == "commenting" {
-			switch feedType {
-			case "margin":
-				annotations, _ = h.db.GetMarginAnnotationsByAuthor(creator, fetchLimit, 0)
-			case "semble":
-				annotations, _ = h.db.GetSembleAnnotationsByAuthor(creator, fetchLimit, 0)
-			default:
-				annotations, _ = h.db.GetAnnotationsByAuthor(creator, fetchLimit, 0)
-			}
-		}
-		if motivation == "" || motivation == "highlighting" {
-			switch feedType {
-			case "margin":
-				highlights, _ = h.db.GetMarginHighlightsByAuthor(creator, fetchLimit, 0)
-			case "semble":
-				highlights, _ = h.db.GetSembleHighlightsByAuthor(creator, fetchLimit, 0)
-			default:
-				highlights, _ = h.db.GetHighlightsByAuthor(creator, fetchLimit, 0)
-			}
-		}
-		if motivation == "" || motivation == "bookmarking" {
-			switch feedType {
-			case "margin":
-				bookmarks, _ = h.db.GetMarginBookmarksByAuthor(creator, fetchLimit, 0)
-			case "semble":
-				bookmarks, _ = h.db.GetSembleBookmarksByAuthor(creator, fetchLimit, 0)
-			default:
-				bookmarks, _ = h.db.GetBookmarksByAuthor(creator, fetchLimit, 0)
-			}
-		}
-		collectionItems = []db.CollectionItem{}
-	} else {
-		typeLim := fetchLimit
-		if motivation == "" {
-			typeLim = perTypeFetchLimit
-		}
-		if motivation == "" || motivation == "commenting" {
-			switch feedType {
-			case "margin":
-				annotations, _ = h.db.GetMarginAnnotations(typeLim, 0)
-			case "semble":
-				annotations, _ = h.db.GetSembleAnnotations(typeLim, 0)
-			case "popular":
-				annotations, _ = h.db.GetPopularAnnotations(typeLim, 0)
-			case "shelved":
-				annotations, _ = h.db.GetShelvedAnnotations(typeLim, 0)
-			default:
-				annotations, _ = h.db.GetRecentAnnotations(typeLim, 0)
-			}
-		}
-		if motivation == "" || motivation == "highlighting" {
-			switch feedType {
-			case "margin":
-				highlights, _ = h.db.GetMarginHighlights(typeLim, 0)
-			case "semble":
-				highlights, _ = h.db.GetSembleHighlights(typeLim, 0)
-			case "popular":
-				highlights, _ = h.db.GetPopularHighlights(typeLim, 0)
-			case "shelved":
-				highlights, _ = h.db.GetShelvedHighlights(typeLim, 0)
-			default:
-				highlights, _ = h.db.GetRecentHighlights(typeLim, 0)
-			}
-		}
-		if motivation == "" || motivation == "bookmarking" {
-			switch feedType {
-			case "margin":
-				bookmarks, _ = h.db.GetMarginBookmarks(typeLim, 0)
-			case "semble":
-				bookmarks, _ = h.db.GetSembleBookmarks(typeLim, 0)
-			case "popular":
-				bookmarks, _ = h.db.GetPopularBookmarks(typeLim, 0)
-			case "shelved":
-				bookmarks, _ = h.db.GetShelvedBookmarks(typeLim, 0)
-			default:
-				bookmarks, _ = h.db.GetRecentBookmarks(typeLim, 0)
-			}
-		}
-		if motivation == "" {
-			switch feedType {
-			case "popular":
-				collectionItems, err = h.db.GetPopularCollectionItems(typeLim, 0)
-			case "shelved":
-				collectionItems, err = h.db.GetShelvedCollectionItems(typeLim, 0)
-			default:
-				collectionItems, err = h.db.GetRecentCollectionItems(typeLim, 0)
-			}
-			if err != nil {
-				logger.Error("Error fetching collection items: %v", err)
-			}
-		}
+	req := service.FeedRequest{
+		ViewerDID:   h.getViewerDID(r),
+		Motivations: motivations,
+		AuthorDID:   creator,
+		Tag:         tag,
+		FeedType:    parseFeedType(feedTypeStr),
+		Limit:       limit,
+		Offset:      offset,
 	}
 
-	allDIDs := make(map[string]bool)
-	for _, a := range annotations {
-		allDIDs[a.AuthorDID] = true
-	}
-	for _, h := range highlights {
-		allDIDs[h.AuthorDID] = true
-	}
-	for _, b := range bookmarks {
-		allDIDs[b.AuthorDID] = true
-	}
-	for _, ci := range collectionItems {
-		allDIDs[ci.AuthorDID] = true
-	}
-	didSlice := make([]string, 0, len(allDIDs))
-	for did := range allDIDs {
-		didSlice = append(didSlice, did)
-	}
-	profiles := fetchProfilesForDIDs(h.db, didSlice)
-	shared := &hydrationData{profiles: profiles}
-
-	var (
-		authAnnos           []APIAnnotation
-		authHighs           []APIHighlight
-		authBooks           []APIBookmark
-		authCollectionItems []APICollectionItem
-		wg                  sync.WaitGroup
-	)
-
-	wg.Add(3)
-	go func() {
-		defer wg.Done()
-		authAnnos, _ = hydrateAnnotationsWithData(h.db, annotations, viewerDID, shared)
-	}()
-	go func() {
-		defer wg.Done()
-		authHighs, _ = hydrateHighlightsWithData(h.db, highlights, viewerDID, shared)
-	}()
-	go func() {
-		defer wg.Done()
-		authBooks, _ = hydrateBookmarksWithData(h.db, bookmarks, viewerDID, shared)
-	}()
-
-	if len(collectionItems) > 0 {
-		var sembleURIs []string
-		for _, item := range collectionItems {
-			if strings.Contains(item.AnnotationURI, "network.cosmik.card") {
-				sembleURIs = append(sembleURIs, item.AnnotationURI)
-			}
-		}
-		if len(sembleURIs) > 0 {
-			ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-			defer cancel()
-			ensureSembleCardsIndexed(ctx, h.db, sembleURIs)
-		}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			authCollectionItems, _ = hydrateCollectionItemsWithData(h.db, collectionItems, viewerDID, shared)
-		}()
-	}
-
-	wg.Wait()
-
-	collectionItemURIs := make(map[string]string)
-	for _, ci := range authCollectionItems {
-		var annotationURI string
-		if ci.Annotation != nil {
-			annotationURI = ci.Annotation.ID
-		} else if ci.Highlight != nil {
-			annotationURI = ci.Highlight.ID
-		} else if ci.Bookmark != nil {
-			annotationURI = ci.Bookmark.ID
-		}
-		if annotationURI != "" {
-			collectionItemURIs[annotationURI] = ci.Author.DID
-		}
-	}
-
-	var feed []interface{}
-	for _, a := range authAnnos {
-		if addedBy, exists := collectionItemURIs[a.ID]; exists && addedBy == a.Author.DID {
-			continue
-		}
-		feed = append(feed, a)
-	}
-	for _, h := range authHighs {
-		if addedBy, exists := collectionItemURIs[h.ID]; exists && addedBy == h.Author.DID {
-			continue
-		}
-		feed = append(feed, h)
-	}
-	for _, b := range authBooks {
-		if addedBy, exists := collectionItemURIs[b.ID]; exists && addedBy == b.Author.DID {
-			continue
-		}
-		feed = append(feed, b)
-	}
-	for _, ci := range authCollectionItems {
-		feed = append(feed, ci)
-	}
-
-	if feedType != "" && feedType != "all" && feedType != "my-feed" {
-		var filtered []interface{}
-		for _, item := range feed {
-			isSemble := false
-			var uri string
-			switch v := item.(type) {
-			case APIAnnotation:
-				uri = v.ID
-			case APIHighlight:
-				uri = v.ID
-			case APIBookmark:
-				uri = v.ID
-			case APICollectionItem:
-				if v.Annotation != nil {
-					uri = v.Annotation.ID
-				} else if v.Highlight != nil {
-					uri = v.Highlight.ID
-				} else if v.Bookmark != nil {
-					uri = v.Bookmark.ID
-				} else {
-					uri = v.ID
-				}
-			}
-			if strings.Contains(uri, "network.cosmik") {
-				isSemble = true
-			}
-
-			switch feedType {
-			case "semble":
-				if isSemble {
-					filtered = append(filtered, item)
-				}
-			case "margin":
-				if !isSemble {
-					filtered = append(filtered, item)
-				}
-			case "popular", "shelved":
-				filtered = append(filtered, item)
-			}
-		}
-		feed = filtered
-	}
-
-	feed = h.filterFeedByModeration(feed, viewerDID)
-
-	switch feedType {
-	case "popular":
-		sortFeedByPopularity(feed)
-	default:
-		sortFeed(feed)
-	}
-
-	logger.Info("[DEBUG] FeedType: %s, Total Items before slice: %d", feedType, len(feed))
-	if len(feed) > 0 {
-		first := feed[0]
-		switch v := first.(type) {
-		case APIAnnotation:
-			logger.Info("[DEBUG] First Item (Annotation): %s, Likes: %d, Replies: %d", v.ID, v.LikeCount, v.ReplyCount)
-		case APIHighlight:
-			logger.Info("[DEBUG] First Item (Highlight): %s, Likes: %d, Replies: %d", v.ID, v.LikeCount, v.ReplyCount)
-		}
-	}
-
-	if offset < len(feed) {
-		feed = feed[offset:]
-	} else {
-		feed = []interface{}{}
-	}
-
-	if len(feed) > limit {
-		feed = feed[:limit]
+	resp, err := h.feedSvc.GetFeed(r.Context(), req)
+	if err != nil {
+		WriteInternalError(w, "Internal server error")
+		return
 	}
 
 	WriteSuccess(w, map[string]interface{}{
 		"@context":   "http://www.w3.org/ns/anno.jsonld",
 		"type":       "Collection",
-		"items":      feed,
-		"totalItems": len(feed),
+		"items":      resp.Items,
+		"totalItems": resp.TotalItems,
 	})
 }
-
-func sortFeed(feed []interface{}) {
-	sort.Slice(feed, func(i, j int) bool {
-		t1 := getCreatedAt(feed[i])
-		t2 := getCreatedAt(feed[j])
-		return t1.After(t2)
-	})
-}
-
-func getCreatedAt(item interface{}) time.Time {
-	switch v := item.(type) {
-	case APIAnnotation:
-		return v.CreatedAt
-	case APIHighlight:
-		return v.CreatedAt
-	case APIBookmark:
-		return v.CreatedAt
-	case APICollectionItem:
-		return v.CreatedAt
-	default:
-		return time.Time{}
-	}
-}
-
-func sortFeedByPopularity(feed []interface{}) {
-	sort.Slice(feed, func(i, j int) bool {
-		p1 := getPopularity(feed[i])
-		p2 := getPopularity(feed[j])
-		if p1 != p2 {
-			return p1 > p2
-		}
-		t1 := getCreatedAt(feed[i])
-		t2 := getCreatedAt(feed[j])
-		return t1.After(t2)
-	})
-}
-
-func getPopularity(item interface{}) int {
-	switch v := item.(type) {
-	case APIAnnotation:
-		return v.LikeCount + v.ReplyCount
-	case APIHighlight:
-		return v.LikeCount + v.ReplyCount
-	case APIBookmark:
-		return v.LikeCount + v.ReplyCount
-	case APICollectionItem:
-		pop := 0
-		if v.Annotation != nil {
-			pop += v.Annotation.LikeCount + v.Annotation.ReplyCount
-		}
-		if v.Highlight != nil {
-			pop += v.Highlight.LikeCount + v.Highlight.ReplyCount
-		}
-		if v.Bookmark != nil {
-			pop += v.Bookmark.LikeCount + v.Bookmark.ReplyCount
-		}
-		return pop
-	default:
-		return 0
-	}
-}
-
 func (h *Handler) GetAnnotation(w http.ResponseWriter, r *http.Request) {
 	uri := r.URL.Query().Get("uri")
 	if uri == "" {
@@ -690,172 +409,44 @@ func (h *Handler) GetAnnotation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	serveResponse := func(data interface{}, context string) {
-		w.Header().Set("Content-Type", "application/json")
-		response := map[string]interface{}{
-			"@context": context,
-		}
-		jsonData, _ := json.Marshal(data)
-		json.Unmarshal(jsonData, &response)
-		json.NewEncoder(w).Encode(response)
+	note, err := h.noteRepo.GetByURI(r.Context(), uri)
+	if err != nil {
+		WriteInternalError(w, "Internal server error")
+		return
 	}
 
-	if annotation, err := h.db.GetAnnotationByURI(uri); err == nil {
-		if annotation.CID == nil || *annotation.CID == "" {
-			parts := parseATURI(uri)
-			if len(parts) >= 3 {
-				did := parts[0]
-				collection := parts[1]
-				rkey := parts[2]
+	if note == nil && strings.Contains(uri, "at.margin.annotation") {
+		altURI := strings.Replace(uri, "at.margin.annotation", "at.margin.highlight", 1)
+		note, _ = h.noteRepo.GetByURI(r.Context(), altURI)
+	}
 
-				session, err := h.refresher.GetSessionWithAutoRefresh(r)
-				if err == nil {
-					_ = h.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, _ string) error {
-						record, getErr := client.GetRecord(r.Context(), did, collection, rkey)
-						if getErr == nil {
-							h.db.UpdateAnnotation(uri, *annotation.BodyValue, *annotation.TagsJSON, record.CID)
-							cid := record.CID
-							annotation.CID = &cid
-						}
-						return nil
-					})
-				}
-			}
-		}
-
-		if enriched, _ := hydrateAnnotations(h.db, []db.Annotation{*annotation}, h.getViewerDID(r)); len(enriched) > 0 {
-			serveResponse(enriched[0], "http://www.w3.org/ns/anno.jsonld")
-			return
+	if note == nil && strings.HasPrefix(uri, "at://") &&
+		(strings.Contains(uri, "at.margin.annotation") || strings.Contains(uri, "at.margin.bookmark")) {
+		parts := strings.Split(strings.TrimPrefix(uri, "at://"), "/")
+		if len(parts) >= 3 {
+			sembleURI := fmt.Sprintf("at://%s/network.cosmik.card/%s", parts[0], parts[len(parts)-1])
+			note, _ = h.noteRepo.GetByURI(r.Context(), sembleURI)
 		}
 	}
 
-	if highlight, err := h.db.GetHighlightByURI(uri); err == nil {
-		if highlight.CID == nil || *highlight.CID == "" {
-			parts := parseATURI(uri)
-			if len(parts) >= 3 {
-				did := parts[0]
-				collection := parts[1]
-				rkey := parts[2]
-
-				session, err := h.refresher.GetSessionWithAutoRefresh(r)
-				if err == nil {
-					_ = h.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, _ string) error {
-						record, getErr := client.GetRecord(r.Context(), did, collection, rkey)
-						if getErr == nil {
-							tagsJSON := ""
-							if highlight.TagsJSON != nil {
-								tagsJSON = *highlight.TagsJSON
-							}
-							color := ""
-							if highlight.Color != nil {
-								color = *highlight.Color
-							}
-							h.db.UpdateHighlight(uri, color, tagsJSON, record.CID)
-							cid := record.CID
-							highlight.CID = &cid
-						}
-						return nil
-					})
-				}
-			}
-		}
-
-		if enriched, _ := hydrateHighlights(h.db, []db.Highlight{*highlight}, h.getViewerDID(r)); len(enriched) > 0 {
-			serveResponse(enriched[0], "http://www.w3.org/ns/anno.jsonld")
-			return
-		}
+	if note == nil && strings.Contains(uri, "at.margin.annotation") {
+		altURI := strings.Replace(uri, "at.margin.annotation", "at.margin.bookmark", 1)
+		note, _ = h.noteRepo.GetByURI(r.Context(), altURI)
 	}
 
-	if strings.Contains(uri, "at.margin.annotation") {
-		highlightURI := strings.Replace(uri, "at.margin.annotation", "at.margin.highlight", 1)
-		if highlight, err := h.db.GetHighlightByURI(highlightURI); err == nil {
-			if enriched, _ := hydrateHighlights(h.db, []db.Highlight{*highlight}, h.getViewerDID(r)); len(enriched) > 0 {
-				serveResponse(enriched[0], "http://www.w3.org/ns/anno.jsonld")
-				return
-			}
-		}
+	if note == nil {
+		WriteNotFound(w, "Note not found")
+		return
 	}
 
-	if strings.Contains(uri, "at.margin.annotation") || strings.Contains(uri, "at.margin.bookmark") {
-		if strings.HasPrefix(uri, "at://") {
-			uriWithoutScheme := strings.TrimPrefix(uri, "at://")
-			parts := strings.Split(uriWithoutScheme, "/")
-			if len(parts) >= 3 {
-				did := parts[0]
-				rkey := parts[len(parts)-1]
+	lc, _ := h.hydration.Load(r.Context(), []db.Note{*note}, h.getViewerDID(r))
+	apiNote := h.hydration.ToAPINote(*note, lc)
 
-				sembleURI := fmt.Sprintf("at://%s/network.cosmik.card/%s", did, rkey)
-
-				if annotation, err := h.db.GetAnnotationByURI(sembleURI); err == nil {
-					if enriched, _ := hydrateAnnotations(h.db, []db.Annotation{*annotation}, h.getViewerDID(r)); len(enriched) > 0 {
-						serveResponse(enriched[0], "http://www.w3.org/ns/anno.jsonld")
-						return
-					}
-				}
-
-				if bookmark, err := h.db.GetBookmarkByURI(sembleURI); err == nil {
-					if enriched, _ := hydrateBookmarks(h.db, []db.Bookmark{*bookmark}, h.getViewerDID(r)); len(enriched) > 0 {
-						serveResponse(enriched[0], "http://www.w3.org/ns/anno.jsonld")
-						return
-					}
-				}
-			}
-		}
-	}
-
-	if bookmark, err := h.db.GetBookmarkByURI(uri); err == nil {
-		if bookmark.CID == nil || *bookmark.CID == "" {
-			parts := parseATURI(uri)
-			if len(parts) >= 3 {
-				did := parts[0]
-				collection := parts[1]
-				rkey := parts[2]
-
-				session, err := h.refresher.GetSessionWithAutoRefresh(r)
-				if err == nil {
-					_ = h.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, _ string) error {
-						record, getErr := client.GetRecord(r.Context(), did, collection, rkey)
-						if getErr == nil {
-							tagsJSON := ""
-							if bookmark.TagsJSON != nil {
-								tagsJSON = *bookmark.TagsJSON
-							}
-							title := ""
-							if bookmark.Title != nil {
-								title = *bookmark.Title
-							}
-							desc := ""
-							if bookmark.Description != nil {
-								desc = *bookmark.Description
-							}
-							h.db.UpdateBookmark(uri, title, desc, tagsJSON, record.CID)
-							cid := record.CID
-							bookmark.CID = &cid
-						}
-						return nil
-					})
-				}
-			}
-		}
-
-		if enriched, _ := hydrateBookmarks(h.db, []db.Bookmark{*bookmark}, h.getViewerDID(r)); len(enriched) > 0 {
-			serveResponse(enriched[0], "http://www.w3.org/ns/anno.jsonld")
-			return
-		}
-	}
-
-	if strings.Contains(uri, "at.margin.annotation") {
-		bookmarkURI := strings.Replace(uri, "at.margin.annotation", "at.margin.bookmark", 1)
-		if bookmark, err := h.db.GetBookmarkByURI(bookmarkURI); err == nil {
-			if enriched, _ := hydrateBookmarks(h.db, []db.Bookmark{*bookmark}, h.getViewerDID(r)); len(enriched) > 0 {
-				serveResponse(enriched[0], "http://www.w3.org/ns/anno.jsonld")
-				return
-			}
-		}
-	}
-
-	WriteNotFound(w, "Annotation, Highlight, or Bookmark not found")
-
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]interface{}{"@context": "http://www.w3.org/ns/anno.jsonld"}
+	jsonData, _ := json.Marshal(apiNote)
+	json.Unmarshal(jsonData, &response)
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *Handler) GetByTarget(w http.ResponseWriter, r *http.Request) {
@@ -874,27 +465,24 @@ func (h *Handler) GetByTarget(w http.ResponseWriter, r *http.Request) {
 	urlHash := db.HashURL(source)
 	rawHash := db.HashString(source)
 
-	annotations, _ := h.db.GetAnnotationsByTargetHash(urlHash, limit, offset)
-	highlights, _ := h.db.GetHighlightsByTargetHash(urlHash, limit, offset)
-	bookmarks, _ := h.db.GetBookmarksByTargetHash(urlHash, limit, offset)
-
+	notes, err := h.noteRepo.List(r.Context(), db.NoteFilter{TargetHash: urlHash, Limit: limit, Offset: offset})
+	if err != nil {
+		WriteInternalError(w, "Internal server error")
+		return
+	}
 	if rawHash != urlHash {
-		rawAnnotations, _ := h.db.GetAnnotationsByTargetHash(rawHash, limit, offset)
-		rawHighlights, _ := h.db.GetHighlightsByTargetHash(rawHash, limit, offset)
-		rawBookmarks, _ := h.db.GetBookmarksByTargetHash(rawHash, limit, offset)
-
-		annotations = mergeAnnotations(annotations, rawAnnotations)
-		highlights = mergeHighlights(highlights, rawHighlights)
-		bookmarks = mergeBookmarks(bookmarks, rawBookmarks)
+		rawNotes, _ := h.noteRepo.List(r.Context(), db.NoteFilter{TargetHash: rawHash, Limit: limit, Offset: offset})
+		notes = mergeNotes(notes, rawNotes)
 	}
 
-	enrichedAnnotations, _ := hydrateAnnotations(h.db, annotations, h.getViewerDID(r))
-	enrichedHighlights, _ := hydrateHighlights(h.db, highlights, h.getViewerDID(r))
-	enrichedBookmarks, _ := hydrateBookmarks(h.db, bookmarks, h.getViewerDID(r))
+	lc, _ := h.hydration.Load(r.Context(), notes, h.getViewerDID(r))
+	items := make([]service.APINote, len(notes))
+	for i, n := range notes {
+		items[i] = h.hydration.ToAPINote(n, lc)
+	}
+	annotations, highlights, bookmarks := notesByMotivation(items)
 
-	totalItems := len(enrichedAnnotations) + len(enrichedHighlights) + len(enrichedBookmarks)
-
-	if totalItems == 0 {
+	if len(items) == 0 {
 		w.Header().Set("Cache-Control", "public, max-age=60, s-maxage=300")
 	} else {
 		w.Header().Set("Cache-Control", "private, max-age=0, no-store")
@@ -904,9 +492,49 @@ func (h *Handler) GetByTarget(w http.ResponseWriter, r *http.Request) {
 		"@context":    "http://www.w3.org/ns/anno.jsonld",
 		"source":      source,
 		"sourceHash":  urlHash,
-		"annotations": enrichedAnnotations,
-		"highlights":  enrichedHighlights,
-		"bookmarks":   enrichedBookmarks,
+		"annotations": annotations,
+		"highlights":  highlights,
+		"bookmarks":   bookmarks,
+	})
+}
+
+func (h *Handler) GetByTargetHash(w http.ResponseWriter, r *http.Request) {
+	hashes := r.URL.Query()["h"]
+	if len(hashes) == 0 {
+		WriteBadRequest(w, "at least one hash parameter (h) required")
+		return
+	}
+
+	limit := parseIntParam(r, "limit", 50)
+	offset := parseIntParam(r, "offset", 0)
+
+	var notes []db.Note
+	for _, hash := range hashes {
+		if len(hash) != 64 {
+			continue
+		}
+		hashNotes, _ := h.noteRepo.List(r.Context(), db.NoteFilter{TargetHash: hash, Limit: limit, Offset: offset})
+		notes = mergeNotes(notes, hashNotes)
+	}
+
+	lc, _ := h.hydration.Load(r.Context(), notes, h.getViewerDID(r))
+	items := make([]service.APINote, len(notes))
+	for i, n := range notes {
+		items[i] = h.hydration.ToAPINote(n, lc)
+	}
+	annotations, highlights, bookmarks := notesByMotivation(items)
+
+	if len(items) == 0 {
+		w.Header().Set("Cache-Control", "public, max-age=60, s-maxage=300")
+	} else {
+		w.Header().Set("Cache-Control", "private, max-age=0, no-store")
+	}
+
+	WriteSuccess(w, map[string]interface{}{
+		"@context":    "http://www.w3.org/ns/anno.jsonld",
+		"annotations": annotations,
+		"highlights":  highlights,
+		"bookmarks":   bookmarks,
 	})
 }
 
@@ -1020,29 +648,31 @@ func (h *Handler) GetHighlights(w http.ResponseWriter, r *http.Request) {
 	limit := parseIntParam(r, "limit", 50)
 	offset := parseIntParam(r, "offset", 0)
 
-	var highlights []db.Highlight
-	var err error
-
+	filter := db.NoteFilter{Motivations: []string{"highlighting"}, Limit: limit, Offset: offset}
 	if did != "" {
-		highlights, err = h.db.GetHighlightsByAuthor(did, limit, offset)
-	} else if tag != "" {
-		highlights, err = h.db.GetHighlightsByTag(tag, limit, offset)
-	} else {
-		highlights, err = h.db.GetRecentHighlights(limit, offset)
+		filter.AuthorDID = did
+	}
+	if tag != "" {
+		filter.Tag = tag
 	}
 
+	notes, err := h.noteRepo.List(r.Context(), filter)
 	if err != nil {
 		WriteInternalError(w, "Internal server error")
 		return
 	}
 
-	enriched, _ := hydrateHighlights(h.db, highlights, h.getViewerDID(r))
+	lc, _ := h.hydration.Load(r.Context(), notes, h.getViewerDID(r))
+	items := make([]service.APINote, len(notes))
+	for i, n := range notes {
+		items[i] = h.hydration.ToAPINote(n, lc)
+	}
 
 	WriteSuccess(w, map[string]interface{}{
 		"@context":   "http://www.w3.org/ns/anno.jsonld",
 		"type":       "HighlightCollection",
-		"items":      enriched,
-		"totalItems": len(enriched),
+		"items":      items,
+		"totalItems": len(items),
 	})
 }
 
@@ -1056,19 +686,28 @@ func (h *Handler) GetBookmarks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bookmarks, err := h.db.GetBookmarksByAuthor(did, limit, offset)
+	notes, err := h.noteRepo.List(r.Context(), db.NoteFilter{
+		Motivations: []string{"bookmarking"},
+		AuthorDID:   did,
+		Limit:       limit,
+		Offset:      offset,
+	})
 	if err != nil {
 		WriteInternalError(w, "Internal server error")
 		return
 	}
 
-	enriched, _ := hydrateBookmarks(h.db, bookmarks, h.getViewerDID(r))
+	lc, _ := h.hydration.Load(r.Context(), notes, h.getViewerDID(r))
+	items := make([]service.APINote, len(notes))
+	for i, n := range notes {
+		items[i] = h.hydration.ToAPINote(n, lc)
+	}
 
 	WriteSuccess(w, map[string]interface{}{
 		"@context":   "http://www.w3.org/ns/anno.jsonld",
 		"type":       "BookmarkCollection",
-		"items":      enriched,
-		"totalItems": len(enriched),
+		"items":      items,
+		"totalItems": len(items),
 	})
 }
 
@@ -1079,10 +718,6 @@ func (h *Handler) GetUserAnnotations(w http.ResponseWriter, r *http.Request) {
 	}
 	limit := parseIntParam(r, "limit", 50)
 	offset := parseIntParam(r, "offset", 0)
-
-	var annotations []db.Annotation
-	var err error
-
 	viewerDID := h.getViewerDID(r)
 
 	if offset == 0 && viewerDID != "" && did == viewerDID {
@@ -1093,21 +728,29 @@ func (h *Handler) GetUserAnnotations(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	annotations, err = h.db.GetAnnotationsByAuthor(did, limit, offset)
-
+	notes, err := h.noteRepo.List(r.Context(), db.NoteFilter{
+		AuthorDID:   did,
+		Motivations: []string{"commenting"},
+		Limit:       limit,
+		Offset:      offset,
+	})
 	if err != nil {
 		WriteInternalError(w, "Internal server error")
 		return
 	}
 
-	enriched, _ := hydrateAnnotations(h.db, annotations, h.getViewerDID(r))
+	lc, _ := h.hydration.Load(r.Context(), notes, viewerDID)
+	items := make([]service.APINote, len(notes))
+	for i, n := range notes {
+		items[i] = h.hydration.ToAPINote(n, lc)
+	}
 
 	WriteSuccess(w, map[string]interface{}{
 		"@context":   "http://www.w3.org/ns/anno.jsonld",
 		"type":       "AnnotationCollection",
 		"creator":    did,
-		"items":      enriched,
-		"totalItems": len(enriched),
+		"items":      items,
+		"totalItems": len(items),
 	})
 }
 
@@ -1118,10 +761,6 @@ func (h *Handler) GetUserHighlights(w http.ResponseWriter, r *http.Request) {
 	}
 	limit := parseIntParam(r, "limit", 50)
 	offset := parseIntParam(r, "offset", 0)
-
-	var highlights []db.Highlight
-	var err error
-
 	viewerDID := h.getViewerDID(r)
 
 	if offset == 0 && viewerDID != "" && did == viewerDID {
@@ -1132,21 +771,29 @@ func (h *Handler) GetUserHighlights(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	highlights, err = h.db.GetHighlightsByAuthor(did, limit, offset)
-
+	notes, err := h.noteRepo.List(r.Context(), db.NoteFilter{
+		AuthorDID:   did,
+		Motivations: []string{"highlighting"},
+		Limit:       limit,
+		Offset:      offset,
+	})
 	if err != nil {
 		WriteInternalError(w, "Internal server error")
 		return
 	}
 
-	enriched, _ := hydrateHighlights(h.db, highlights, h.getViewerDID(r))
+	lc, _ := h.hydration.Load(r.Context(), notes, viewerDID)
+	items := make([]service.APINote, len(notes))
+	for i, n := range notes {
+		items[i] = h.hydration.ToAPINote(n, lc)
+	}
 
 	WriteSuccess(w, map[string]interface{}{
 		"@context":   "http://www.w3.org/ns/anno.jsonld",
 		"type":       "HighlightCollection",
 		"creator":    did,
-		"items":      enriched,
-		"totalItems": len(enriched),
+		"items":      items,
+		"totalItems": len(items),
 	})
 }
 
@@ -1157,10 +804,6 @@ func (h *Handler) GetUserBookmarks(w http.ResponseWriter, r *http.Request) {
 	}
 	limit := parseIntParam(r, "limit", 50)
 	offset := parseIntParam(r, "offset", 0)
-
-	var bookmarks []db.Bookmark
-	var err error
-
 	viewerDID := h.getViewerDID(r)
 
 	if offset == 0 && viewerDID != "" && did == viewerDID {
@@ -1171,21 +814,29 @@ func (h *Handler) GetUserBookmarks(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	bookmarks, err = h.db.GetBookmarksByAuthor(did, limit, offset)
-
+	notes, err := h.noteRepo.List(r.Context(), db.NoteFilter{
+		AuthorDID:   did,
+		Motivations: []string{"bookmarking"},
+		Limit:       limit,
+		Offset:      offset,
+	})
 	if err != nil {
 		WriteInternalError(w, "Internal server error")
 		return
 	}
 
-	enriched, _ := hydrateBookmarks(h.db, bookmarks, h.getViewerDID(r))
+	lc, _ := h.hydration.Load(r.Context(), notes, viewerDID)
+	items := make([]service.APINote, len(notes))
+	for i, n := range notes {
+		items[i] = h.hydration.ToAPINote(n, lc)
+	}
 
 	WriteSuccess(w, map[string]interface{}{
 		"@context":   "http://www.w3.org/ns/anno.jsonld",
 		"type":       "BookmarkCollection",
 		"creator":    did,
-		"items":      enriched,
-		"totalItems": len(enriched),
+		"items":      items,
+		"totalItems": len(items),
 	})
 }
 
@@ -1209,19 +860,32 @@ func (h *Handler) GetUserTargetItems(w http.ResponseWriter, r *http.Request) {
 
 	urlHash := db.HashURL(source)
 
-	annotations, _ := h.db.GetAnnotationsByAuthorAndTargetHash(did, urlHash, limit, offset)
-	highlights, _ := h.db.GetHighlightsByAuthorAndTargetHash(did, urlHash, limit, offset)
+	notes, err := h.noteRepo.List(r.Context(), db.NoteFilter{
+		AuthorDID:   did,
+		TargetHash:  urlHash,
+		Motivations: []string{"commenting", "highlighting"},
+		Limit:       limit,
+		Offset:      offset,
+	})
+	if err != nil {
+		WriteInternalError(w, "Internal server error")
+		return
+	}
 
-	enrichedAnnotations, _ := hydrateAnnotations(h.db, annotations, h.getViewerDID(r))
-	enrichedHighlights, _ := hydrateHighlights(h.db, highlights, h.getViewerDID(r))
+	lc, _ := h.hydration.Load(r.Context(), notes, h.getViewerDID(r))
+	items := make([]service.APINote, len(notes))
+	for i, n := range notes {
+		items[i] = h.hydration.ToAPINote(n, lc)
+	}
+	annotations, highlights, _ := notesByMotivation(items)
 
 	WriteSuccess(w, map[string]interface{}{
 		"@context":    "http://www.w3.org/ns/anno.jsonld",
 		"creator":     did,
 		"source":      source,
 		"sourceHash":  urlHash,
-		"annotations": enrichedAnnotations,
-		"highlights":  enrichedHighlights,
+		"annotations": annotations,
+		"highlights":  highlights,
 	})
 }
 
@@ -1256,7 +920,7 @@ func (h *Handler) GetLikeCount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	count, err := h.db.GetLikeCount(uri)
+	count, err := h.engagementRepo.GetLikeCount(r.Context(), uri)
 	if err != nil {
 		WriteInternalError(w, "Internal server error")
 		return
@@ -1267,7 +931,7 @@ func (h *Handler) GetLikeCount(w http.ResponseWriter, r *http.Request) {
 	if err == nil && cookie != nil {
 		session, err := h.refresher.GetSessionWithAutoRefresh(r)
 		if err == nil {
-			userLike, err := h.db.GetLikeByUserAndSubject(session.DID, uri)
+			userLike, err := h.noteRepo.GetLikeByUserAndSubject(r.Context(), session.DID, uri)
 			if err == nil && userLike != nil {
 				liked = true
 			}
@@ -1523,7 +1187,7 @@ func (h *Handler) GetNotifications(w http.ResponseWriter, r *http.Request) {
 	limit := parseIntParam(r, "limit", 50)
 	offset := parseIntParam(r, "offset", 0)
 
-	notifications, err := h.db.GetNotifications(session.DID, limit, offset)
+	notifications, err := h.notificationRepo.GetNotifications(r.Context(), session.DID, limit, offset)
 	if err != nil {
 		WriteInternalError(w, "Failed to get notifications")
 		return
@@ -1549,7 +1213,7 @@ func (h *Handler) GetUnreadNotificationCount(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	count, err := h.db.GetUnreadNotificationCount(session.DID)
+	count, err := h.notificationRepo.GetUnreadNotificationCount(r.Context(), session.DID)
 	if err != nil {
 		WriteInternalError(w, "Failed to get count")
 		return
@@ -1565,7 +1229,7 @@ func (h *Handler) MarkNotificationsRead(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := h.db.MarkNotificationsRead(session.DID); err != nil {
+	if err := h.notificationRepo.MarkNotificationsRead(r.Context(), session.DID); err != nil {
 		WriteInternalError(w, "Failed to mark as read")
 		return
 	}
@@ -1577,101 +1241,37 @@ func (h *Handler) getViewerDID(r *http.Request) string {
 	if err != nil {
 		return ""
 	}
-	did, _, _, _, _, err := h.db.GetSession(cookie.Value)
+	did, _, _, _, _, err := h.sessionRepo.GetSession(r.Context(), cookie.Value)
 	if err != nil {
 		return ""
 	}
 	return did
 }
 
-func getItemAuthorDID(item interface{}) string {
-	switch v := item.(type) {
-	case APIAnnotation:
-		return v.Author.DID
-	case APIHighlight:
-		return v.Author.DID
-	case APIBookmark:
-		return v.Author.DID
-	case APICollectionItem:
-		return v.Author.DID
-	default:
-		return ""
-	}
+type fullProfileRepository struct {
+	db *db.DB
 }
 
-func (h *Handler) filterFeedByModeration(feed []interface{}, viewerDID string) []interface{} {
-	if viewerDID == "" {
-		return feed
-	}
-
-	hiddenDIDs, err := h.db.GetAllHiddenDIDs(viewerDID)
-	if err != nil || len(hiddenDIDs) == 0 {
-		return feed
-	}
-
-	var filtered []interface{}
-	for _, item := range feed {
-		authorDID := getItemAuthorDID(item)
-		if authorDID != "" && hiddenDIDs[authorDID] {
-			continue
+func (r *fullProfileRepository) GetProfiles(_ context.Context, dids []string) (map[string]domain.Author, error) {
+	raw := fetchProfilesForDIDs(r.db, dids)
+	result := make(map[string]domain.Author, len(raw))
+	for did, a := range raw {
+		result[did] = domain.Author{
+			DID:         a.DID,
+			Handle:      a.Handle,
+			DisplayName: a.DisplayName,
+			Avatar:      a.Avatar,
 		}
-		filtered = append(filtered, item)
 	}
-	return filtered
+	return result, nil
 }
 
-func mergeAnnotations(a, b []db.Annotation) []db.Annotation {
-	seen := make(map[string]bool)
-	var result []db.Annotation
-	for _, item := range a {
-		if !seen[item.URI] {
-			seen[item.URI] = true
-			result = append(result, item)
-		}
-	}
-	for _, item := range b {
-		if !seen[item.URI] {
-			seen[item.URI] = true
-			result = append(result, item)
-		}
-	}
-	return result
+func (r *fullProfileRepository) GetProfile(_ context.Context, did string) (*domain.Profile, error) {
+	return r.db.GetProfile(did)
 }
 
-func mergeHighlights(a, b []db.Highlight) []db.Highlight {
-	seen := make(map[string]bool)
-	var result []db.Highlight
-	for _, item := range a {
-		if !seen[item.URI] {
-			seen[item.URI] = true
-			result = append(result, item)
-		}
-	}
-	for _, item := range b {
-		if !seen[item.URI] {
-			seen[item.URI] = true
-			result = append(result, item)
-		}
-	}
-	return result
-}
-
-func mergeBookmarks(a, b []db.Bookmark) []db.Bookmark {
-	seen := make(map[string]bool)
-	var result []db.Bookmark
-	for _, item := range a {
-		if !seen[item.URI] {
-			seen[item.URI] = true
-			result = append(result, item)
-		}
-	}
-	for _, item := range b {
-		if !seen[item.URI] {
-			seen[item.URI] = true
-			result = append(result, item)
-		}
-	}
-	return result
+func (r *fullProfileRepository) UpsertProfile(_ context.Context, p *domain.Profile) error {
+	return r.db.UpsertProfile(p)
 }
 
 func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
@@ -1684,32 +1284,27 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	creator := r.URL.Query().Get("creator")
 	limit := parseIntParam(r, "limit", 50)
 	offset := parseIntParam(r, "offset", 0)
-	viewerDID := h.getViewerDID(r)
 
-	annotations, _ := h.db.SearchAnnotations(query, creator, limit, offset)
-	highlights, _ := h.db.SearchHighlights(query, creator, limit, offset)
-	bookmarks, _ := h.db.SearchBookmarks(query, creator, limit, offset)
-
-	hydratedAnnotations, _ := hydrateAnnotations(h.db, annotations, viewerDID)
-	hydratedHighlights, _ := hydrateHighlights(h.db, highlights, viewerDID)
-	hydratedBookmarks, _ := hydrateBookmarks(h.db, bookmarks, viewerDID)
-
-	var feed []interface{}
-	for _, a := range hydratedAnnotations {
-		feed = append(feed, a)
-	}
-	for _, hl := range hydratedHighlights {
-		feed = append(feed, hl)
-	}
-	for _, b := range hydratedBookmarks {
-		feed = append(feed, b)
+	filter := db.NoteFilter{Query: query, Limit: limit, Offset: offset}
+	if creator != "" {
+		filter.AuthorDID = creator
 	}
 
-	sortFeed(feed)
+	notes, err := h.noteRepo.List(r.Context(), filter)
+	if err != nil {
+		WriteInternalError(w, "Internal server error")
+		return
+	}
+
+	lc, _ := h.hydration.Load(r.Context(), notes, h.getViewerDID(r))
+	items := make([]service.APINote, len(notes))
+	for i, n := range notes {
+		items[i] = h.hydration.ToAPINote(n, lc)
+	}
 
 	WriteSuccess(w, map[string]interface{}{
-		"items":        feed,
-		"fetchedCount": len(feed),
+		"items":        items,
+		"fetchedCount": len(items),
 	})
 }
 

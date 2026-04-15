@@ -108,7 +108,7 @@ const ReplyItem: React.FC<ReplyItemProps> = ({
               </div>
               <p
                 className={clsx(
-                  "text-surface-800 dark:text-surface-200 whitespace-pre-wrap leading-relaxed",
+                  "text-surface-800 dark:text-surface-200 whitespace-pre-wrap break-words leading-relaxed",
                   depth > 0 ? "text-sm" : "text-sm",
                 )}
               >
@@ -147,7 +147,7 @@ const ReplyItem: React.FC<ReplyItemProps> = ({
                   : ""}
               </span>
             </div>
-            <p className="text-surface-800 dark:text-surface-200 text-sm pl-9 mb-2 whitespace-pre-wrap">
+            <p className="text-surface-800 dark:text-surface-200 text-sm pl-9 mb-2 whitespace-pre-wrap break-words">
               {reply.text || reply.body?.value}
             </p>
             <div className="flex items-center justify-end gap-2 pl-9">

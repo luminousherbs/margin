@@ -253,7 +253,7 @@ func VerifyPublicationAsync(pubURL, uri string, onVerified func(string)) {
 	select {
 	case verifyQueue <- verifyTask{url: pubURL, uri: uri, onVerified: onVerified, isDoc: false}:
 	default:
-		// Queue full — drop silently to protect network
+		// Queue full
 	}
 }
 
@@ -264,6 +264,6 @@ func VerifyDocumentAsync(docURL, uri string, onVerified func(string)) {
 	select {
 	case verifyQueue <- verifyTask{url: docURL, uri: uri, onVerified: onVerified, isDoc: true}:
 	default:
-		// Queue full — drop silently to protect network
+		// Queue full
 	}
 }

@@ -8,6 +8,7 @@ import {
   MarginIcon,
 } from "../common/Icons";
 import { startSignup } from "../../api/client";
+import { analytics } from "../../lib/analytics";
 
 interface Provider {
   id: string;
@@ -169,12 +170,14 @@ export default function SignUpModal({ onClose }: SignUpModalProps) {
     setError(null);
 
     try {
+      analytics.capture("signup_initiated", { provider: provider.id });
       const result = await startSignup(provider.service);
       if (result.authorizationUrl) {
         window.location.assign(result.authorizationUrl);
       }
     } catch (err) {
       console.error(err);
+      analytics.captureException(err);
       setError("Could not connect to this provider. Please try again.");
       setLoading(false);
     }
@@ -193,6 +196,7 @@ export default function SignUpModal({ onClose }: SignUpModalProps) {
     }
 
     try {
+      analytics.capture("signup_initiated", { provider: "custom" });
       const result = await startSignup(serviceUrl);
       if (result.authorizationUrl) {
         const url = new URL(result.authorizationUrl);
@@ -202,6 +206,7 @@ export default function SignUpModal({ onClose }: SignUpModalProps) {
       }
     } catch (err) {
       console.error(err);
+      analytics.captureException(err);
       setError("Could not connect to this PDS. Please check the URL.");
       setLoading(false);
     }

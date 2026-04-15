@@ -275,6 +275,53 @@ func (c *Client) GetRecord(ctx context.Context, repo, collection, rkey string) (
 	return &output, nil
 }
 
+type ListRecordsRecord struct {
+	URI   string          `json:"uri"`
+	CID   string          `json:"cid"`
+	Value json.RawMessage `json:"value"`
+}
+
+type ListRecordsOutput struct {
+	Cursor  string              `json:"cursor"`
+	Records []ListRecordsRecord `json:"records"`
+}
+
+func (c *Client) ListRecords(ctx context.Context, repo, collection string, limit int) (*ListRecordsOutput, error) {
+	url := fmt.Sprintf("%s/xrpc/com.atproto.repo.listRecords?repo=%s&collection=%s&limit=%d",
+		c.PDS, repo, collection, limit)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	dpopProof, err := c.createDPoPProof("GET", url)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", "DPoP "+c.AccessToken)
+	req.Header.Set("DPoP", dpopProof)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("XRPC error %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var output ListRecordsOutput
+	if err := json.NewDecoder(resp.Body).Decode(&output); err != nil {
+		return nil, err
+	}
+
+	return &output, nil
+}
+
 type ResolveHandleOutput struct {
 	Did string `json:"did"`
 }

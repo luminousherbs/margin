@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
 
+	"margin.at/internal/analytics"
 	"margin.at/internal/api"
 	"margin.at/internal/db"
 	"margin.at/internal/embeddings"
@@ -41,6 +42,7 @@ func main() {
 	if err := database.Migrate(); err != nil {
 		logger.Fatal("Failed to run migrations: %v", err)
 	}
+	database.MigrateUnifiedNotes()
 
 	go func() {
 		ticker := time.NewTicker(1 * time.Hour)
@@ -58,15 +60,15 @@ func main() {
 	}()
 
 	embeddingClient := embeddings.NewClient()
-	if err := database.MigrateRecommendations(); err != nil {
-		logger.Fatal("Failed to run recommendation migrations: %v", err)
-	}
 	recService := recommendations.NewService(database, embeddingClient)
 	logger.Info("Recommendation engine initialized (embeddings enabled: %v)", embeddingClient.IsEnabled())
 
 	syncSvc := sync.NewService(database)
 
-	oauthHandler, err := oauth.NewHandler(database, syncSvc)
+	analyticsCl := analytics.New()
+	defer analyticsCl.Close()
+
+	oauthHandler, err := oauth.NewHandler(database, syncSvc, analyticsCl)
 	if err != nil {
 		logger.Fatal("Failed to initialize OAuth: %v", err)
 	}
@@ -157,9 +159,9 @@ func main() {
 	}))
 
 	tokenRefresher := api.NewTokenRefresher(database, oauthHandler.GetPrivateKey())
-	annotationSvc := api.NewAnnotationService(database, tokenRefresher)
+	noteWriteSvc := api.NewNoteWriteService(database, tokenRefresher)
 
-	handler := api.NewHandler(database, annotationSvc, tokenRefresher, syncSvc, recService)
+	handler := api.NewHandler(database, noteWriteSvc, tokenRefresher, syncSvc, recService, analyticsCl)
 	handler.RegisterRoutes(r)
 
 	r.Route("/auth", func(r chi.Router) {
@@ -171,7 +173,7 @@ func main() {
 		r.Post("/logout", oauthHandler.HandleLogout)
 		r.Get("/session", oauthHandler.HandleSession)
 	})
-	r.Get("/client-metadata.json", oauthHandler.HandleClientMetadata)
+	r.Get("/oauth-client-metadata.json", oauthHandler.HandleClientMetadata)
 	r.Get("/jwks.json", oauthHandler.HandleJWKS)
 
 	port := getEnv("PORT", "8081")

@@ -10,6 +10,7 @@ import {
   setLabelVisibility,
   getLabelVisibility,
   setDisableExternalLinkWarning,
+  setEnableCommunityBookmarks,
 } from "../../store/preferences";
 import {
   getAPIKeys,
@@ -61,6 +62,7 @@ import {
 import { AppleIcon } from "../../components/common/Icons";
 import { HighlightImporter } from "./HighlightImporter";
 import IOSShortcutModal from "../../components/modals/IOSShortcutModal";
+import { analytics } from "../../lib/analytics";
 
 export default function Settings() {
   const user = useStore($user);
@@ -115,6 +117,7 @@ export default function Settings() {
       setKeys([res, ...keys]);
       setCreatedKey(res.key || null);
       setNewKeyName("");
+      analytics.capture("api_key_created");
     }
     setCreating(false);
   };
@@ -178,7 +181,12 @@ export default function Settings() {
             {themeOptions.map((opt) => (
               <button
                 key={opt.value}
-                onClick={() => setTheme(opt.value)}
+                onClick={() => {
+                  setTheme(opt.value);
+                  analytics.capture("theme_changed", {
+                    theme: opt.value,
+                  });
+                }}
                 className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                   theme === opt.value
                     ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20"
@@ -214,6 +222,21 @@ export default function Settings() {
             <Switch
               checked={preferences.disableExternalLinkWarning}
               onCheckedChange={setDisableExternalLinkWarning}
+            />
+          </div>
+
+          <div className="mt-6 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-surface-900 dark:text-white">
+                Share bookmarks to community feed
+              </h3>
+              <p className="text-sm text-surface-500 dark:text-surface-400">
+                Your saved bookmarks will appear in the community bookmarks feed
+              </p>
+            </div>
+            <Switch
+              checked={preferences.enableCommunityBookmarks}
+              onCheckedChange={setEnableCommunityBookmarks}
             />
           </div>
         </section>

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,17 +10,134 @@ import (
 	"time"
 
 	"margin.at/internal/db"
+	"margin.at/internal/domain"
 	"margin.at/internal/logger"
 	"margin.at/internal/xrpc"
 )
 
-type AnnotationService struct {
-	db        *db.DB
+type NoteIndexDB interface {
+	CreateNote(n *domain.Note) error
+	GetNoteByURI(uri string) (*domain.Note, error)
+	DeleteNote(uri string) error
+	UpdateNoteAnnotation(uri, bodyValue, tagsJSON, cid string) error
+	UpdateNoteHighlight(uri, color, tagsJSON, cid string) error
+	UpdateNoteBookmark(uri, title, description, tagsJSON, cid string) error
+	CreateAnnotation(a *domain.Annotation) error
+	GetAnnotationByURI(uri string) (*domain.Annotation, error)
+	GetAnnotationsByAuthor(authorDID string, limit, offset int) ([]domain.Annotation, error)
+	UpdateAnnotation(uri, bodyValue, tagsJSON, cid string) error
+	DeleteAnnotation(uri string) error
+	CreateHighlight(h *domain.Highlight) error
+	GetHighlightByURI(uri string) (*domain.Highlight, error)
+	GetHighlightsByAuthor(authorDID string, limit, offset int) ([]domain.Highlight, error)
+	UpdateHighlight(uri, color, tagsJSON, cid string) error
+	DeleteHighlight(uri string) error
+	CreateBookmark(b *domain.Bookmark) error
+	GetBookmarkByURI(uri string) (*domain.Bookmark, error)
+	GetBookmarksByTargetHash(targetHash string, limit, offset int) ([]domain.Bookmark, error)
+	UpdateBookmark(uri, title, description, tagsJSON, cid string) error
+	DeleteBookmark(uri string) error
+	CreateLike(l *domain.Like) error
+	GetLikeByUserAndSubject(userDID, subjectURI string) (*domain.Like, error)
+	DeleteLike(uri string) error
+	CreateReply(rep *domain.Reply) error
+	GetReplyByURI(uri string) (*domain.Reply, error)
+	DeleteReply(uri string) error
+	CreateNotification(n *domain.Notification) error
+	GetAuthorByURI(uri string) (string, error)
+	GetPreferences(did string) (*domain.Preferences, error)
+	SyncSelfLabels(authorDID, uri string, labels []string) error
+	CreateContentLabel(src, uri, val, createdBy string) error
+	SaveEditHistory(uri, recordType, previousContent string, previousCID *string) error
+	HashURL(rawURL string) string
+	CommunityBookmarkExists(authorDID, targetHash, tagsJSON string) (bool, error)
+}
+
+type dbAdapter struct{ d *db.DB }
+
+func (a *dbAdapter) CreateNote(n *domain.Note) error               { return a.d.CreateNote(n) }
+func (a *dbAdapter) GetNoteByURI(uri string) (*domain.Note, error) { return a.d.GetNoteByURI(uri) }
+func (a *dbAdapter) DeleteNote(uri string) error                   { return a.d.DeleteNote(uri) }
+func (a *dbAdapter) UpdateNoteAnnotation(uri, body, tags, cid string) error {
+	return a.d.UpdateNoteAnnotation(uri, body, tags, cid)
+}
+func (a *dbAdapter) UpdateNoteHighlight(uri, color, tags, cid string) error {
+	return a.d.UpdateNoteHighlight(uri, color, tags, cid)
+}
+func (a *dbAdapter) UpdateNoteBookmark(uri, title, desc, tags, cid string) error {
+	return a.d.UpdateNoteBookmark(uri, title, desc, tags, cid)
+}
+func (a *dbAdapter) CreateAnnotation(ann *domain.Annotation) error { return a.d.CreateAnnotation(ann) }
+func (a *dbAdapter) GetAnnotationByURI(uri string) (*domain.Annotation, error) {
+	return a.d.GetAnnotationByURI(uri)
+}
+func (a *dbAdapter) GetAnnotationsByAuthor(did string, limit, offset int) ([]domain.Annotation, error) {
+	return a.d.GetAnnotationsByAuthor(did, limit, offset)
+}
+func (a *dbAdapter) UpdateAnnotation(uri, body, tags, cid string) error {
+	return a.d.UpdateAnnotation(uri, body, tags, cid)
+}
+func (a *dbAdapter) DeleteAnnotation(uri string) error         { return a.d.DeleteAnnotation(uri) }
+func (a *dbAdapter) CreateHighlight(h *domain.Highlight) error { return a.d.CreateHighlight(h) }
+func (a *dbAdapter) GetHighlightByURI(uri string) (*domain.Highlight, error) {
+	return a.d.GetHighlightByURI(uri)
+}
+func (a *dbAdapter) GetHighlightsByAuthor(did string, limit, offset int) ([]domain.Highlight, error) {
+	return a.d.GetHighlightsByAuthor(did, limit, offset)
+}
+func (a *dbAdapter) UpdateHighlight(uri, color, tags, cid string) error {
+	return a.d.UpdateHighlight(uri, color, tags, cid)
+}
+func (a *dbAdapter) DeleteHighlight(uri string) error        { return a.d.DeleteHighlight(uri) }
+func (a *dbAdapter) CreateBookmark(b *domain.Bookmark) error { return a.d.CreateBookmark(b) }
+func (a *dbAdapter) GetBookmarkByURI(uri string) (*domain.Bookmark, error) {
+	return a.d.GetBookmarkByURI(uri)
+}
+func (a *dbAdapter) GetBookmarksByTargetHash(hash string, limit, offset int) ([]domain.Bookmark, error) {
+	return a.d.GetBookmarksByTargetHash(hash, limit, offset)
+}
+func (a *dbAdapter) UpdateBookmark(uri, title, desc, tags, cid string) error {
+	return a.d.UpdateBookmark(uri, title, desc, tags, cid)
+}
+func (a *dbAdapter) DeleteBookmark(uri string) error { return a.d.DeleteBookmark(uri) }
+func (a *dbAdapter) CreateLike(l *domain.Like) error { return a.d.CreateLike(l) }
+func (a *dbAdapter) GetLikeByUserAndSubject(did, sub string) (*domain.Like, error) {
+	return a.d.GetLikeByUserAndSubject(did, sub)
+}
+func (a *dbAdapter) DeleteLike(uri string) error         { return a.d.DeleteLike(uri) }
+func (a *dbAdapter) CreateReply(rep *domain.Reply) error { return a.d.CreateReply(rep) }
+func (a *dbAdapter) GetReplyByURI(uri string) (*domain.Reply, error) {
+	return a.d.GetReplyByURI(uri)
+}
+func (a *dbAdapter) DeleteReply(uri string) error { return a.d.DeleteReply(uri) }
+func (a *dbAdapter) CreateNotification(n *domain.Notification) error {
+	return a.d.CreateNotification(n)
+}
+func (a *dbAdapter) GetAuthorByURI(uri string) (string, error) { return a.d.GetAuthorByURI(uri) }
+func (a *dbAdapter) GetPreferences(did string) (*domain.Preferences, error) {
+	return a.d.GetPreferences(did)
+}
+func (a *dbAdapter) SyncSelfLabels(author, uri string, labels []string) error {
+	return a.d.SyncSelfLabels(author, uri, labels)
+}
+func (a *dbAdapter) CreateContentLabel(src, uri, val, by string) error {
+	return a.d.CreateContentLabel(src, uri, val, by)
+}
+func (a *dbAdapter) SaveEditHistory(uri, rt, prev string, cid *string) error {
+	return a.d.SaveEditHistory(uri, rt, prev, cid)
+}
+func (a *dbAdapter) HashURL(rawURL string) string { return db.HashURL(rawURL) }
+func (a *dbAdapter) CommunityBookmarkExists(did, hash, tags string) (bool, error) {
+	return a.d.CommunityBookmarkExists(did, hash, tags)
+}
+
+type NoteWriteService struct {
+	db        NoteIndexDB
 	refresher *TokenRefresher
 }
 
-func NewAnnotationService(database *db.DB, refresher *TokenRefresher) *AnnotationService {
-	return &AnnotationService{db: database, refresher: refresher}
+func NewNoteWriteService(database *db.DB, refresher *TokenRefresher) *NoteWriteService {
+	return &NoteWriteService{db: &dbAdapter{d: database}, refresher: refresher}
 }
 
 type CreateAnnotationRequest struct {
@@ -36,7 +154,7 @@ type CreateAnnotationResponse struct {
 	CID string `json:"cid"`
 }
 
-func (s *AnnotationService) CreateAnnotation(w http.ResponseWriter, r *http.Request) {
+func (s *NoteWriteService) CreateAnnotation(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
 		WriteUnauthorized(w, err.Error())
@@ -135,7 +253,7 @@ func (s *AnnotationService) CreateAnnotation(w http.ResponseWriter, r *http.Requ
 		})
 	}
 
-	record := xrpc.NewAnnotationRecordWithMotivation(req.URL, urlHash, req.Text, req.Selector, req.Title, motivation)
+	record := xrpc.NewNoteRecord(req.URL, urlHash, req.Text, req.Selector, req.Title, "", "", motivation)
 	if len(req.Tags) > 0 {
 		record.Tags = req.Tags
 	}
@@ -143,14 +261,7 @@ func (s *AnnotationService) CreateAnnotation(w http.ResponseWriter, r *http.Requ
 		record.Facets = facets
 	}
 
-	validSelfLabels := map[string]bool{"sexual": true, "nudity": true, "violence": true, "gore": true, "spam": true, "misleading": true}
-	var validLabels []string
-	for _, l := range req.Labels {
-		if validSelfLabels[l] {
-			validLabels = append(validLabels, l)
-		}
-	}
-	record.Labels = xrpc.NewSelfLabels(validLabels)
+	record.Labels = xrpc.NewSelfLabels(filterSelfLabels(req.Labels))
 
 	var result *xrpc.CreateRecordOutput
 
@@ -165,7 +276,7 @@ func (s *AnnotationService) CreateAnnotation(w http.ResponseWriter, r *http.Requ
 
 	err = s.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
 		var createErr error
-		result, createErr = client.CreateRecord(r.Context(), did, xrpc.CollectionAnnotation, record)
+		result, createErr = client.CreateRecord(r.Context(), did, xrpc.CollectionNote, record)
 		return createErr
 	})
 	if err != nil {
@@ -208,7 +319,7 @@ func (s *AnnotationService) CreateAnnotation(w http.ResponseWriter, r *http.Requ
 
 	cid := result.CID
 	did := session.DID
-	annotation := &db.Annotation{
+	note := &db.Note{
 		URI:          result.URI,
 		CID:          &cid,
 		AuthorDID:    did,
@@ -223,11 +334,11 @@ func (s *AnnotationService) CreateAnnotation(w http.ResponseWriter, r *http.Requ
 		IndexedAt:    time.Now(),
 	}
 
-	if err := s.db.CreateAnnotation(annotation); err != nil {
-		logger.Error("Warning: failed to index annotation in local DB: %v", err)
+	if err := s.db.CreateNote(note); err != nil {
+		logger.Error("Warning: failed to index note in local DB: %v", err)
 	}
 
-	for _, label := range validLabels {
+	for _, label := range filterSelfLabels(req.Labels) {
 		if err := s.db.CreateContentLabel(session.DID, result.URI, label, session.DID); err != nil {
 			logger.Error("Warning: failed to create self-label %s: %v", label, err)
 		}
@@ -239,7 +350,7 @@ func (s *AnnotationService) CreateAnnotation(w http.ResponseWriter, r *http.Requ
 	})
 }
 
-func (s *AnnotationService) DeleteAnnotation(w http.ResponseWriter, r *http.Request) {
+func (s *NoteWriteService) DeleteAnnotation(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
 		WriteUnauthorized(w, err.Error())
@@ -260,10 +371,13 @@ func (s *AnnotationService) DeleteAnnotation(w http.ResponseWriter, r *http.Requ
 	if collectionType == "reply" {
 		collection = xrpc.CollectionReply
 	} else {
-		candidateCollections := []string{xrpc.CollectionAnnotation, "network.cosmik.card"}
+		candidateCollections := []string{xrpc.CollectionNote, xrpc.CollectionAnnotation, xrpc.CollectionHighlight, xrpc.CollectionBookmark, xrpc.CollectionCommunityBookmark, "network.cosmik.card"}
 		for _, col := range candidateCollections {
 			uri := "at://" + did + "/" + col + "/" + rkey
-			if _, dbErr := s.db.GetAnnotationByURI(uri); dbErr == nil {
+			if note, dbErr := s.db.GetNoteByURI(uri); dbErr == nil && note != nil {
+				collection = col
+				break
+			} else if _, dbErr := s.db.GetAnnotationByURI(uri); dbErr == nil {
 				collection = col
 				break
 			}
@@ -277,13 +391,15 @@ func (s *AnnotationService) DeleteAnnotation(w http.ResponseWriter, r *http.Requ
 		logger.Error("PDS delete failed (will still clean local DB): %v", pdsErr)
 	}
 
-	// Always clean up local DB regardless of PDS result
 	if collectionType == "reply" {
 		uri := "at://" + did + "/" + xrpc.CollectionReply + "/" + rkey
 		s.db.DeleteReply(uri)
 	} else {
 		uri := "at://" + did + "/" + collection + "/" + rkey
 		s.db.DeleteAnnotation(uri)
+		s.db.DeleteHighlight(uri)
+		s.db.DeleteBookmark(uri)
+		s.db.DeleteNote(uri)
 	}
 
 	WriteSuccess(w, map[string]bool{"success": true})
@@ -295,7 +411,7 @@ type UpdateAnnotationRequest struct {
 	Labels []string `json:"labels,omitempty"`
 }
 
-func (s *AnnotationService) UpdateAnnotation(w http.ResponseWriter, r *http.Request) {
+func (s *NoteWriteService) UpdateAnnotation(w http.ResponseWriter, r *http.Request) {
 	uri := r.URL.Query().Get("uri")
 	if uri == "" {
 		WriteBadRequest(w, "uri query parameter required")
@@ -356,45 +472,63 @@ func (s *AnnotationService) UpdateAnnotation(w http.ResponseWriter, r *http.Requ
 
 	var result *xrpc.PutRecordOutput
 	err = s.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
-		existing, getErr := client.GetRecord(r.Context(), did, xrpc.CollectionAnnotation, rkey)
+		collection := parts[1]
+		existing, getErr := client.GetRecord(r.Context(), did, collection, rkey)
 		if getErr != nil {
 			return fmt.Errorf("failed to fetch existing record: %w", getErr)
 		}
 
-		var record xrpc.AnnotationRecord
-		if err := json.Unmarshal(existing.Value, &record); err != nil {
-			return fmt.Errorf("failed to parse existing record: %w", err)
-		}
-
-		record.Body = &xrpc.AnnotationBody{
-			Value:  req.Text,
-			Format: "text/plain",
-		}
-		if len(req.Tags) > 0 {
-			record.Tags = req.Tags
-		} else {
-			record.Tags = nil
-		}
-
-		updateValidLabels := map[string]bool{"sexual": true, "nudity": true, "violence": true, "gore": true, "spam": true, "misleading": true}
-		var updateLabels []string
-		for _, l := range req.Labels {
-			if updateValidLabels[l] {
-				updateLabels = append(updateLabels, l)
-			}
-		}
-		record.Labels = xrpc.NewSelfLabels(updateLabels)
-
-		if err := record.Validate(); err != nil {
-			return fmt.Errorf("validation failed: %w", err)
-		}
-
 		var updateErr error
-		result, updateErr = client.PutRecord(r.Context(), did, xrpc.CollectionAnnotation, rkey, record)
-		if updateErr != nil {
-			logger.Error("UpdateAnnotation failed: %v. Retrying with delete-then-create workaround.", updateErr)
-			_ = client.DeleteRecord(r.Context(), did, xrpc.CollectionAnnotation, rkey)
-			result, updateErr = client.PutRecord(r.Context(), did, xrpc.CollectionAnnotation, rkey, record)
+		if collection == xrpc.CollectionNote {
+			var record xrpc.NoteRecord
+			if err := json.Unmarshal(existing.Value, &record); err != nil {
+				return fmt.Errorf("failed to parse existing record: %w", err)
+			}
+			record.Body = &xrpc.AnnotationBody{
+				Value:  req.Text,
+				Format: "text/plain",
+			}
+			if len(req.Tags) > 0 {
+				record.Tags = req.Tags
+			} else {
+				record.Tags = nil
+			}
+
+			record.Labels = xrpc.NewSelfLabels(filterSelfLabels(req.Labels))
+
+			if err := record.Validate(); err != nil {
+				return fmt.Errorf("validation failed: %w", err)
+			}
+			result, updateErr = client.PutRecord(r.Context(), did, collection, rkey, record)
+			if updateErr != nil {
+				_ = client.DeleteRecord(r.Context(), did, collection, rkey)
+				result, updateErr = client.PutRecord(r.Context(), did, collection, rkey, record)
+			}
+		} else {
+			var record xrpc.AnnotationRecord
+			if err := json.Unmarshal(existing.Value, &record); err != nil {
+				return fmt.Errorf("failed to parse existing record: %w", err)
+			}
+			record.Body = &xrpc.AnnotationBody{
+				Value:  req.Text,
+				Format: "text/plain",
+			}
+			if len(req.Tags) > 0 {
+				record.Tags = req.Tags
+			} else {
+				record.Tags = nil
+			}
+
+			record.Labels = xrpc.NewSelfLabels(filterSelfLabels(req.Labels))
+
+			if err := record.Validate(); err != nil {
+				return fmt.Errorf("validation failed: %w", err)
+			}
+			result, updateErr = client.PutRecord(r.Context(), did, collection, rkey, record)
+			if updateErr != nil {
+				_ = client.DeleteRecord(r.Context(), did, collection, rkey)
+				result, updateErr = client.PutRecord(r.Context(), did, collection, rkey, record)
+			}
 		}
 		return updateErr
 	})
@@ -405,16 +539,13 @@ func (s *AnnotationService) UpdateAnnotation(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	s.db.UpdateAnnotation(uri, req.Text, tagsJSON, result.CID)
-
-	validSelfLabels := map[string]bool{"sexual": true, "nudity": true, "violence": true, "gore": true, "spam": true, "misleading": true}
-	var validLabels []string
-	for _, l := range req.Labels {
-		if validSelfLabels[l] {
-			validLabels = append(validLabels, l)
-		}
+	if parts[1] == xrpc.CollectionNote {
+		s.db.UpdateNoteAnnotation(uri, req.Text, tagsJSON, result.CID)
+	} else {
+		s.db.UpdateAnnotation(uri, req.Text, tagsJSON, result.CID)
 	}
-	if err := s.db.SyncSelfLabels(session.DID, uri, validLabels); err != nil {
+
+	if err := s.db.SyncSelfLabels(session.DID, uri, filterSelfLabels(req.Labels)); err != nil {
 		logger.Error("Warning: failed to sync self-labels: %v", err)
 	}
 
@@ -438,7 +569,7 @@ type CreateLikeRequest struct {
 	SubjectCID string `json:"subjectCid"`
 }
 
-func (s *AnnotationService) LikeAnnotation(w http.ResponseWriter, r *http.Request) {
+func (s *NoteWriteService) LikeAnnotation(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
 		WriteUnauthorized(w, err.Error())
@@ -504,7 +635,7 @@ func (s *AnnotationService) LikeAnnotation(w http.ResponseWriter, r *http.Reques
 	WriteSuccess(w, map[string]string{"uri": result.URI})
 }
 
-func (s *AnnotationService) UnlikeAnnotation(w http.ResponseWriter, r *http.Request) {
+func (s *NoteWriteService) UnlikeAnnotation(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
 		WriteUnauthorized(w, err.Error())
@@ -547,7 +678,7 @@ type CreateReplyRequest struct {
 	Text      string `json:"text"`
 }
 
-func (s *AnnotationService) CreateReply(w http.ResponseWriter, r *http.Request) {
+func (s *NoteWriteService) CreateReply(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
 		WriteUnauthorized(w, err.Error())
@@ -631,7 +762,7 @@ func (s *AnnotationService) CreateReply(w http.ResponseWriter, r *http.Request) 
 	WriteSuccess(w, map[string]string{"uri": result.URI})
 }
 
-func (s *AnnotationService) DeleteReply(w http.ResponseWriter, r *http.Request) {
+func (s *NoteWriteService) DeleteReply(w http.ResponseWriter, r *http.Request) {
 	uri := r.URL.Query().Get("uri")
 	if uri == "" {
 		WriteBadRequest(w, "uri query parameter required")
@@ -677,7 +808,7 @@ type CreateHighlightRequest struct {
 	Labels   []string        `json:"labels,omitempty"`
 }
 
-func (s *AnnotationService) CreateHighlight(w http.ResponseWriter, r *http.Request) {
+func (s *NoteWriteService) CreateHighlight(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
 		WriteUnauthorized(w, err.Error())
@@ -700,16 +831,12 @@ func (s *AnnotationService) CreateHighlight(w http.ResponseWriter, r *http.Reque
 	}
 
 	urlHash := db.HashURL(req.URL)
-	record := xrpc.NewHighlightRecord(req.URL, urlHash, req.Selector, req.Color, req.Tags)
-
-	validSelfLabels := map[string]bool{"sexual": true, "nudity": true, "violence": true, "gore": true, "spam": true, "misleading": true}
-	var validLabels []string
-	for _, l := range req.Labels {
-		if validSelfLabels[l] {
-			validLabels = append(validLabels, l)
-		}
+	record := xrpc.NewNoteRecord(req.URL, urlHash, "", req.Selector, req.Title, req.Color, "", "highlighting")
+	if len(req.Tags) > 0 {
+		record.Tags = req.Tags
 	}
-	record.Labels = xrpc.NewSelfLabels(validLabels)
+
+	record.Labels = xrpc.NewSelfLabels(filterSelfLabels(req.Labels))
 
 	if err := record.Validate(); err != nil {
 		WriteBadRequest(w, "Validation error: "+err.Error())
@@ -726,7 +853,7 @@ func (s *AnnotationService) CreateHighlight(w http.ResponseWriter, r *http.Reque
 
 	err = s.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
 		var createErr error
-		result, createErr = client.CreateRecord(r.Context(), did, xrpc.CollectionHighlight, record)
+		result, createErr = client.CreateRecord(r.Context(), did, xrpc.CollectionNote, record)
 		return createErr
 	})
 	if err != nil {
@@ -758,9 +885,10 @@ func (s *AnnotationService) CreateHighlight(w http.ResponseWriter, r *http.Reque
 	}
 
 	cid := result.CID
-	highlight := &db.Highlight{
+	note := &db.Note{
 		URI:          result.URI,
 		AuthorDID:    session.DID,
+		Motivation:   "highlighting",
 		TargetSource: req.URL,
 		TargetHash:   urlHash,
 		TargetTitle:  titlePtr,
@@ -771,12 +899,12 @@ func (s *AnnotationService) CreateHighlight(w http.ResponseWriter, r *http.Reque
 		IndexedAt:    time.Now(),
 		CID:          &cid,
 	}
-	if err := s.db.CreateHighlight(highlight); err != nil {
-		WriteInternalError(w, "Failed to index highlight")
+	if err := s.db.CreateNote(note); err != nil {
+		WriteInternalError(w, "Failed to index highlight node")
 		return
 	}
 
-	for _, label := range validLabels {
+	for _, label := range filterSelfLabels(req.Labels) {
 		if err := s.db.CreateContentLabel(session.DID, result.URI, label, session.DID); err != nil {
 			logger.Error("Warning: failed to create self-label %s: %v", label, err)
 		}
@@ -792,7 +920,7 @@ type CreateBookmarkRequest struct {
 	Tags        []string `json:"tags,omitempty"`
 }
 
-func (s *AnnotationService) CreateBookmark(w http.ResponseWriter, r *http.Request) {
+func (s *NoteWriteService) CreateBookmark(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
 		WriteUnauthorized(w, err.Error())
@@ -815,7 +943,7 @@ func (s *AnnotationService) CreateBookmark(w http.ResponseWriter, r *http.Reques
 	}
 
 	urlHash := db.HashURL(req.URL)
-	record := xrpc.NewBookmarkRecord(req.URL, urlHash, req.Title, req.Description)
+	record := xrpc.NewNoteRecord(req.URL, urlHash, "", nil, req.Title, "", req.Description, "bookmarking")
 	if len(req.Tags) > 0 {
 		record.Tags = req.Tags
 	}
@@ -834,13 +962,48 @@ func (s *AnnotationService) CreateBookmark(w http.ResponseWriter, r *http.Reques
 
 	err = s.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
 		var createErr error
-		result, createErr = client.CreateRecord(r.Context(), did, xrpc.CollectionBookmark, record)
+		result, createErr = client.CreateRecord(r.Context(), did, xrpc.CollectionNote, record)
 		return createErr
 	})
 	if err != nil {
 		HandleAPIError(w, r, err, "Failed to create bookmark: ", http.StatusInternalServerError)
 		return
 	}
+
+	capturedSession := session
+	capturedTags := append([]string(nil), req.Tags...)
+	capturedURL := req.URL
+	capturedURLHash := urlHash
+	go func() {
+		prefs, dbErr := s.db.GetPreferences(capturedSession.DID)
+		communityEnabled := dbErr == nil && prefs != nil && (prefs.EnableCommunityBookmarks == nil || *prefs.EnableCommunityBookmarks)
+		if !communityEnabled {
+			return
+		}
+
+		tagsJSON := ""
+		if len(capturedTags) > 0 {
+			if b, err := json.Marshal(capturedTags); err == nil {
+				tagsJSON = string(b)
+			}
+		}
+		if exists, err := s.db.CommunityBookmarkExists(capturedSession.DID, capturedURLHash, tagsJSON); err == nil && exists {
+			return
+		}
+
+		client := s.refresher.CreateClientFromSession(capturedSession)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		communityRecord := map[string]interface{}{
+			"$type":     xrpc.CollectionCommunityBookmark,
+			"subject":   capturedURL,
+			"createdAt": time.Now().UTC().Format(time.RFC3339),
+		}
+		if len(capturedTags) > 0 {
+			communityRecord["tags"] = capturedTags
+		}
+		_, _ = client.CreateRecord(ctx, capturedSession.DID, xrpc.CollectionCommunityBookmark, communityRecord)
+	}()
 
 	var titlePtr *string
 	if req.Title != "" {
@@ -859,24 +1022,27 @@ func (s *AnnotationService) CreateBookmark(w http.ResponseWriter, r *http.Reques
 	}
 
 	cid := result.CID
-	bookmark := &db.Bookmark{
-		URI:         result.URI,
-		AuthorDID:   session.DID,
-		Source:      req.URL,
-		SourceHash:  urlHash,
-		Title:       titlePtr,
-		Description: descPtr,
-		TagsJSON:    tagsJSONPtr,
-		CreatedAt:   time.Now(),
-		IndexedAt:   time.Now(),
-		CID:         &cid,
+	note := &db.Note{
+		URI:          result.URI,
+		AuthorDID:    session.DID,
+		Motivation:   "bookmarking",
+		TargetSource: req.URL,
+		TargetHash:   urlHash,
+		TargetTitle:  titlePtr,
+		BodyValue:    descPtr,
+		TagsJSON:     tagsJSONPtr,
+		CreatedAt:    time.Now(),
+		IndexedAt:    time.Now(),
+		CID:          &cid,
 	}
-	s.db.CreateBookmark(bookmark)
+	if err := s.db.CreateNote(note); err != nil {
+		logger.Error("Warning: failed to index bookmark in local DB: %v", err)
+	}
 
 	WriteSuccess(w, map[string]string{"uri": result.URI, "cid": result.CID})
 }
 
-func (s *AnnotationService) DeleteHighlight(w http.ResponseWriter, r *http.Request) {
+func (s *NoteWriteService) DeleteHighlight(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
 		WriteUnauthorized(w, err.Error())
@@ -889,20 +1055,34 @@ func (s *AnnotationService) DeleteHighlight(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	did := session.DID
+	collection := xrpc.CollectionNote
+	for _, col := range []string{xrpc.CollectionNote, xrpc.CollectionHighlight} {
+		uri := "at://" + did + "/" + col + "/" + rkey
+		if note, dbErr := s.db.GetNoteByURI(uri); dbErr == nil && note != nil {
+			collection = col
+			break
+		} else if _, dbErr := s.db.GetHighlightByURI(uri); dbErr == nil {
+			collection = col
+			break
+		}
+	}
+
 	pdsErr := s.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
-		return client.DeleteRecord(r.Context(), did, xrpc.CollectionHighlight, rkey)
+		return client.DeleteRecord(r.Context(), did, collection, rkey)
 	})
 	if pdsErr != nil {
 		logger.Error("PDS delete highlight failed (will still clean local DB): %v", pdsErr)
 	}
 
-	uri := "at://" + session.DID + "/" + xrpc.CollectionHighlight + "/" + rkey
+	uri := "at://" + did + "/" + collection + "/" + rkey
 	s.db.DeleteHighlight(uri)
+	s.db.DeleteNote(uri)
 
 	WriteSuccess(w, map[string]bool{"success": true})
 }
 
-func (s *AnnotationService) DeleteBookmark(w http.ResponseWriter, r *http.Request) {
+func (s *NoteWriteService) DeleteBookmark(w http.ResponseWriter, r *http.Request) {
 	session, err := s.refresher.GetSessionWithAutoRefresh(r)
 	if err != nil {
 		WriteUnauthorized(w, err.Error())
@@ -915,15 +1095,29 @@ func (s *AnnotationService) DeleteBookmark(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	did := session.DID
+	collection := xrpc.CollectionNote
+	for _, col := range []string{xrpc.CollectionNote, xrpc.CollectionBookmark, xrpc.CollectionCommunityBookmark} {
+		uri := "at://" + did + "/" + col + "/" + rkey
+		if note, dbErr := s.db.GetNoteByURI(uri); dbErr == nil && note != nil {
+			collection = col
+			break
+		} else if _, dbErr := s.db.GetBookmarkByURI(uri); dbErr == nil {
+			collection = col
+			break
+		}
+	}
+
 	pdsErr := s.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
-		return client.DeleteRecord(r.Context(), did, xrpc.CollectionBookmark, rkey)
+		return client.DeleteRecord(r.Context(), did, collection, rkey)
 	})
 	if pdsErr != nil {
 		logger.Error("PDS delete bookmark failed (will still clean local DB): %v", pdsErr)
 	}
 
-	uri := "at://" + session.DID + "/" + xrpc.CollectionBookmark + "/" + rkey
+	uri := "at://" + did + "/" + collection + "/" + rkey
 	s.db.DeleteBookmark(uri)
+	s.db.DeleteNote(uri)
 
 	WriteSuccess(w, map[string]bool{"success": true})
 }
@@ -934,7 +1128,7 @@ type UpdateHighlightRequest struct {
 	Labels []string `json:"labels,omitempty"`
 }
 
-func (s *AnnotationService) UpdateHighlight(w http.ResponseWriter, r *http.Request) {
+func (s *NoteWriteService) UpdateHighlight(w http.ResponseWriter, r *http.Request) {
 	uri := r.URL.Query().Get("uri")
 	if uri == "" {
 		WriteBadRequest(w, "uri query parameter required")
@@ -971,40 +1165,55 @@ func (s *AnnotationService) UpdateHighlight(w http.ResponseWriter, r *http.Reque
 
 	var result *xrpc.PutRecordOutput
 	err = s.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
-		existing, getErr := client.GetRecord(r.Context(), did, xrpc.CollectionHighlight, rkey)
+		collection := parts[1]
+		existing, getErr := client.GetRecord(r.Context(), did, collection, rkey)
 		if getErr != nil {
 			return fmt.Errorf("failed to fetch record: %w", getErr)
 		}
 
-		var record xrpc.HighlightRecord
-		json.Unmarshal(existing.Value, &record)
-
-		if req.Color != "" {
-			record.Color = req.Color
-		}
-		if req.Tags != nil {
-			record.Tags = req.Tags
-		}
-
-		updateValidLabels := map[string]bool{"sexual": true, "nudity": true, "violence": true, "gore": true, "spam": true, "misleading": true}
-		var updateLabels []string
-		for _, l := range req.Labels {
-			if updateValidLabels[l] {
-				updateLabels = append(updateLabels, l)
-			}
-		}
-		record.Labels = xrpc.NewSelfLabels(updateLabels)
-
-		if err := record.Validate(); err != nil {
-			return fmt.Errorf("validation failed: %w", err)
-		}
-
 		var updateErr error
-		result, updateErr = client.PutRecord(r.Context(), did, xrpc.CollectionHighlight, rkey, record)
-		if updateErr != nil {
-			logger.Error("UpdateHighlight failed: %v. Retrying with delete-then-create workaround.", updateErr)
-			_ = client.DeleteRecord(r.Context(), did, xrpc.CollectionHighlight, rkey)
-			result, updateErr = client.PutRecord(r.Context(), did, xrpc.CollectionHighlight, rkey, record)
+		if collection == xrpc.CollectionNote {
+			var record xrpc.NoteRecord
+			json.Unmarshal(existing.Value, &record)
+
+			if req.Color != "" {
+				record.Color = req.Color
+			}
+			if req.Tags != nil {
+				record.Tags = req.Tags
+			}
+
+			record.Labels = xrpc.NewSelfLabels(filterSelfLabels(req.Labels))
+
+			if err := record.Validate(); err != nil {
+				return fmt.Errorf("validation failed: %w", err)
+			}
+			result, updateErr = client.PutRecord(r.Context(), did, collection, rkey, record)
+			if updateErr != nil {
+				_ = client.DeleteRecord(r.Context(), did, collection, rkey)
+				result, updateErr = client.PutRecord(r.Context(), did, collection, rkey, record)
+			}
+		} else {
+			var record xrpc.HighlightRecord
+			json.Unmarshal(existing.Value, &record)
+
+			if req.Color != "" {
+				record.Color = req.Color
+			}
+			if req.Tags != nil {
+				record.Tags = req.Tags
+			}
+
+			record.Labels = xrpc.NewSelfLabels(filterSelfLabels(req.Labels))
+
+			if err := record.Validate(); err != nil {
+				return fmt.Errorf("validation failed: %w", err)
+			}
+			result, updateErr = client.PutRecord(r.Context(), did, collection, rkey, record)
+			if updateErr != nil {
+				_ = client.DeleteRecord(r.Context(), did, collection, rkey)
+				result, updateErr = client.PutRecord(r.Context(), did, collection, rkey, record)
+			}
 		}
 		return updateErr
 	})
@@ -1019,16 +1228,13 @@ func (s *AnnotationService) UpdateHighlight(w http.ResponseWriter, r *http.Reque
 		b, _ := json.Marshal(req.Tags)
 		tagsJSON = string(b)
 	}
-	s.db.UpdateHighlight(uri, req.Color, tagsJSON, result.CID)
-
-	validSelfLabels := map[string]bool{"sexual": true, "nudity": true, "violence": true, "gore": true, "spam": true, "misleading": true}
-	var validLabels []string
-	for _, l := range req.Labels {
-		if validSelfLabels[l] {
-			validLabels = append(validLabels, l)
-		}
+	if parts[1] == xrpc.CollectionNote {
+		s.db.UpdateNoteHighlight(uri, req.Color, tagsJSON, result.CID)
+	} else {
+		s.db.UpdateHighlight(uri, req.Color, tagsJSON, result.CID)
 	}
-	if err := s.db.SyncSelfLabels(session.DID, uri, validLabels); err != nil {
+
+	if err := s.db.SyncSelfLabels(session.DID, uri, filterSelfLabels(req.Labels)); err != nil {
 		logger.Error("Warning: failed to sync self-labels: %v", err)
 	}
 
@@ -1042,7 +1248,7 @@ type UpdateBookmarkRequest struct {
 	Labels      []string `json:"labels,omitempty"`
 }
 
-func (s *AnnotationService) UpdateBookmark(w http.ResponseWriter, r *http.Request) {
+func (s *NoteWriteService) UpdateBookmark(w http.ResponseWriter, r *http.Request) {
 	uri := r.URL.Query().Get("uri")
 	if uri == "" {
 		WriteBadRequest(w, "uri query parameter required")
@@ -1079,43 +1285,64 @@ func (s *AnnotationService) UpdateBookmark(w http.ResponseWriter, r *http.Reques
 	}
 
 	err = s.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
-		existing, getErr := client.GetRecord(r.Context(), did, xrpc.CollectionBookmark, rkey)
+		collection := parts[1]
+		existing, getErr := client.GetRecord(r.Context(), did, collection, rkey)
 		if getErr != nil {
 			return fmt.Errorf("failed to fetch record: %w", getErr)
 		}
 
-		var record xrpc.BookmarkRecord
-		json.Unmarshal(existing.Value, &record)
-
-		if req.Title != "" {
-			record.Title = req.Title
-		}
-		if req.Description != "" {
-			record.Description = req.Description
-		}
-		if req.Tags != nil {
-			record.Tags = req.Tags
-		}
-
-		updateValidLabels := map[string]bool{"sexual": true, "nudity": true, "violence": true, "gore": true, "spam": true, "misleading": true}
-		var updateLabels []string
-		for _, l := range req.Labels {
-			if updateValidLabels[l] {
-				updateLabels = append(updateLabels, l)
-			}
-		}
-		record.Labels = xrpc.NewSelfLabels(updateLabels)
-
-		if err := record.Validate(); err != nil {
-			return fmt.Errorf("validation failed: %w", err)
-		}
-
 		var updateErr error
-		result, updateErr = client.PutRecord(r.Context(), did, xrpc.CollectionBookmark, rkey, record)
-		if updateErr != nil {
-			logger.Error("UpdateBookmark failed: %v. Retrying with delete-then-create workaround.", updateErr)
-			_ = client.DeleteRecord(r.Context(), did, xrpc.CollectionBookmark, rkey)
-			result, updateErr = client.PutRecord(r.Context(), did, xrpc.CollectionBookmark, rkey, record)
+		if collection == xrpc.CollectionNote {
+			var record xrpc.NoteRecord
+			json.Unmarshal(existing.Value, &record)
+
+			if req.Title != "" {
+				record.Target.Title = req.Title
+			}
+			if req.Description != "" {
+				if record.Body == nil {
+					record.Body = &xrpc.AnnotationBody{Format: "text/plain"}
+				}
+				record.Body.Value = req.Description
+			}
+			if req.Tags != nil {
+				record.Tags = req.Tags
+			}
+
+			record.Labels = xrpc.NewSelfLabels(filterSelfLabels(req.Labels))
+
+			if err := record.Validate(); err != nil {
+				return fmt.Errorf("validation failed: %w", err)
+			}
+			result, updateErr = client.PutRecord(r.Context(), did, collection, rkey, record)
+			if updateErr != nil {
+				_ = client.DeleteRecord(r.Context(), did, collection, rkey)
+				result, updateErr = client.PutRecord(r.Context(), did, collection, rkey, record)
+			}
+		} else {
+			var record xrpc.BookmarkRecord
+			json.Unmarshal(existing.Value, &record)
+
+			if req.Title != "" {
+				record.Title = req.Title
+			}
+			if req.Description != "" {
+				record.Description = req.Description
+			}
+			if req.Tags != nil {
+				record.Tags = req.Tags
+			}
+
+			record.Labels = xrpc.NewSelfLabels(filterSelfLabels(req.Labels))
+
+			if err := record.Validate(); err != nil {
+				return fmt.Errorf("validation failed: %w", err)
+			}
+			result, updateErr = client.PutRecord(r.Context(), did, collection, rkey, record)
+			if updateErr != nil {
+				_ = client.DeleteRecord(r.Context(), did, collection, rkey)
+				result, updateErr = client.PutRecord(r.Context(), did, collection, rkey, record)
+			}
 		}
 		return updateErr
 	})
@@ -1130,17 +1357,58 @@ func (s *AnnotationService) UpdateBookmark(w http.ResponseWriter, r *http.Reques
 		b, _ := json.Marshal(req.Tags)
 		tagsJSON = string(b)
 	}
-	s.db.UpdateBookmark(uri, req.Title, req.Description, tagsJSON, result.CID)
-
-	validSelfLabels := map[string]bool{"sexual": true, "nudity": true, "violence": true, "gore": true, "spam": true, "misleading": true}
-	var validLabels []string
-	for _, l := range req.Labels {
-		if validSelfLabels[l] {
-			validLabels = append(validLabels, l)
-		}
+	if parts[1] == xrpc.CollectionNote {
+		s.db.UpdateNoteBookmark(uri, req.Title, req.Description, tagsJSON, result.CID)
+	} else {
+		s.db.UpdateBookmark(uri, req.Title, req.Description, tagsJSON, result.CID)
 	}
-	if err := s.db.SyncSelfLabels(session.DID, uri, validLabels); err != nil {
+
+	if err := s.db.SyncSelfLabels(session.DID, uri, filterSelfLabels(req.Labels)); err != nil {
 		logger.Error("Warning: failed to sync self-labels: %v", err)
+	}
+
+	if req.Tags != nil {
+		capturedSession := session
+		capturedTags := append([]string(nil), req.Tags...)
+		capturedURI := uri
+		go func() {
+			note, err := s.db.GetNoteByURI(capturedURI)
+			if err != nil || note == nil || note.TargetSource == "" {
+				return
+			}
+			targetURL := note.TargetSource
+			client := s.refresher.CreateClientFromSession(capturedSession)
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			records, err := client.ListRecords(ctx, capturedSession.DID, xrpc.CollectionCommunityBookmark, 100)
+			if err != nil {
+				return
+			}
+			for _, rec := range records.Records {
+				var cb struct {
+					Subject   string   `json:"subject"`
+					CreatedAt string   `json:"createdAt"`
+					Tags      []string `json:"tags"`
+				}
+				if err := json.Unmarshal(rec.Value, &cb); err != nil {
+					continue
+				}
+				if cb.Subject != targetURL {
+					continue
+				}
+				parts := parseATURI(rec.URI)
+				if len(parts) < 3 {
+					continue
+				}
+				_, _ = client.PutRecord(ctx, capturedSession.DID, xrpc.CollectionCommunityBookmark, parts[2], map[string]interface{}{
+					"$type":     xrpc.CollectionCommunityBookmark,
+					"subject":   cb.Subject,
+					"createdAt": cb.CreatedAt,
+					"tags":      capturedTags,
+				})
+				return
+			}
+		}()
 	}
 
 	WriteSuccess(w, map[string]interface{}{"success": true, "uri": result.URI, "cid": result.CID})

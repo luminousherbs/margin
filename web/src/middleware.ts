@@ -6,7 +6,12 @@ import { clearSessionCacheForCookie, getSession } from "./lib/api";
 const API_PORT = process.env.API_PORT || 8081;
 const API_URL = process.env.API_URL || `http://localhost:${API_PORT}`;
 
-const PROXY_PATHS = ["/api/", "/auth/", "/client-metadata.json", "/jwks.json"];
+const PROXY_PATHS = [
+  "/api/",
+  "/auth/",
+  "/oauth-client-metadata.json",
+  "/jwks.json",
+];
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",

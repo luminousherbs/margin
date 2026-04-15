@@ -11,122 +11,134 @@ import BaseLayout from '../layouts/StaticLayout.astro';
 
 		<div class="prose prose-surface dark:prose-invert max-w-none">
 			<h1 class="font-display font-bold text-3xl mb-2 text-surface-900 dark:text-white">Privacy Policy</h1>
-			<p class="text-surface-500 dark:text-surface-400 mb-8">Last updated: March 4, 2026</p>
+			<p class="text-surface-500 dark:text-surface-400 mb-8">Last updated: April 14, 2026</p>
 
 			<section class="mb-8">
 				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Overview</h2>
 				<p class="text-surface-700 dark:text-surface-300 leading-relaxed">
-					Margin ("we", "our", or "us") is a web annotation tool that lets you highlight, annotate, and bookmark any webpage. Your data is stored on the decentralized AT Protocol network, giving you ownership and control over your content.
+					Margin is a web annotation tool built on the AT Protocol, operated by <strong>Padding Labs LLC</strong> ("we", "our", or "us"). It lets you highlight, take notes, and bookmark any webpage. Because Margin is built on the AT Protocol, your notes are stored as records in your Personal Data Server (PDS) — you own your content and can take it with you. You must be at least 13 years old to use Margin.
 				</p>
 			</section>
 
 			<section class="mb-8">
 				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Data We Collect</h2>
+
 				<h3 class="text-lg font-semibold text-surface-900 dark:text-white mb-2">Account Information</h3>
 				<p class="text-surface-700 dark:text-surface-300 mb-4">
-					When you log in with your Bluesky/AT Protocol account, we access your:
+					When you log in with your AT Protocol account (e.g. Bluesky), we access your:
 				</p>
 				<ul class="list-disc pl-5 mb-4 text-surface-700 dark:text-surface-300 space-y-1">
 					<li>Decentralized Identifier (DID)</li>
 					<li>Handle (username)</li>
-					<li>Display name and avatar (for showing your profile)</li>
+					<li>Display name, avatar, bio, and website (for showing your profile)</li>
 				</ul>
 
-				<h3 class="text-lg font-semibold text-surface-900 dark:text-white mb-2">Annotations & Content</h3>
-				<p class="text-surface-700 dark:text-surface-300 mb-4">When you use Margin, we store:</p>
+				<h3 class="text-lg font-semibold text-surface-900 dark:text-white mb-2">Notes & Content</h3>
+				<p class="text-surface-700 dark:text-surface-300 mb-4">When you create a note, we store:</p>
 				<ul class="list-disc pl-5 mb-4 text-surface-700 dark:text-surface-300 space-y-1">
-					<li>URLs of pages you annotate</li>
-					<li>Text you highlight or select</li>
-					<li>Annotations and comments you create</li>
-					<li>Bookmarks you save</li>
-					<li>Collections you organize content into</li>
+					<li>The full URL of the page you noted on</li>
+					<li>The page title at the time of the note</li>
+					<li>The text you selected (up to 5,000 characters)</li>
+					<li>Surrounding context around your selection (up to 500 characters before and after), used to re-locate the note on the page</li>
+					<li>Any text you write as part of the note</li>
+					<li>Tags you apply</li>
+					<li>Highlight color (if set)</li>
+					<li>Replies and likes on notes</li>
+					<li>Collections you create, and which notes belong to them</li>
+					<li>An edit history of any changes you make to your notes</li>
 				</ul>
 
-				<h3 class="text-lg font-semibold text-surface-900 dark:text-white mb-2">Discover & Recommendations</h3>
+				<h3 class="text-lg font-semibold text-surface-900 dark:text-white mb-2">Overlay Lookups (Browser Extension)</h3>
 				<p class="text-surface-700 dark:text-surface-300 mb-4">
-					To power the Discover page and personalized recommendations, we generate mathematical representations (embeddings) of:
+					When you browse the web with the extension enabled, it checks each page for existing notes. For these lookups, the extension computes a SHA-256 hash of the page URL locally and sends only that hash to our server — <strong>the raw URL is not sent for lookups.</strong> A hash cannot be reversed to recover the original URL. You can disable overlay lookups entirely by turning off page overlays in the extension settings.
 				</p>
-				<ul class="list-disc pl-5 mb-4 text-surface-700 dark:text-surface-300 space-y-1">
-					<li>Your annotations, highlights, and their associated tags</li>
-					<li>Publicly published documents from the AT Protocol network</li>
-				</ul>
 				<p class="text-surface-700 dark:text-surface-300 mb-4">
-					These embeddings are used to build an interest profile that helps us suggest relevant content. Your interest profile is stored on our server and is not shared with other users.
+					Note: when you <em>create</em> a note, the full URL is included as part of the record stored on your PDS.
+				</p>
+
+				<h3 class="text-lg font-semibold text-surface-900 dark:text-white mb-2">Recommendations</h3>
+				<p class="text-surface-700 dark:text-surface-300 mb-4">
+					To power the Discover page, we generate vector embeddings of your notes and public documents on the AT Protocol network. These embeddings are used to build an interest profile and surface relevant content. Your interest profile is stored on our server and is not shared with other users.
+				</p>
+				<p class="text-surface-700 dark:text-surface-300 mb-4">
+					Embeddings are generated via the <strong>OpenAI</strong> API. The text content of your notes and public AT Protocol documents is sent to OpenAI for this purpose. OpenAI does not use API inputs to train their models — see their <a href="https://openai.com/policies/usage-policies/" class="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline" target="_blank" rel="noopener noreferrer">API data usage policy</a>. Recommendations are only generated if you have used Margin to annotate content.
+				</p>
+
+				<h3 class="text-lg font-semibold text-surface-900 dark:text-white mb-2">Analytics</h3>
+				<p class="text-surface-700 dark:text-surface-300 mb-4">
+					We use <strong>PostHog</strong> for product analytics to understand how Margin is used and improve the product. Analytics events — such as page views, note creation, and feature interactions — are collected on the Margin website and server. These events may include the URL of the page being noted on, your browser type, and extension version. PostHog may set cookies for this purpose. We do not use analytics to track you across other websites or share analytics data with advertisers. See PostHog's <a href="https://posthog.com/privacy" class="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline" target="_blank" rel="noopener noreferrer">privacy policy</a>.
 				</p>
 
 				<h3 class="text-lg font-semibold text-surface-900 dark:text-white mb-2">Authentication</h3>
 				<p class="text-surface-700 dark:text-surface-300 mb-4">
-					We store OAuth session tokens locally in your browser to keep you logged in. These tokens are used solely for authenticating API requests.
+					We store your OAuth session tokens (access token, refresh token, and DPoP proof key) in our database to keep you logged in. These are used solely for authenticating requests to the AT Protocol on your behalf and expire when your session ends.
 				</p>
 			</section>
 
 			<section class="mb-8">
 				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">How We Use Your Data</h2>
-				<p class="text-surface-700 dark:text-surface-300 mb-4">Your data is used exclusively to:</p>
+				<p class="text-surface-700 dark:text-surface-300 mb-4">Your data is used to:</p>
 				<ul class="list-disc pl-5 mb-4 text-surface-700 dark:text-surface-300 space-y-1">
-					<li>Display your annotations on webpages</li>
+					<li>Display your notes on webpages via the browser extension</li>
 					<li>Sync your content across devices</li>
-					<li>Show your public annotations to other users</li>
+					<li>Show your public notes to other users on the same page</li>
 					<li>Enable social features like replies and likes</li>
 					<li>Generate personalized content recommendations on the Discover page</li>
+					<li>Understand product usage and improve the service</li>
 				</ul>
-
-				<h3 class="text-lg font-semibold text-surface-900 dark:text-white mb-2">Third-Party Services</h3>
-				<p class="text-surface-700 dark:text-surface-300 mb-4">
-					We use <strong>OpenAI</strong> to generate text embeddings for powering recommendations. When generating embeddings, the text content of your annotations and public documents is sent to OpenAI's API. OpenAI processes this data according to their <a href="https://openai.com/policies/api-data-usage-policies" class="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline" target="_blank" rel="noopener noreferrer">API data usage policy</a>, which states that API inputs are not used to train their models. No other third-party services receive your data.
+				<p class="text-surface-700 dark:text-surface-300">
+					<strong>We do not sell your data.</strong> We do not share your data with third parties for advertising or marketing purposes.
 				</p>
 			</section>
 
 			<section class="mb-8">
-				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Data Storage</h2>
+				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">The AT Protocol & Data Portability</h2>
 				<p class="text-surface-700 dark:text-surface-300 mb-4">
-					Your annotations are stored on the AT Protocol network through your Personal Data Server (PDS). This means:
+					Margin is built on the AT Protocol. Your notes, collections, and profile are stored as records in your Personal Data Server (PDS). This means:
 				</p>
 				<ul class="list-disc pl-5 mb-4 text-surface-700 dark:text-surface-300 space-y-1">
-					<li>You own your data</li>
-					<li>You can export or delete it at any time</li>
-					<li>Your data is portable across AT Protocol services</li>
+					<li>You own your content</li>
+					<li>You can export your full data repository from your PDS at any time</li>
+					<li>Your data is portable — you can use it with other AT Protocol-compatible services</li>
+					<li>You can migrate your account to a different PDS without losing your content</li>
 				</ul>
 				<p class="text-surface-700 dark:text-surface-300 mb-4">
-					We also maintain a local index of annotations to provide faster search and discovery features.
+					We also maintain a server-side index of public notes to power features like search, discovery, and the extension overlay. This index is derived from the public AT Protocol firehose and is used solely to operate the service.
 				</p>
 
 				<h3 class="text-lg font-semibold text-surface-900 dark:text-white mb-2">Margin PDS (margin.cafe)</h3>
 				<p class="text-surface-700 dark:text-surface-300 mb-4">
-					We operate a Personal Data Server at <strong>margin.cafe</strong>. If you create an account on this PDS, we additionally store:
+					We operate an optional Personal Data Server at <strong>margin.cafe</strong>. If you create an account there, we additionally store:
 				</p>
 				<ul class="list-disc pl-5 mb-4 text-surface-700 dark:text-surface-300 space-y-1">
-					<li>Your account credentials (password hashed, never stored in plain text)</li>
+					<li>Your account credentials (password is hashed and never stored in plain text)</li>
 					<li>Your email address (for account recovery)</li>
 					<li>All AT Protocol data repositories you create on this server</li>
 				</ul>
 				<p class="text-surface-700 dark:text-surface-300">
-					You can migrate your account and data to a different PDS at any time using standard AT Protocol account migration. Using the margin.cafe PDS is entirely optional as you can use Margin with any AT Protocol PDS.
+					Using margin.cafe is entirely optional — Margin works with any AT Protocol PDS. You can migrate your account to a different PDS at any time using standard AT Protocol account migration.
 				</p>
 			</section>
 
 			<section class="mb-8">
-				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Data Sharing</h2>
+				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Public Content</h2>
 				<p class="text-surface-700 dark:text-surface-300 mb-4">
-					<strong>We do not sell your data.</strong> We do not share your data with third parties for advertising or marketing purposes.
+					Notes you create are public by default on the AT Protocol network. This means they may be visible to:
 				</p>
-				<p class="text-surface-700 dark:text-surface-300 mb-4">Your public annotations may be visible to:</p>
 				<ul class="list-disc pl-5 mb-4 text-surface-700 dark:text-surface-300 space-y-1">
 					<li>Other Margin users viewing the same webpage</li>
-					<li>Anyone on the AT Protocol network (for public content)</li>
+					<li>Anyone on the AT Protocol network who subscribes to public records</li>
 				</ul>
 			</section>
 
 			<section class="mb-8">
 				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Browser Extension Permissions</h2>
-				<p class="text-surface-700 dark:text-surface-300 mb-4">The Margin browser extension requires certain permissions:</p>
+				<p class="text-surface-700 dark:text-surface-300 mb-4">The Margin browser extension requires the following permissions:</p>
 				<ul class="list-disc pl-5 mb-4 text-surface-700 dark:text-surface-300 space-y-1">
-					<li>
-						<strong>All URLs:</strong> To display and create annotations on any webpage. When checking a page for annotations, the URL is sent to our server. <strong>We do not store these requests, the URLs are redacted, and we do not link your identity to the URLs you visit.</strong> You can disable sending URLs to Margin by turning off page overlays in the extension settings.
-					</li>
+					<li><strong>All URLs:</strong> To display and create notes on any webpage. Overlay lookups use a local SHA-256 hash of the URL — the raw URL is only sent when you actively create a note.</li>
 					<li><strong>Storage:</strong> To save your preferences and session locally</li>
 					<li><strong>Cookies:</strong> To maintain your logged-in session</li>
-					<li><strong>Tabs:</strong> To know which page you're viewing</li>
+					<li><strong>Tabs:</strong> To know which page you're currently viewing</li>
 				</ul>
 			</section>
 
@@ -134,11 +146,15 @@ import BaseLayout from '../layouts/StaticLayout.astro';
 				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Your Rights</h2>
 				<p class="text-surface-700 dark:text-surface-300 mb-4">You can:</p>
 				<ul class="list-disc pl-5 mb-4 text-surface-700 dark:text-surface-300 space-y-1">
-					<li>Delete any annotation, highlight, or bookmark you've created</li>
+					<li>Delete any note or reply you've created</li>
 					<li>Delete your collections</li>
-					<li>Export your data from your PDS</li>
-					<li>Revoke the extension's access at any time</li>
+					<li>Export your full data repository from your PDS</li>
+					<li>Revoke Margin's OAuth access to your account at any time</li>
+					<li>Request deletion of your margin.cafe account by contacting us — deletion of AT Protocol data on your PDS is governed by your PDS provider</li>
 				</ul>
+				<p class="text-surface-700 dark:text-surface-300">
+					To exercise any of these rights, email us at <a href="mailto:hello@margin.at" class="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline">hello@margin.at</a>.
+				</p>
 			</section>
 
 			<section class="mb-8">

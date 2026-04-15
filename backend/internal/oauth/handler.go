@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"margin.at/internal/analytics"
 	"margin.at/internal/db"
 	"margin.at/internal/logger"
 	internal_sync "margin.at/internal/sync"
@@ -29,9 +30,10 @@ type Handler struct {
 	pending           map[string]*PendingAuth
 	pendingMu         sync.RWMutex
 	syncService       *internal_sync.Service
+	analytics         *analytics.Client
 }
 
-func NewHandler(database *db.DB, syncService *internal_sync.Service) (*Handler, error) {
+func NewHandler(database *db.DB, syncService *internal_sync.Service, ac *analytics.Client) (*Handler, error) {
 
 	configuredBaseURL := os.Getenv("BASE_URL")
 
@@ -46,6 +48,7 @@ func NewHandler(database *db.DB, syncService *internal_sync.Service) (*Handler, 
 		privateKey:        privateKey,
 		pending:           make(map[string]*PendingAuth),
 		syncService:       syncService,
+		analytics:         ac,
 	}, nil
 }
 
@@ -105,7 +108,7 @@ func (h *Handler) getDynamicClient(r *http.Request) *Client {
 		baseURL = baseURL[:len(baseURL)-1]
 	}
 
-	clientID := baseURL + "/client-metadata.json"
+	clientID := baseURL + "/oauth-client-metadata.json"
 	redirectURI := baseURL + "/auth/callback"
 
 	return NewClient(clientID, redirectURI, h.privateKey)
@@ -148,7 +151,7 @@ func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	pkceVerifier, pkceChallenge := client.GeneratePKCE()
 
-	scope := "atproto blob:* blob:image/jpeg blob:image/png include:at.margin.authFull"
+	scope := "atproto blob:* blob:image/jpeg blob:image/png include:at.margin.authFull repo:community.lexicon.bookmarks.bookmark"
 
 	parResp, state, dpopNonce, err := client.SendPAR(meta, handle, scope, dpopKey, pkceChallenge)
 	if err != nil {
@@ -236,7 +239,7 @@ func (h *Handler) HandleStart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pkceVerifier, pkceChallenge := client.GeneratePKCE()
-	scope := "atproto blob:* blob:image/jpeg blob:image/png include:at.margin.authFull"
+	scope := "atproto blob:* blob:image/jpeg blob:image/png include:at.margin.authFull repo:community.lexicon.bookmarks.bookmark"
 
 	parResp, state, dpopNonce, err := client.SendPAR(meta, req.Handle, scope, dpopKey, pkceChallenge)
 	if err != nil {
@@ -316,7 +319,7 @@ func (h *Handler) HandleSignup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pkceVerifier, pkceChallenge := client.GeneratePKCE()
-	scope := "atproto blob:* blob:image/jpeg blob:image/png include:at.margin.authFull"
+	scope := "atproto blob:* blob:image/jpeg blob:image/png include:at.margin.authFull repo:community.lexicon.bookmarks.bookmark"
 
 	parResp, state, dpopNonce, err := client.SendPARWithPrompt(meta, "", scope, dpopKey, pkceChallenge, "create")
 	if err != nil {
@@ -482,6 +485,23 @@ func (h *Handler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	http.Redirect(w, r, "/home?logged_in=true", http.StatusFound)
+
+	go func() {
+		if h.analytics == nil {
+			return
+		}
+		existingCount, _ := h.db.CountSessionsByDID(tokenResp.Sub)
+		if existingCount <= 1 {
+			h.analytics.Capture(tokenResp.Sub, "account_created", map[string]interface{}{
+				"pds": pending.PDS,
+			})
+		} else {
+			h.analytics.Capture(tokenResp.Sub, "login_success", map[string]interface{}{
+				"handle": pending.Handle,
+				"pds":    pending.PDS,
+			})
+		}
+	}()
 }
 
 func (h *Handler) cleanupOrphanedReplies(did, accessToken, dpopKeyPEM, pds string) {
@@ -604,7 +624,7 @@ func (h *Handler) HandleSession(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) HandleClientMetadata(w http.ResponseWriter, r *http.Request) {
 	client := h.getDynamicClient(r)
-	baseURL := client.ClientID[:len(client.ClientID)-len("/client-metadata.json")]
+	baseURL := client.ClientID[:len(client.ClientID)-len("/oauth-client-metadata.json")]
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -617,7 +637,7 @@ func (h *Handler) HandleClientMetadata(w http.ResponseWriter, r *http.Request) {
 		"redirect_uris":                   []string{client.RedirectURI},
 		"grant_types":                     []string{"authorization_code", "refresh_token"},
 		"response_types":                  []string{"code"},
-		"scope":                           "atproto blob:* blob:image/jpeg blob:image/png include:at.margin.authFull",
+		"scope":                           "atproto blob:* blob:image/jpeg blob:image/png include:at.margin.authFull repo:community.lexicon.bookmarks.bookmark",
 		"token_endpoint_auth_method":      "private_key_jwt",
 		"token_endpoint_auth_signing_alg": "ES256",
 		"dpop_bound_access_tokens":        true,

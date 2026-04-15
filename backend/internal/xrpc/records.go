@@ -8,18 +8,20 @@ import (
 )
 
 const (
-	CollectionAnnotation     = "at.margin.annotation"
-	CollectionHighlight      = "at.margin.highlight"
-	CollectionBookmark       = "at.margin.bookmark"
-	CollectionReply          = "at.margin.reply"
-	CollectionLike           = "at.margin.like"
-	CollectionCollection     = "at.margin.collection"
-	CollectionCollectionItem = "at.margin.collectionItem"
-	CollectionProfile        = "at.margin.profile"
-	CollectionPreferences    = "at.margin.preferences"
-	CollectionAPIKey         = "at.margin.apikey"
-	CollectionDocument       = "site.standard.document"
-	CollectionPublication    = "site.standard.publication"
+	CollectionNote              = "at.margin.note"
+	CollectionCommunityBookmark = "community.lexicon.bookmarks.bookmark"
+	CollectionAnnotation        = "at.margin.annotation"
+	CollectionHighlight         = "at.margin.highlight"
+	CollectionBookmark          = "at.margin.bookmark"
+	CollectionReply             = "at.margin.reply"
+	CollectionLike              = "at.margin.like"
+	CollectionCollection        = "at.margin.collection"
+	CollectionCollectionItem    = "at.margin.collectionItem"
+	CollectionProfile           = "at.margin.profile"
+	CollectionPreferences       = "at.margin.preferences"
+	CollectionAPIKey            = "at.margin.apikey"
+	CollectionDocument          = "site.standard.document"
+	CollectionPublication       = "site.standard.publication"
 )
 
 const (
@@ -102,6 +104,101 @@ type Generator struct {
 	Homepage string `json:"homepage,omitempty"`
 }
 
+type NoteRecord struct {
+	Type       string           `json:"$type"`
+	Motivation string           `json:"motivation"`
+	Color      string           `json:"color,omitempty"`
+	Body       *AnnotationBody  `json:"body,omitempty"`
+	Target     AnnotationTarget `json:"target"`
+	Tags       []string         `json:"tags,omitempty"`
+	Facets     []Facet          `json:"facets,omitempty"`
+	Generator  *Generator       `json:"generator,omitempty"`
+	Rights     string           `json:"rights,omitempty"`
+	Labels     *SelfLabels      `json:"labels,omitempty"`
+	CreatedAt  string           `json:"createdAt"`
+	ModifiedAt string           `json:"modifiedAt,omitempty"`
+}
+
+func (r *NoteRecord) Validate() error {
+	if r.Motivation == "" {
+		return fmt.Errorf("motivation is required")
+	}
+	if r.Target.Source == "" {
+		return fmt.Errorf("target source is required")
+	}
+	if r.Body != nil {
+		if len(r.Body.Value) > 10000 {
+			return fmt.Errorf("body too long: %d > 10000", len(r.Body.Value))
+		}
+		if utf8.RuneCountInString(r.Body.Value) > 3000 {
+			return fmt.Errorf("body too long (graphemes): %d > 3000", utf8.RuneCountInString(r.Body.Value))
+		}
+	}
+	if len(r.Tags) > 10 {
+		return fmt.Errorf("too many tags: %d > 10", len(r.Tags))
+	}
+	for _, tag := range r.Tags {
+		if len(tag) > 64 {
+			return fmt.Errorf("tag too long: %s", tag)
+		}
+	}
+	if len(r.Target.Selector) > 0 {
+		var typeCheck Selector
+		if err := json.Unmarshal(r.Target.Selector, &typeCheck); err != nil {
+			return fmt.Errorf("invalid selector format")
+		}
+		switch typeCheck.Type {
+		case SelectorTypeQuote:
+			var s TextQuoteSelector
+			if err := json.Unmarshal(r.Target.Selector, &s); err != nil {
+				return err
+			}
+			return s.Validate()
+		case SelectorTypePosition:
+			var s TextPositionSelector
+			if err := json.Unmarshal(r.Target.Selector, &s); err != nil {
+				return err
+			}
+			return s.Validate()
+		}
+	}
+	return nil
+}
+
+func NewNoteRecord(url, urlHash, text string, selector interface{}, title, color, description, motivation string) *NoteRecord {
+	var selectorJSON json.RawMessage
+	if selector != nil {
+		b, _ := json.Marshal(selector)
+		selectorJSON = b
+	}
+
+	record := &NoteRecord{
+		Type:       CollectionNote,
+		Motivation: motivation,
+		Color:      color,
+		Target: AnnotationTarget{
+			Source:     url,
+			SourceHash: urlHash,
+			Title:      title,
+			Selector:   selectorJSON,
+		},
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+
+	bodyText := text
+	if bodyText == "" {
+		bodyText = description
+	}
+	if bodyText != "" {
+		record.Body = &AnnotationBody{
+			Value:  bodyText,
+			Format: "text/plain",
+		}
+	}
+
+	return record
+}
+
 type AnnotationRecord struct {
 	Type       string           `json:"$type"`
 	Motivation string           `json:"motivation,omitempty"`
@@ -147,79 +244,13 @@ func (r *AnnotationRecord) Validate() error {
 	if r.Target.Source == "" {
 		return fmt.Errorf("target source is required")
 	}
-	if r.Body != nil {
-		if len(r.Body.Value) > 10000 {
-			return fmt.Errorf("body too long: %d > 10000", len(r.Body.Value))
-		}
-		if utf8.RuneCountInString(r.Body.Value) > 3000 {
-			return fmt.Errorf("body too long (graphemes): %d > 3000", utf8.RuneCountInString(r.Body.Value))
-		}
+	if r.Body != nil && utf8.RuneCountInString(r.Body.Value) > 3000 {
+		return fmt.Errorf("body too long")
 	}
 	if len(r.Tags) > 10 {
-		return fmt.Errorf("too many tags: %d > 10", len(r.Tags))
+		return fmt.Errorf("too many tags")
 	}
-	for _, tag := range r.Tags {
-		if len(tag) > 64 {
-			return fmt.Errorf("tag too long: %s", tag)
-		}
-	}
-
-	if len(r.Target.Selector) > 0 {
-		var typeCheck Selector
-		if err := json.Unmarshal(r.Target.Selector, &typeCheck); err != nil {
-			return fmt.Errorf("invalid selector format")
-		}
-
-		switch typeCheck.Type {
-		case SelectorTypeQuote:
-			var s TextQuoteSelector
-			if err := json.Unmarshal(r.Target.Selector, &s); err != nil {
-				return err
-			}
-			return s.Validate()
-		case SelectorTypePosition:
-			var s TextPositionSelector
-			if err := json.Unmarshal(r.Target.Selector, &s); err != nil {
-				return err
-			}
-			return s.Validate()
-		}
-	}
-
 	return nil
-}
-
-func NewAnnotationRecord(url, urlHash, text string, selector interface{}, title string) *AnnotationRecord {
-	return NewAnnotationRecordWithMotivation(url, urlHash, text, selector, title, "commenting")
-}
-
-func NewAnnotationRecordWithMotivation(url, urlHash, text string, selector interface{}, title string, motivation string) *AnnotationRecord {
-	var selectorJSON json.RawMessage
-	if selector != nil {
-		b, _ := json.Marshal(selector)
-		selectorJSON = b
-	}
-
-	record := &AnnotationRecord{
-		Type:       CollectionAnnotation,
-		Motivation: motivation,
-		Target: AnnotationTarget{
-			Source:     url,
-			SourceHash: urlHash,
-			Title:      title,
-			Selector:   selectorJSON,
-		},
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-	}
-
-	if text != "" {
-		record.Body = &AnnotationBody{
-			Value:  text,
-			Format: "text/plain",
-		}
-	}
-
-	return record
 }
 
 type HighlightRecord struct {
@@ -238,7 +269,7 @@ func (r *HighlightRecord) Validate() error {
 		return fmt.Errorf("target source is required")
 	}
 	if len(r.Tags) > 10 {
-		return fmt.Errorf("too many tags: %d", len(r.Tags))
+		return fmt.Errorf("too many tags")
 	}
 	if len(r.Color) > 20 {
 		return fmt.Errorf("color too long")
@@ -246,24 +277,33 @@ func (r *HighlightRecord) Validate() error {
 	return nil
 }
 
-func NewHighlightRecord(url, urlHash string, selector interface{}, color string, tags []string) *HighlightRecord {
-	var selectorJSON json.RawMessage
-	if selector != nil {
-		b, _ := json.Marshal(selector)
-		selectorJSON = b
-	}
+type BookmarkRecord struct {
+	Type        string      `json:"$type"`
+	Source      string      `json:"source"`
+	SourceHash  string      `json:"sourceHash"`
+	Title       string      `json:"title,omitempty"`
+	Description string      `json:"description,omitempty"`
+	Tags        []string    `json:"tags,omitempty"`
+	Generator   *Generator  `json:"generator,omitempty"`
+	Rights      string      `json:"rights,omitempty"`
+	Labels      *SelfLabels `json:"labels,omitempty"`
+	CreatedAt   string      `json:"createdAt"`
+}
 
-	return &HighlightRecord{
-		Type: CollectionHighlight,
-		Target: AnnotationTarget{
-			Source:     url,
-			SourceHash: urlHash,
-			Selector:   selectorJSON,
-		},
-		Color:     color,
-		Tags:      tags,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+func (r *BookmarkRecord) Validate() error {
+	if r.Source == "" {
+		return fmt.Errorf("source is required")
 	}
+	if len(r.Title) > 500 {
+		return fmt.Errorf("title too long")
+	}
+	if len(r.Description) > 1000 {
+		return fmt.Errorf("description too long")
+	}
+	if len(r.Tags) > 10 {
+		return fmt.Errorf("too many tags")
+	}
+	return nil
 }
 
 type ReplyRef struct {
@@ -330,46 +370,6 @@ func NewLikeRecord(subjectURI, subjectCID string) *LikeRecord {
 		Type:      CollectionLike,
 		Subject:   SubjectRef{URI: subjectURI, CID: subjectCID},
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-	}
-}
-
-type BookmarkRecord struct {
-	Type        string      `json:"$type"`
-	Source      string      `json:"source"`
-	SourceHash  string      `json:"sourceHash"`
-	Title       string      `json:"title,omitempty"`
-	Description string      `json:"description,omitempty"`
-	Tags        []string    `json:"tags,omitempty"`
-	Generator   *Generator  `json:"generator,omitempty"`
-	Rights      string      `json:"rights,omitempty"`
-	Labels      *SelfLabels `json:"labels,omitempty"`
-	CreatedAt   string      `json:"createdAt"`
-}
-
-func (r *BookmarkRecord) Validate() error {
-	if r.Source == "" {
-		return fmt.Errorf("source is required")
-	}
-	if len(r.Title) > 500 {
-		return fmt.Errorf("title too long")
-	}
-	if len(r.Description) > 1000 {
-		return fmt.Errorf("description too long")
-	}
-	if len(r.Tags) > 10 {
-		return fmt.Errorf("too many tags")
-	}
-	return nil
-}
-
-func NewBookmarkRecord(url, urlHash, title, description string) *BookmarkRecord {
-	return &BookmarkRecord{
-		Type:        CollectionBookmark,
-		Source:      url,
-		SourceHash:  urlHash,
-		Title:       title,
-		Description: description,
-		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
 	}
 }
 
@@ -481,6 +481,7 @@ type PreferencesRecord struct {
 	SubscribedLabelers           []LabelerSubscription `json:"subscribedLabelers,omitempty"`
 	LabelPreferences             []LabelPreference     `json:"labelPreferences,omitempty"`
 	DisableExternalLinkWarning   *bool                 `json:"disableExternalLinkWarning,omitempty"`
+	EnableCommunityBookmarks     *bool                 `json:"enableCommunityBookmarks,omitempty"`
 	CreatedAt                    string                `json:"createdAt"`
 }
 
@@ -502,11 +503,12 @@ func (r *PreferencesRecord) Validate() error {
 	return nil
 }
 
-func NewPreferencesRecord(skippedHostnames []string, labelers interface{}, labelPrefs interface{}, disableExternalLinkWarning *bool) *PreferencesRecord {
+func NewPreferencesRecord(skippedHostnames []string, labelers interface{}, labelPrefs interface{}, disableExternalLinkWarning *bool, enableCommunityBookmarks *bool) *PreferencesRecord {
 	record := &PreferencesRecord{
 		Type:                         CollectionPreferences,
 		ExternalLinkSkippedHostnames: skippedHostnames,
 		DisableExternalLinkWarning:   disableExternalLinkWarning,
+		EnableCommunityBookmarks:     enableCommunityBookmarks,
 		CreatedAt:                    time.Now().UTC().Format(time.RFC3339),
 	}
 

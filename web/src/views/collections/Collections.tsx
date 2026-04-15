@@ -16,6 +16,7 @@ import type { Collection } from "../../types";
 import { formatDistanceToNow } from "date-fns";
 import { clsx } from "clsx";
 import { Button, Input, EmptyState, Skeleton } from "../../components/ui";
+import { analytics } from "../../lib/analytics";
 
 const collectionsCache = {
   data: null as Collection[] | null,
@@ -97,6 +98,9 @@ export default function Collections({ initialCollections }: CollectionsProps) {
       setNewItemIcon("folder");
       setActiveTab("icon");
       fetchCollections();
+      analytics.capture("collection_created", {
+        has_description: !!newItemDesc.trim(),
+      });
     }
     setCreating(false);
   };
@@ -112,6 +116,7 @@ export default function Collections({ initialCollections }: CollectionsProps) {
           collectionsCache.timestamp = Date.now();
           return updated;
         });
+        analytics.capture("collection_deleted");
       }
     }
   };

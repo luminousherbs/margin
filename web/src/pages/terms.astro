@@ -11,19 +11,36 @@ import BaseLayout from '../layouts/StaticLayout.astro';
 
 		<div class="prose prose-surface dark:prose-invert max-w-none">
 			<h1 class="font-display font-bold text-3xl mb-2 text-surface-900 dark:text-white">Terms of Service</h1>
-			<p class="text-surface-500 dark:text-surface-400 mb-8">Last updated: January 17, 2026</p>
+			<p class="text-surface-500 dark:text-surface-400 mb-8">Last updated: April 14, 2026</p>
 
 			<section class="mb-8">
 				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Overview</h2>
 				<p class="text-surface-700 dark:text-surface-300 leading-relaxed">
-					Margin is an open-source project. By using our service, you agree to these terms ("Terms"). If you do not agree to these Terms, please do not use the Service.
+					Margin is a web annotation tool built on the AT Protocol, operated by Padding Labs LLC ("we", "our", or "us"). By using Margin (the "Service"), you agree to these Terms. If you do not agree, please do not use the Service. You must be at least 13 years old to use Margin.
 				</p>
 			</section>
 
 			<section class="mb-8">
 				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Open Source</h2>
 				<p class="text-surface-700 dark:text-surface-300 leading-relaxed">
-					Margin is open source software. The code is available publicly and is provided "as is", without warranty of any kind, express or implied.
+					Margin is open source software. The source code is publicly available and provided "as is", without warranty of any kind, express or implied. These Terms govern your use of the hosted service at margin.at, not the source code itself.
+				</p>
+			</section>
+
+			<section class="mb-8">
+				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Your Content</h2>
+				<p class="text-surface-700 dark:text-surface-300 mb-4">
+					You retain full ownership of all notes and other content you create ("Your Content"). By using the Service, you grant Padding Labs LLC a limited, non-exclusive, royalty-free license to store, index, display, and sync Your Content solely as needed to operate and improve the Service.
+				</p>
+				<p class="text-surface-700 dark:text-surface-300">
+					Because Margin is built on the AT Protocol, Your Content is stored as records on your Personal Data Server (PDS). It is portable and exportable at any time — we do not lock you in.
+				</p>
+			</section>
+
+			<section class="mb-8">
+				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Public Notes</h2>
+				<p class="text-surface-700 dark:text-surface-300 leading-relaxed">
+					Notes you create are public by default on the AT Protocol network and may be visible to other users and services that interact with the network. Do not include sensitive or private information in your notes if you do not want it to be publicly visible.
 				</p>
 			</section>
 
@@ -33,7 +50,7 @@ import BaseLayout from '../layouts/StaticLayout.astro';
 					You are responsible for your use of the Service and for any content you provide, including compliance with applicable laws, rules, and regulations.
 				</p>
 				<p class="text-surface-700 dark:text-surface-300 mb-4">
-					We reserve the right to remove any content that violates these terms, including but not limited to:
+					We reserve the right to remove content or suspend access for violations of these Terms, including but not limited to:
 				</p>
 				<ul class="list-disc pl-5 mb-4 text-surface-700 dark:text-surface-300 space-y-1">
 					<li>Illegal content</li>
@@ -43,23 +60,44 @@ import BaseLayout from '../layouts/StaticLayout.astro';
 			</section>
 
 			<section class="mb-8">
-				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Decentralized Nature</h2>
+				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">The AT Protocol</h2>
 				<p class="text-surface-700 dark:text-surface-300 leading-relaxed">
-					Margin interacts with the AT Protocol network. We do not control the network itself or the data stored on your Personal Data Server (PDS). Please refer to the terms of your PDS provider for data storage policies.
+					Margin interacts with the AT Protocol network. We do not control the network itself, other services on the network, or the data stored on your Personal Data Server. Your PDS provider's own terms govern data stored there. Content published to the AT Protocol is public and may be indexed by other services beyond Margin's control.
 				</p>
 			</section>
 
 			<section class="mb-8">
-				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Disclaimer</h2>
-				<p class="text-surface-700 dark:text-surface-300 leading-relaxed uppercase">
-					THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE". WE DISCLAIM ALL CONDITIONS, REPRESENTATIONS AND WARRANTIES NOT EXPRESSLY SET OUT IN THESE TERMS.
+				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Disclaimer of Warranties</h2>
+				<p class="text-surface-700 dark:text-surface-300 leading-relaxed">
+					The Service is provided "as is" and "as available" without warranties of any kind, either express or implied, including but not limited to implied warranties of merchantability, fitness for a particular purpose, or non-infringement. We do not warrant that the Service will be uninterrupted, error-free, or free of harmful components.
+				</p>
+			</section>
+
+			<section class="mb-8">
+				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Limitation of Liability</h2>
+				<p class="text-surface-700 dark:text-surface-300 leading-relaxed">
+					To the fullest extent permitted by law, Padding Labs LLC shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising out of or related to your use of the Service. Because Margin is provided free of charge, our total aggregate liability to you shall not exceed $0.
+				</p>
+			</section>
+
+			<section class="mb-8">
+				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Governing Law</h2>
+				<p class="text-surface-700 dark:text-surface-300 leading-relaxed">
+					These Terms are governed by the laws of the State of Wyoming, without regard to its conflict of law provisions.
+				</p>
+			</section>
+
+			<section class="mb-8">
+				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Changes to These Terms</h2>
+				<p class="text-surface-700 dark:text-surface-300 leading-relaxed">
+					We may update these Terms from time to time. We will note the date of the last update at the top of this page. Continued use of the Service after changes constitutes acceptance of the updated Terms.
 				</p>
 			</section>
 
 			<section class="mb-8">
 				<h2 class="text-xl font-bold text-surface-900 dark:text-white mb-4">Contact</h2>
 				<p class="text-surface-700 dark:text-surface-300">
-					For questions about these Terms, please contact us at <a href="mailto:hello@margin.at" class="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline">hello@margin.at</a>
+					For questions about these Terms, contact us at <a href="mailto:hello@margin.at" class="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline">hello@margin.at</a>
 				</p>
 			</section>
 		</div>

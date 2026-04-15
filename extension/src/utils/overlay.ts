@@ -36,6 +36,14 @@ function escapeHtml(unsafe: string) {
     .replace(/'/g, '&#039;');
 }
 
+function debounce<T extends (...args: any[]) => void>(fn: T, ms: number): T {
+  let t: ReturnType<typeof setTimeout> | null = null;
+  return ((...args: any[]) => {
+    if (t) clearTimeout(t);
+    t = setTimeout(() => fn(...args), ms);
+  }) as T;
+}
+
 export async function initContentScript(ctx: { onInvalidated: (cb: () => void) => void }) {
   let overlayHost: HTMLElement | null = null;
   let shadowRoot: ShadowRoot | null = null;
@@ -44,6 +52,7 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
   let composeModal: HTMLElement | null = null;
   let activeItems: Array<{ range: Range; item: Annotation }> = [];
   let cachedMatcher: DOMTextMatcher | null = null;
+  let matcherNeedsRebuild = false;
   const injectedStyles = new Set<string>();
   let overlayEnabled = true;
   let currentUserDid: string | null = null;
@@ -114,7 +123,10 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
 
   function getCiteUrlForText(text: string): string | null {
     if (!text) return null;
-    if (!cachedMatcher) cachedMatcher = new DOMTextMatcher();
+    if (!cachedMatcher || matcherNeedsRebuild) {
+      cachedMatcher = new DOMTextMatcher();
+      matcherNeedsRebuild = false;
+    }
     const range = cachedMatcher.findRange(text);
     if (!range) return null;
 
@@ -276,7 +288,40 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
     }
   }
 
-  function showComposeModal(quoteText: string) {
+  function getSelectionContext(exact: string): { prefix?: string; suffix?: string } {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return {};
+    const range = sel.getRangeAt(0);
+    if (sel.toString().trim() !== exact.trim()) return {};
+
+    try {
+      const prefixRange = document.createRange();
+      prefixRange.setStart(range.startContainer, 0);
+      prefixRange.setEnd(range.startContainer, range.startOffset);
+      const rawPrefix = prefixRange.toString();
+      const prefix = rawPrefix.length > 0 ? rawPrefix.slice(-150) : undefined;
+
+      const endNode = range.endContainer;
+      const endLen =
+        endNode.nodeType === Node.TEXT_NODE
+          ? (endNode as Text).length
+          : ((endNode as Element).textContent?.length ?? 0);
+      const suffixRange = document.createRange();
+      suffixRange.setStart(range.endContainer, range.endOffset);
+      suffixRange.setEnd(range.endContainer, endLen);
+      const rawSuffix = suffixRange.toString();
+      const suffix = rawSuffix.length > 0 ? rawSuffix.slice(0, 150) : undefined;
+
+      return { prefix: prefix || undefined, suffix: suffix || undefined };
+    } catch {
+      return {};
+    }
+  }
+
+  function showComposeModal(
+    quoteText: string,
+    selectorContext?: { prefix?: string; suffix?: string }
+  ) {
     if (!shadowRoot) return;
 
     const container = shadowRoot.getElementById('margin-overlay-container');
@@ -396,7 +441,7 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
       });
     }
 
-    tagInput.addEventListener('input', showTagSuggestions);
+    tagInput.addEventListener('input', debounce(showTagSuggestions, 120));
     tagInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ',') {
         e.preventDefault();
@@ -450,11 +495,17 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
 
       try {
         const citeUrl = getCiteUrlForText(quoteText);
+        const selector = {
+          type: 'TextQuoteSelector',
+          exact: quoteText,
+          prefix: selectorContext?.prefix,
+          suffix: selectorContext?.suffix,
+        };
         const res = await sendMessage('createAnnotation', {
           url: citeUrl || getPageUrl(),
           title: document.title,
           text,
-          selector: { type: 'TextQuoteSelector', exact: quoteText },
+          selector,
           tags: composeTags.length > 0 ? composeTags : undefined,
         });
 
@@ -480,7 +531,8 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
   }
   browser.runtime.onMessage.addListener((message: any) => {
     if (message.type === 'SHOW_INLINE_ANNOTATE' && message.data?.selector?.exact) {
-      showComposeModal(message.data.selector.exact);
+      const exact = message.data.selector.exact as string;
+      showComposeModal(exact, getSelectionContext(exact));
     }
     if (message.type === 'REFRESH_ANNOTATIONS') {
       fetchAnnotations(0, true);
@@ -494,7 +546,8 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
     if (message.type === 'GET_SELECTION') {
       const selection = window.getSelection();
       const text = selection?.toString().trim() || '';
-      return Promise.resolve({ text });
+      const context = text ? getSelectionContext(text) : {};
+      return Promise.resolve({ text, ...context });
     }
     if (message.type === 'GET_DOI') {
       return Promise.resolve({ doiUrl: getPageDOIUrl() });
@@ -507,8 +560,9 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
   function scrollToText(text: string) {
     if (!text || text.length < 3) return;
 
-    if (!cachedMatcher) {
+    if (!cachedMatcher || matcherNeedsRebuild) {
       cachedMatcher = new DOMTextMatcher();
+      matcherNeedsRebuild = false;
     }
 
     const range = cachedMatcher.findRange(text);
@@ -668,26 +722,29 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
       }
     });
 
-    input.addEventListener('input', () => {
-      const val = input.value.toLowerCase().trim();
-      if (!val) {
-        suggestionsEl.style.display = 'none';
-        return;
-      }
-      const matches = cachedUserTags.filter((t) => t.includes(val) && !tags.includes(t));
-      if (matches.length === 0) {
-        suggestionsEl.style.display = 'none';
-        return;
-      }
-      suggestionsEl.innerHTML = matches
-        .slice(0, 5)
-        .map((t) => `<button class="tag-suggestion-btn">${escapeHtml(t)}</button>`)
-        .join('');
-      suggestionsEl.style.display = 'flex';
-      suggestionsEl.querySelectorAll('.tag-suggestion-btn').forEach((btn) => {
-        btn.addEventListener('click', () => addTag(btn.textContent || ''));
-      });
-    });
+    input.addEventListener(
+      'input',
+      debounce(() => {
+        const val = input.value.toLowerCase().trim();
+        if (!val) {
+          suggestionsEl.style.display = 'none';
+          return;
+        }
+        const matches = cachedUserTags.filter((t) => t.includes(val) && !tags.includes(t));
+        if (matches.length === 0) {
+          suggestionsEl.style.display = 'none';
+          return;
+        }
+        suggestionsEl.innerHTML = matches
+          .slice(0, 5)
+          .map((t) => `<button class="tag-suggestion-btn">${escapeHtml(t)}</button>`)
+          .join('');
+        suggestionsEl.style.display = 'flex';
+        suggestionsEl.querySelectorAll('.tag-suggestion-btn').forEach((btn) => {
+          btn.addEventListener('click', () => addTag(btn.textContent || ''));
+        });
+      }, 120)
+    );
 
     function dismiss() {
       toast.classList.add('toast-out');
@@ -715,11 +772,16 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
     setTimeout(() => input.focus(), 50);
   }
 
+  let isFetching = false;
+
   async function fetchAnnotations(retryCount = 0, cacheBust = false) {
     if (!overlayEnabled) {
       sendMessage('updateBadge', { count: 0 });
       return;
     }
+
+    if (isFetching && !cacheBust) return;
+    isFetching = true;
 
     try {
       const pageUrl = getPageUrl();
@@ -749,6 +811,8 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
       if (retryCount < 3) {
         setTimeout(() => fetchAnnotations(retryCount + 1, cacheBust), 1000 * (retryCount + 1));
       }
+    } finally {
+      isFetching = false;
     }
   }
 
@@ -758,48 +822,72 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
     activeItems = [];
     const rangesByColor: Record<string, Range[]> = {};
 
-    if (!cachedMatcher) {
+    if (matcherNeedsRebuild || !cachedMatcher) {
       cachedMatcher = new DOMTextMatcher();
+      matcherNeedsRebuild = false;
     }
     const matcher = cachedMatcher;
 
-    annotations.forEach((item) => {
-      const selector = item.target?.selector || item.selector;
-      if (!selector?.exact) return;
+    const CHUNK_SIZE = 20;
+    let index = 0;
 
-      const range = matcher.findRange(selector.exact);
-      if (range) {
-        activeItems.push({ range, item });
+    function processChunk() {
+      const end = Math.min(index + CHUNK_SIZE, annotations.length);
+      for (let i = index; i < end; i++) {
+        const item = annotations[i];
+        const selector = item.target?.selector || item.selector;
+        if (!selector?.exact) continue;
 
-        const isHighlight = (item as any).type === 'Highlight';
-        const defaultColor = isHighlight ? '#f59e0b' : '#3b82f6';
-        const color = item.color || defaultColor;
-        if (!rangesByColor[color]) rangesByColor[color] = [];
-        rangesByColor[color].push(range);
+        const range = matcher.findRange(selector.exact);
+        if (range) {
+          activeItems.push({ range, item });
+
+          const isHighlight = (item as any).type === 'Highlight';
+          const defaultColor = isHighlight ? '#f59e0b' : '#3b82f6';
+          const color = item.color || defaultColor;
+          if (!rangesByColor[color]) rangesByColor[color] = [];
+          rangesByColor[color].push(range);
+        }
       }
-    });
+      index = end;
 
-    if (typeof CSS !== 'undefined' && CSS.highlights) {
-      CSS.highlights.clear();
-      for (const [color, ranges] of Object.entries(rangesByColor)) {
-        const highlight = new Highlight(...ranges);
-        const safeColor = color.replace(/[^a-zA-Z0-9]/g, '');
-        const name = `margin-hl-${safeColor}`;
-        CSS.highlights.set(name, highlight);
-        injectHighlightStyle(name, color);
+      if (index < annotations.length) {
+        if ('requestIdleCallback' in window) {
+          requestIdleCallback(processChunk, { timeout: 500 });
+        } else {
+          setTimeout(processChunk, 0);
+        }
+      } else {
+        commitHighlights();
       }
     }
+
+    function commitHighlights() {
+      if (typeof CSS !== 'undefined' && CSS.highlights) {
+        CSS.highlights.clear();
+        for (const [color, ranges] of Object.entries(rangesByColor)) {
+          const highlight = new Highlight(...ranges);
+          const safeColor = color.replace(/[^a-zA-Z0-9]/g, '');
+          const name = `margin-hl-${safeColor}`;
+          CSS.highlights.set(name, highlight);
+          injectHighlightStyle(name, color);
+        }
+      }
+    }
+
+    processChunk();
   }
 
   function injectHighlightStyle(name: string, color: string) {
     if (injectedStyles.has(name)) return;
     const style = document.createElement('style');
 
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16) || 99;
+    const g = parseInt(hex.substring(2, 4), 16) || 102;
+    const b = parseInt(hex.substring(4, 6), 16) || 241;
+
     if (isPdfContext()) {
-      const hex = color.replace('#', '');
-      const r = parseInt(hex.substring(0, 2), 16) || 99;
-      const g = parseInt(hex.substring(2, 4), 16) || 102;
-      const b = parseInt(hex.substring(4, 6), 16) || 241;
       style.textContent = `
             ::highlight(${name}) {
               background-color: rgba(${r}, ${g}, ${b}, 0.35);
@@ -823,42 +911,99 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
   }
 
   let hoverRafId: number | null = null;
+  let hoverIntentTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastHoverX = -1;
+  let lastHoverY = -1;
 
   function handleMouseMove(e: MouseEvent) {
     if (!overlayEnabled || !overlayHost) return;
 
-    if (hoverRafId) cancelAnimationFrame(hoverRafId);
+    lastHoverX = e.clientX;
+    lastHoverY = e.clientY;
+
+    if (hoverRafId !== null) {
+      cancelAnimationFrame(hoverRafId);
+      hoverRafId = null;
+    }
+
     hoverRafId = requestAnimationFrame(() => {
-      processHover(e.clientX, e.clientY, e);
+      hoverRafId = null;
+      if (hoverIntentTimer) clearTimeout(hoverIntentTimer);
+      hoverIntentTimer = setTimeout(() => {
+        hoverIntentTimer = null;
+        processHover(lastHoverX, lastHoverY, e);
+      }, 150);
     });
   }
+  function getAnnotationsAtPoint(
+    x: number,
+    y: number
+  ): Array<{ range: Range; item: Annotation; rect: DOMRect }> {
+    const results: Array<{ range: Range; item: Annotation; rect: DOMRect }> = [];
 
-  function processHover(x: number, y: number, e: MouseEvent) {
-    const foundItems: Array<{ range: Range; item: Annotation; rect: DOMRect }> = [];
-    let firstRange: Range | null = null;
+    let caretRange: Range | null = null;
+    try {
+      if (typeof (document as any).caretPositionFromPoint === 'function') {
+        const pos = (document as any).caretPositionFromPoint(x, y);
+        if (pos) {
+          caretRange = document.createRange();
+          caretRange.setStart(pos.offsetNode, pos.offset);
+          caretRange.collapse(true);
+        }
+      } else if (typeof (document as any).caretRangeFromPoint === 'function') {
+        caretRange = (document as any).caretRangeFromPoint(x, y);
+      }
+    } catch {
+      /* ignore */
+    }
 
     for (const { range, item } of activeItems) {
-      const rects = range.getClientRects();
-      for (const rect of rects) {
-        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-          let container: Node | null = range.commonAncestorContainer;
-          if (container.nodeType === Node.TEXT_NODE) {
-            container = container.parentNode;
-          }
+      let hit = false;
 
-          if (
-            container &&
-            ((e.target as Node).contains(container) || container.contains(e.target as Node))
-          ) {
-            if (!firstRange) firstRange = range;
-            if (!foundItems.some((f) => f.item === item)) {
-              foundItems.push({ range, item, rect });
-            }
+      if (caretRange) {
+        try {
+          const afterStart = range.compareBoundaryPoints(Range.START_TO_START, caretRange) <= 0;
+          const beforeEnd = range.compareBoundaryPoints(Range.END_TO_START, caretRange) >= 0;
+          hit = afterStart && beforeEnd;
+        } catch {
+          /* ignore */
+        }
+      }
+
+      if (!hit) {
+        for (const rect of range.getClientRects()) {
+          if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+            hit = true;
+            break;
           }
-          break;
+        }
+      }
+
+      if (hit) {
+        const firstRect = range.getClientRects()[0];
+        if (firstRect && !results.some((r) => r.item === item)) {
+          results.push({ range, item, rect: firstRect });
         }
       }
     }
+
+    return results;
+  }
+
+  function processHover(x: number, y: number, e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    if (
+      target.closest(
+        'a[href], button, input, select, textarea, [role="button"], [role="link"], [contenteditable]'
+      )
+    ) {
+      document.body.style.cursor = '';
+      if (hoverIndicator) hoverIndicator.classList.remove('visible');
+      return;
+    }
+
+    const foundItems = getAnnotationsAtPoint(x, y);
+    const firstRange = foundItems[0]?.range ?? null;
 
     if (foundItems.length > 0 && shadowRoot) {
       document.body.style.cursor = 'pointer';
@@ -910,8 +1055,19 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
         const firstRect = firstRange.getClientRects()[0];
         const totalWidth =
           Math.min(uniqueAuthors.length, maxShow + (overflow > 0 ? 1 : 0)) * 18 + 8;
-        const leftPos = firstRect.left - totalWidth;
-        const topPos = firstRect.top + firstRect.height / 2 - 12;
+        const indicatorHeight = 28;
+        const gap = 4;
+
+        let leftPos = firstRect.left - totalWidth;
+        leftPos = Math.max(gap, Math.min(leftPos, window.innerWidth - totalWidth - gap));
+
+        const topPos = Math.max(
+          gap,
+          Math.min(
+            firstRect.top + firstRect.height / 2 - indicatorHeight / 2,
+            window.innerHeight - indicatorHeight - gap
+          )
+        );
 
         hoverIndicator.style.left = `${leftPos}px`;
         hoverIndicator.style.top = `${topPos}px`;
@@ -919,8 +1075,12 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
       }
     } else {
       document.body.style.cursor = '';
-      if (hoverIndicator) {
-        hoverIndicator.classList.remove('visible');
+      if (hoverIndicator && hoverIndicator.classList.contains('visible')) {
+        if (hoverIntentTimer) clearTimeout(hoverIntentTimer);
+        hoverIntentTimer = setTimeout(() => {
+          hoverIntentTimer = null;
+          if (hoverIndicator) hoverIndicator.classList.remove('visible');
+        }, 80);
       }
     }
   }
@@ -947,32 +1107,16 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
       composeModal = null;
     }
 
-    const clickedItems: Annotation[] = [];
-    for (const { range, item } of activeItems) {
-      const rects = range.getClientRects();
-      for (const rect of rects) {
-        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-          let container: Node | null = range.commonAncestorContainer;
-          if (container.nodeType === Node.TEXT_NODE) {
-            container = container.parentNode;
-          }
-
-          if (
-            container &&
-            ((e.target as Node).contains(container) || container.contains(e.target as Node))
-          ) {
-            if (!clickedItems.includes(item)) {
-              clickedItems.push(item);
-            }
-          }
-          break;
-        }
-      }
-    }
+    const clickedItems: Annotation[] = getAnnotationsAtPoint(x, y).map((r) => r.item);
 
     if (clickedItems.length > 0) {
       const target = e.target as HTMLElement;
-      if (target.closest('a[href]')) return;
+      if (
+        target.closest(
+          'a[href], button, input, select, textarea, [role="button"], [role="link"], [contenteditable]'
+        )
+      )
+        return;
 
       e.preventDefault();
       e.stopPropagation();
@@ -1219,7 +1363,9 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
   let lastPolledUrl = getPageUrl();
 
   function onUrlChange() {
-    lastPolledUrl = getPageUrl();
+    const currentUrl = getPageUrl();
+    if (currentUrl === lastPolledUrl) return;
+    lastPolledUrl = currentUrl;
     if (typeof CSS !== 'undefined' && CSS.highlights) {
       CSS.highlights.clear();
     }
@@ -1236,6 +1382,7 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
   }
 
   window.addEventListener('popstate', onUrlChange);
+  window.addEventListener('hashchange', onUrlChange);
 
   const originalPushState = history.pushState;
   const originalReplaceState = history.replaceState;
@@ -1250,30 +1397,36 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
     onUrlChange();
   };
 
-  // Only re-fetch when the URL actually changes (not every 500ms)
-  setInterval(() => {
-    const currentUrl = getPageUrl();
-    if (currentUrl !== lastPolledUrl) {
-      onUrlChange();
-    }
-  }, 500);
-
   let domChangeTimeout: ReturnType<typeof setTimeout> | null = null;
   let domChangeCount = 0;
-  const observer = new MutationObserver((mutations) => {
-    const hasSignificantChange = mutations.some(
-      (m) => m.type === 'childList' && (m.addedNodes.length > 3 || m.removedNodes.length > 3)
-    );
-    if (hasSignificantChange && overlayEnabled) {
-      domChangeCount++;
-      if (domChangeTimeout) clearTimeout(domChangeTimeout);
-      const delay = Math.min(500 + domChangeCount * 100, 2000);
-      domChangeTimeout = setTimeout(() => {
-        cachedMatcher = null;
-        domChangeCount = 0;
-        fetchAnnotations();
-      }, delay);
+
+  function isMeaningfulMutation(mutations: MutationRecord[]): boolean {
+    for (const m of mutations) {
+      if (m.type !== 'childList') continue;
+      for (const node of [...m.addedNodes, ...m.removedNodes]) {
+        if ((node as Element).id === 'margin-overlay-host') continue;
+        if (node.nodeType === Node.TEXT_NODE && (node.textContent?.trim().length ?? 0) > 20)
+          return true;
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const tag = (node as Element).tagName;
+          if (['STYLE', 'SCRIPT', 'SVG', 'IMG', 'VIDEO', 'CANVAS'].includes(tag)) continue;
+          if ((node as Element).textContent?.trim().length ?? 0 > 20) return true;
+        }
+      }
     }
+    return false;
+  }
+
+  const observer = new MutationObserver((mutations) => {
+    if (!overlayEnabled || !isMeaningfulMutation(mutations)) return;
+    domChangeCount++;
+    if (domChangeTimeout) clearTimeout(domChangeTimeout);
+    const delay = Math.min(800 + domChangeCount * 200, 3000);
+    domChangeTimeout = setTimeout(() => {
+      matcherNeedsRebuild = true;
+      domChangeCount = 0;
+      fetchAnnotations();
+    }, delay);
   });
   observer.observe(document.body || document.documentElement, {
     childList: true,

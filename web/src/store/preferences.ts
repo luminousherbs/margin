@@ -11,6 +11,7 @@ export interface Preferences {
   subscribedLabelers: LabelerSubscription[];
   labelPreferences: LabelPreference[];
   disableExternalLinkWarning: boolean;
+  enableCommunityBookmarks: boolean;
 }
 
 export const $preferences = atom<Preferences>({
@@ -18,6 +19,7 @@ export const $preferences = atom<Preferences>({
   subscribedLabelers: [],
   labelPreferences: [],
   disableExternalLinkWarning: false,
+  enableCommunityBookmarks: true,
 });
 
 export async function loadPreferences() {
@@ -27,6 +29,7 @@ export async function loadPreferences() {
     subscribedLabelers: prefs.subscribedLabelers || [],
     labelPreferences: prefs.labelPreferences || [],
     disableExternalLinkWarning: !!prefs.disableExternalLinkWarning,
+    enableCommunityBookmarks: !!prefs.enableCommunityBookmarks,
   });
 }
 
@@ -103,6 +106,18 @@ export async function setDisableExternalLinkWarning(disabled: boolean) {
   const updated = {
     ...current,
     disableExternalLinkWarning: disabled,
+  };
+  $preferences.set(updated);
+  await updatePreferences(updated);
+}
+
+export async function setEnableCommunityBookmarks(enabled: boolean) {
+  const current = $preferences.get();
+  if (current.enableCommunityBookmarks === enabled) return;
+
+  const updated = {
+    ...current,
+    enableCommunityBookmarks: enabled,
   };
   $preferences.set(updated);
   await updatePreferences(updated);
