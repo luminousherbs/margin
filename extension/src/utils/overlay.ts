@@ -928,48 +928,20 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
   ): Array<{ range: Range; item: Annotation; rect: DOMRect }> {
     const results: Array<{ range: Range; item: Annotation; rect: DOMRect }> = [];
 
-    let caretRange: Range | null = null;
-    try {
-      if (typeof (document as any).caretPositionFromPoint === 'function') {
-        const pos = (document as any).caretPositionFromPoint(x, y);
-        if (pos) {
-          caretRange = document.createRange();
-          caretRange.setStart(pos.offsetNode, pos.offset);
-          caretRange.collapse(true);
-        }
-      } else if (typeof (document as any).caretRangeFromPoint === 'function') {
-        caretRange = (document as any).caretRangeFromPoint(x, y);
-      }
-    } catch {
-      /* ignore */
-    }
-
+    const pad = 6;
     for (const { range, item } of activeItems) {
-      let hit = false;
-
-      if (caretRange) {
-        try {
-          const afterStart = range.compareBoundaryPoints(Range.START_TO_START, caretRange) <= 0;
-          const beforeEnd = range.compareBoundaryPoints(Range.END_TO_START, caretRange) >= 0;
-          hit = afterStart && beforeEnd;
-        } catch {
-          /* ignore */
-        }
-      }
-
-      if (!hit) {
-        for (const rect of range.getClientRects()) {
-          if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-            hit = true;
-            break;
+      const rects = range.getClientRects();
+      for (const rect of rects) {
+        if (
+          x >= rect.left - pad &&
+          x <= rect.right + pad &&
+          y >= rect.top - pad &&
+          y <= rect.bottom + pad
+        ) {
+          if (!results.some((r) => r.item === item)) {
+            results.push({ range, item, rect });
           }
-        }
-      }
-
-      if (hit) {
-        const firstRect = range.getClientRects()[0];
-        if (firstRect && !results.some((r) => r.item === item)) {
-          results.push({ range, item, rect: firstRect });
+          break;
         }
       }
     }
@@ -985,7 +957,7 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
       )
     ) {
       document.body.style.cursor = '';
-      if (hoverIndicator) hoverIndicator.classList.remove('visible');
+      if (hoverIndicator && !popoverEl) hoverIndicator.classList.remove('visible');
       return;
     }
 
@@ -1062,12 +1034,12 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
       }
     } else {
       document.body.style.cursor = '';
-      if (hoverIndicator && hoverIndicator.classList.contains('visible')) {
+      if (hoverIndicator && hoverIndicator.classList.contains('visible') && !popoverEl) {
         if (hoverIntentTimer) clearTimeout(hoverIntentTimer);
         hoverIntentTimer = setTimeout(() => {
           hoverIntentTimer = null;
-          if (hoverIndicator) hoverIndicator.classList.remove('visible');
-        }, 80);
+          if (hoverIndicator && !popoverEl) hoverIndicator.classList.remove('visible');
+        }, 120);
       }
     }
   }
@@ -1117,7 +1089,6 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
         if (currentIds === newIds) {
           popoverEl.remove();
           popoverEl = null;
-          if (hoverIndicator) hoverIndicator.classList.remove('visible');
           return;
         }
       }
@@ -1137,7 +1108,6 @@ export async function initContentScript(ctx: { onInvalidated: (cb: () => void) =
       if (popoverEl) {
         popoverEl.remove();
         popoverEl = null;
-        if (hoverIndicator) hoverIndicator.classList.remove('visible');
       }
     }
   }

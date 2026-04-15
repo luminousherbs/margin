@@ -879,7 +879,9 @@ export function App() {
                         {item.target?.title || item.title || 'Untitled'}
                       </div>
                       <div className="text-xs text-[var(--text-tertiary)] truncate">
-                        {(item.target?.source || item.source) ? new URL(item.target?.source || item.source!).hostname : ''}
+                        {item.target?.source || item.source
+                          ? new URL(item.target?.source || item.source!).hostname
+                          : ''}
                       </div>
                     </a>
                     <button
