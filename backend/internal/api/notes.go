@@ -140,6 +140,26 @@ func NewNoteWriteService(database *db.DB, refresher *TokenRefresher) *NoteWriteS
 	return &NoteWriteService{db: &dbAdapter{d: database}, refresher: refresher}
 }
 
+func (s *NoteWriteService) resolveCID(r *http.Request, uri string) string {
+	if n, err := s.db.GetNoteByURI(uri); err == nil && n != nil && n.CID != nil {
+		return *n.CID
+	}
+	if a, err := s.db.GetAnnotationByURI(uri); err == nil && a != nil && a.CID != nil {
+		return *a.CID
+	}
+	if h, err := s.db.GetHighlightByURI(uri); err == nil && h != nil && h.CID != nil {
+		return *h.CID
+	}
+	if b, err := s.db.GetBookmarkByURI(uri); err == nil && b != nil && b.CID != nil {
+		return *b.CID
+	}
+	if rec, err := xrpc.SlingshotClient.GetRecord(r.Context(), uri); err == nil && rec.CID != "" {
+		return rec.CID
+	}
+
+	return ""
+}
+
 type CreateAnnotationRequest struct {
 	URL      string          `json:"url"`
 	Text     string          `json:"text"`
@@ -582,8 +602,17 @@ func (s *NoteWriteService) LikeAnnotation(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if req.SubjectURI == "" || req.SubjectCID == "" {
-		WriteBadRequest(w, "subjectUri and subjectCid are required")
+	if req.SubjectURI == "" {
+		WriteBadRequest(w, "subjectUri is required")
+		return
+	}
+
+	if req.SubjectCID == "" {
+		req.SubjectCID = s.resolveCID(r, req.SubjectURI)
+	}
+
+	if req.SubjectCID == "" {
+		WriteBadRequest(w, "could not resolve cid for subject")
 		return
 	}
 

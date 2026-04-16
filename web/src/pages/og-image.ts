@@ -78,7 +78,7 @@ async function fetchAvatarDataUri(did: string): Promise<string> {
 async function fetchRecordData(uri: string): Promise<RecordData | null> {
   try {
     const res = await fetch(
-      `${API_URL}/api/annotation?uri=${encodeURIComponent(uri)}`,
+      `${API_URL}/api/note?uri=${encodeURIComponent(uri)}`,
     );
     if (res.ok) {
       const item = await res.json();

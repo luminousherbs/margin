@@ -293,7 +293,7 @@ export async function getFeed({
   if (tag) params.append("tag", tag);
   if (creator) params.append("creator", creator);
 
-  const endpoint = source ? "/api/targets" : "/api/annotations/feed";
+  const endpoint = source ? "/api/targets" : "/api/notes/feed";
 
   try {
     const res = await apiRequest(`${endpoint}?${params.toString()}`, {
@@ -359,7 +359,7 @@ export async function createAnnotation({
   labels,
 }: CreateAnnotationParams) {
   try {
-    const res = await apiRequest("/api/annotations", {
+    const res = await apiRequest("/api/notes", {
       method: "POST",
       body: JSON.stringify({ url, text, title, selector, tags, labels }),
     });
@@ -467,7 +467,7 @@ export async function updateProfile(updates: {
 
 export async function likeItem(uri: string, cid: string): Promise<boolean> {
   try {
-    const res = await apiRequest("/api/annotations/like", {
+    const res = await apiRequest("/api/notes/like", {
       method: "POST",
       body: JSON.stringify({ subjectUri: uri, subjectCid: cid }),
     });
@@ -481,7 +481,7 @@ export async function likeItem(uri: string, cid: string): Promise<boolean> {
 export async function unlikeItem(uri: string): Promise<boolean> {
   try {
     const res = await apiRequest(
-      `/api/annotations/like?uri=${encodeURIComponent(uri)}`,
+      `/api/notes/like?uri=${encodeURIComponent(uri)}`,
       {
         method: "DELETE",
       },
@@ -499,7 +499,7 @@ export async function deleteItem(
 ): Promise<boolean> {
   const rkey = (uri || "").split("/").pop();
 
-  let endpoint = "/api/annotations";
+  let endpoint = "/api/notes";
   if (type === "highlight" || uri.includes("highlight")) {
     endpoint = "/api/highlights";
   } else if (type === "bookmark" || uri.includes("bookmark")) {
@@ -525,7 +525,7 @@ export async function convertHighlightToAnnotation(
   title?: string,
 ): Promise<{ success: boolean; item?: AnnotationItem; error?: string }> {
   try {
-    const createRes = await apiRequest("/api/annotations", {
+    const createRes = await apiRequest("/api/notes", {
       method: "POST",
       body: JSON.stringify({ url, text, title, selector }),
     });
@@ -558,7 +558,7 @@ export async function updateAnnotation(
 ): Promise<boolean> {
   try {
     const res = await apiRequest(
-      `/api/annotations?uri=${encodeURIComponent(uri)}`,
+      `/api/notes?uri=${encodeURIComponent(uri)}`,
       {
         method: "PUT",
         body: JSON.stringify({ text, tags, labels }),
@@ -634,7 +634,7 @@ import type { EditHistoryItem } from "../types";
 export async function getEditHistory(uri: string): Promise<EditHistoryItem[]> {
   try {
     const res = await apiRequest(
-      `/api/annotations/history?uri=${encodeURIComponent(uri)}`,
+      `/api/notes/history?uri=${encodeURIComponent(uri)}`,
     );
     if (!res.ok) return [];
     return await res.json();
@@ -994,7 +994,7 @@ export async function createReply(
   text: string,
 ): Promise<string | null> {
   try {
-    const res = await apiRequest("/api/annotations/reply", {
+    const res = await apiRequest("/api/notes/reply", {
       method: "POST",
       body: JSON.stringify({ parentUri, parentCid, rootUri, rootCid, text }),
     });
@@ -1010,7 +1010,7 @@ export async function createReply(
 export async function deleteReply(uri: string): Promise<boolean> {
   try {
     const res = await apiRequest(
-      `/api/annotations/reply?uri=${encodeURIComponent(uri)}`,
+      `/api/notes/reply?uri=${encodeURIComponent(uri)}`,
       {
         method: "DELETE",
       },
@@ -1027,7 +1027,7 @@ export async function getAnnotation(
 ): Promise<AnnotationItem | null> {
   try {
     const res = await apiRequest(
-      `/api/annotation?uri=${encodeURIComponent(uri)}`,
+      `/api/note?uri=${encodeURIComponent(uri)}`,
     );
     if (!res.ok) return null;
     return normalizeItem(await res.json());

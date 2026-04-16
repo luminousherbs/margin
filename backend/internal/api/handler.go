@@ -136,7 +136,22 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	collectionService := NewCollectionService(h.db, h.refresher)
 
 	r.Route("/api", func(r chi.Router) {
-		// Annotations
+		// Notes
+		r.Get("/notes", h.GetAnnotations)
+		r.Get("/notes/feed", h.GetFeed)
+		r.Get("/note", h.GetAnnotation)
+		r.Get("/notes/history", h.GetEditHistory)
+		r.Post("/notes", h.noteWriter.CreateAnnotation)
+		r.Put("/notes", h.noteWriter.UpdateAnnotation)
+		r.Delete("/notes", h.noteWriter.DeleteAnnotation)
+		r.Post("/notes/like", h.noteWriter.LikeAnnotation)
+		r.Delete("/notes/like", h.noteWriter.UnlikeAnnotation)
+		r.Post("/notes/reply", h.noteWriter.CreateReply)
+		r.Delete("/notes/reply", h.noteWriter.DeleteReply)
+		r.Get("/replies", h.GetReplies)
+		r.Get("/likes", h.GetLikeCount)
+
+		// Annotations (legacy)
 		r.Get("/annotations", h.GetAnnotations)
 		r.Get("/annotations/feed", h.GetFeed)
 		r.Get("/annotation", h.GetAnnotation)
@@ -148,8 +163,6 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Delete("/annotations/like", h.noteWriter.UnlikeAnnotation)
 		r.Post("/annotations/reply", h.noteWriter.CreateReply)
 		r.Delete("/annotations/reply", h.noteWriter.DeleteReply)
-		r.Get("/replies", h.GetReplies)
-		r.Get("/likes", h.GetLikeCount)
 
 		// Highlights
 		r.Get("/highlights", h.GetHighlights)
@@ -181,7 +194,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/url-metadata", h.GetURLMetadata)
 
 		// User content
-		r.Get("/users/{did}/annotations", h.GetUserAnnotations)
+		r.Get("/users/{did}/notes", h.GetUserAnnotations)
+		r.Get("/users/{did}/annotations", h.GetUserAnnotations) // legacy
 		r.Get("/users/{did}/highlights", h.GetUserHighlights)
 		r.Get("/users/{did}/bookmarks", h.GetUserBookmarks)
 		r.Get("/users/{did}/targets", h.GetUserTargetItems)

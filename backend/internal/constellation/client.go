@@ -94,6 +94,16 @@ type BacklinksResponse struct {
 	Cursor string `json:"cursor,omitempty"`
 }
 
+type ManyToManyCount struct {
+	Subject string `json:"subject"`
+	Count   int    `json:"count"`
+}
+
+type ManyToManyCountsResponse struct {
+	Counts []ManyToManyCount `json:"counts"`
+	Cursor string            `json:"cursor,omitempty"`
+}
+
 func (c *Client) getBacklinks(ctx context.Context, subject, source string, limit int) (*BacklinksResponse, error) {
 	params := url.Values{}
 	params.Set("subject", subject)
@@ -125,6 +135,46 @@ func (c *Client) getBacklinks(ctx context.Context, subject, source string, limit
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
+	return &result, nil
+}
+
+func (c *Client) GetManyToManyCounts(ctx context.Context, subject, source, pathToOther string, filterDIDs, filterOtherSubjects []string, limit int) (*ManyToManyCountsResponse, error) {
+	params := url.Values{}
+	params.Set("subject", subject)
+	params.Set("source", source)
+	params.Set("pathToOther", pathToOther)
+	for _, did := range filterDIDs {
+		params.Add("did", did)
+	}
+	for _, other := range filterOtherSubjects {
+		params.Add("otherSubject", other)
+	}
+	if limit > 0 {
+		params.Set("limit", fmt.Sprintf("%d", limit))
+	}
+
+	endpoint := fmt.Sprintf("%s/xrpc/blue.microcosm.links.getManyToManyCounts?%s", c.baseURL, params.Encode())
+
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("User-Agent", UserAgent)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var result ManyToManyCountsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
 	return &result, nil
 }
 

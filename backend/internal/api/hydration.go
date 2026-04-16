@@ -809,18 +809,24 @@ func hydrateCollectionItemsWithData(database *db.DB, items []db.CollectionItem, 
 	var annotationURIs []string
 	var highlightURIs []string
 	var bookmarkURIs []string
+	var noteURIs []string
 
 	for _, item := range items {
 		collectionURIs = append(collectionURIs, item.CollectionURI)
-		if strings.Contains(item.AnnotationURI, "at.margin.annotation") {
-			annotationURIs = append(annotationURIs, item.AnnotationURI)
-		} else if strings.Contains(item.AnnotationURI, "at.margin.highlight") {
-			highlightURIs = append(highlightURIs, item.AnnotationURI)
-		} else if strings.Contains(item.AnnotationURI, "at.margin.bookmark") {
-			bookmarkURIs = append(bookmarkURIs, item.AnnotationURI)
-		} else if strings.Contains(item.AnnotationURI, "network.cosmik.card") {
-			annotationURIs = append(annotationURIs, item.AnnotationURI)
-			bookmarkURIs = append(bookmarkURIs, item.AnnotationURI)
+		uri := item.AnnotationURI
+		switch {
+		case strings.Contains(uri, "at.margin.note"),
+			strings.Contains(uri, "community.lexicon.bookmarks.bookmark"):
+			noteURIs = append(noteURIs, uri)
+		case strings.Contains(uri, "at.margin.annotation"):
+			annotationURIs = append(annotationURIs, uri)
+		case strings.Contains(uri, "at.margin.highlight"):
+			highlightURIs = append(highlightURIs, uri)
+		case strings.Contains(uri, "at.margin.bookmark"):
+			bookmarkURIs = append(bookmarkURIs, uri)
+		case strings.Contains(uri, "network.cosmik.card"):
+			annotationURIs = append(annotationURIs, uri)
+			bookmarkURIs = append(bookmarkURIs, uri)
 		}
 	}
 
@@ -862,7 +868,20 @@ func hydrateCollectionItemsWithData(database *db.DB, items []db.CollectionItem, 
 	var rawAnnos []db.Annotation
 	var rawHighlights []db.Highlight
 	var rawBookmarks []db.Bookmark
+	var rawNotes []db.Note
 
+	if len(noteURIs) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			result, err := database.GetNotesByURIs(noteURIs)
+			if err == nil {
+				mu.Lock()
+				rawNotes = result
+				mu.Unlock()
+			}
+		}()
+	}
 	if len(annotationURIs) > 0 {
 		wg.Add(1)
 		go func() {
@@ -903,6 +922,11 @@ func hydrateCollectionItemsWithData(database *db.DB, items []db.CollectionItem, 
 
 	// Collect missing author DIDs from nested items and fetch their profiles
 	missingDIDs := make(map[string]bool)
+	for _, n := range rawNotes {
+		if _, ok := profiles[n.AuthorDID]; !ok {
+			missingDIDs[n.AuthorDID] = true
+		}
+	}
 	for _, a := range rawAnnos {
 		if _, ok := profiles[a.AuthorDID]; !ok {
 			missingDIDs[a.AuthorDID] = true
@@ -930,6 +954,132 @@ func hydrateCollectionItemsWithData(database *db.DB, items []db.CollectionItem, 
 	}
 
 	nestedShared := &hydrationData{profiles: profiles}
+
+	if len(rawNotes) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			uris := make([]string, len(rawNotes))
+			for i, n := range rawNotes {
+				uris[i] = n.URI
+			}
+			authorDIDs := make([]string, len(rawNotes))
+			for i, n := range rawNotes {
+				authorDIDs[i] = n.AuthorDID
+			}
+			likeCounts, replyCounts, viewerLikes, uriLabels, didLabels, _ := fetchEngagementData(database, uris, authorDIDs, viewerDID)
+			mu.Lock()
+			defer mu.Unlock()
+			for _, n := range rawNotes {
+				cid := ""
+				if n.CID != nil {
+					cid = *n.CID
+				}
+				var selector *APISelector
+				if n.SelectorJSON != nil && *n.SelectorJSON != "" {
+					selector = &APISelector{}
+					json.Unmarshal([]byte(*n.SelectorJSON), selector)
+				}
+				var tags []string
+				if n.TagsJSON != nil && *n.TagsJSON != "" {
+					json.Unmarshal([]byte(*n.TagsJSON), &tags)
+				}
+				title := ""
+				if n.TargetTitle != nil {
+					title = *n.TargetTitle
+				}
+				labels := mergeLabels(uriLabels[n.URI], didLabels[n.AuthorDID])
+				generator := &APIGenerator{ID: "https://margin.at", Type: "Software", Name: "Margin"}
+
+				switch n.Motivation {
+				case "highlighting":
+					color := ""
+					if n.Color != nil {
+						color = *n.Color
+					}
+					h := APIHighlight{
+						ID:         n.URI,
+						Type:       "Highlight",
+						Motivation: "highlighting",
+						Author:     profiles[n.AuthorDID],
+						Target:     APITarget{Source: n.TargetSource, Title: title, Selector: selector},
+						Color:      color,
+						Tags:       tags,
+						CID:        cid,
+						CreatedAt:  n.CreatedAt,
+						Labels:     labels,
+						LikeCount:  likeCounts[n.URI],
+						ReplyCount: replyCounts[n.URI],
+					}
+					if viewerLikes != nil && viewerLikes[n.URI] {
+						h.ViewerHasLiked = true
+					}
+					highlightsMap[n.URI] = h
+				case "bookmarking":
+					desc := ""
+					if n.Description != nil {
+						desc = *n.Description
+					}
+					b := APIBookmark{
+						ID:          n.URI,
+						Type:        "Bookmark",
+						Author:      profiles[n.AuthorDID],
+						Source:      n.TargetSource,
+						Title:       title,
+						Description: desc,
+						Tags:        tags,
+						CID:         cid,
+						CreatedAt:   n.CreatedAt,
+						Labels:      labels,
+						LikeCount:   likeCounts[n.URI],
+						ReplyCount:  replyCounts[n.URI],
+					}
+					if viewerLikes != nil && viewerLikes[n.URI] {
+						b.ViewerHasLiked = true
+					}
+					bookmarksMap[n.URI] = b
+				default:
+					var body *APIBody
+					if n.BodyValue != nil || n.BodyURI != nil {
+						body = &APIBody{}
+						if n.BodyValue != nil {
+							body.Value = *n.BodyValue
+						}
+						if n.BodyFormat != nil {
+							body.Format = *n.BodyFormat
+						}
+						if n.BodyURI != nil {
+							body.URI = *n.BodyURI
+						}
+					}
+					motivation := n.Motivation
+					if motivation == "" {
+						motivation = "commenting"
+					}
+					a := APIAnnotation{
+						ID:         n.URI,
+						CID:        cid,
+						Type:       "Annotation",
+						Motivation: motivation,
+						Author:     profiles[n.AuthorDID],
+						Body:       body,
+						Target:     APITarget{Source: n.TargetSource, Title: title, Selector: selector},
+						Tags:       tags,
+						Generator:  generator,
+						CreatedAt:  n.CreatedAt,
+						IndexedAt:  n.IndexedAt,
+						Labels:     labels,
+						LikeCount:  likeCounts[n.URI],
+						ReplyCount: replyCounts[n.URI],
+					}
+					if viewerLikes != nil && viewerLikes[n.URI] {
+						a.ViewerHasLiked = true
+					}
+					annotationsMap[n.URI] = a
+				}
+			}
+		}()
+	}
 
 	if len(rawAnnos) > 0 {
 		wg.Add(1)

@@ -221,6 +221,36 @@ func (db *DB) GetCollectionItemCounts(uris []string) (map[string]int, error) {
 	return counts, nil
 }
 
+func (db *DB) GetCollectionsForNoteURIs(noteURIs []string) (map[string]Collection, error) {
+	if len(noteURIs) == 0 {
+		return map[string]Collection{}, nil
+	}
+	rows, err := db.Query(`
+		SELECT DISTINCT ON (ci.annotation_uri)
+			ci.annotation_uri,
+			c.uri, c.author_did, c.name, c.description, c.icon, c.created_at, c.indexed_at
+		FROM collection_items ci
+		JOIN collections c ON c.uri = ci.collection_uri
+		WHERE ci.annotation_uri = ANY($1)
+		ORDER BY ci.annotation_uri, ci.created_at ASC
+	`, pqStringArray(noteURIs))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]Collection)
+	for rows.Next() {
+		var noteURI string
+		var c Collection
+		if err := rows.Scan(&noteURI, &c.URI, &c.AuthorDID, &c.Name, &c.Description, &c.Icon, &c.CreatedAt, &c.IndexedAt); err != nil {
+			return nil, err
+		}
+		result[noteURI] = c
+	}
+	return result, nil
+}
+
 func (db *DB) GetCollectionsByURIs(uris []string) ([]Collection, error) {
 	if len(uris) == 0 {
 		return []Collection{}, nil

@@ -44,6 +44,12 @@ type APIGenerator struct {
 	Name string `json:"name"`
 }
 
+type APICollection struct {
+	URI  string `json:"uri"`
+	Name string `json:"name"`
+	Icon string `json:"icon,omitempty"`
+}
+
 type APINote struct {
 	ID             string        `json:"id"`
 	CID            string        `json:"cid,omitempty"`
@@ -63,6 +69,7 @@ type APINote struct {
 	ViewerHasLiked bool          `json:"viewerHasLiked"`
 	Labels         []APILabel    `json:"labels,omitempty"`
 	EditedAt       *time.Time    `json:"editedAt,omitempty"`
+	Collection     *APICollection `json:"collection,omitempty"`
 }
 
 type LoadContext struct {

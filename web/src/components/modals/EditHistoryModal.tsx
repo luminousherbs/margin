@@ -26,7 +26,7 @@ export default function EditHistoryModal({
         setLoading(true);
         setError(null);
         const res = await fetch(
-          `/api/annotations/history?uri=${encodeURIComponent(item.uri)}`,
+          `/api/notes/history?uri=${encodeURIComponent(item.uri)}`,
         );
         if (!res.ok) throw new Error("Failed to fetch history");
         const data = await res.json();

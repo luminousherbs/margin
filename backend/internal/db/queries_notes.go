@@ -2,6 +2,8 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -95,6 +97,39 @@ func (db *DB) CommunityBookmarkExists(authorDID, targetHash, tagsJSON string) (b
 		return false, err
 	}
 	return true, nil
+}
+
+func (db *DB) GetNotesByURIs(uris []string) ([]Note, error) {
+	if len(uris) == 0 {
+		return nil, nil
+	}
+	placeholders := make([]string, len(uris))
+	args := make([]interface{}, len(uris))
+	for i, u := range uris {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = u
+	}
+	query := `
+		SELECT uri, author_did, motivation, color, description, body_value, body_format, body_uri,
+			target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid
+		FROM notes WHERE uri IN (` + strings.Join(placeholders, ",") + `)`
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var notes []Note
+	for rows.Next() {
+		var n Note
+		if err := rows.Scan(
+			&n.URI, &n.AuthorDID, &n.Motivation, &n.Color, &n.Description, &n.BodyValue, &n.BodyFormat, &n.BodyURI,
+			&n.TargetSource, &n.TargetHash, &n.TargetTitle, &n.SelectorJSON, &n.TagsJSON, &n.CreatedAt, &n.IndexedAt, &n.CID,
+		); err != nil {
+			return nil, err
+		}
+		notes = append(notes, n)
+	}
+	return notes, nil
 }
 
 func (db *DB) DeleteNote(uri string) error {

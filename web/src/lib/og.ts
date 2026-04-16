@@ -113,7 +113,7 @@ const BASE_URL = process.env.BASE_URL || "https://margin.at";
 
 export async function fetchAnnotationOG(uri: string): Promise<OGData | null> {
   const item = (await fetchJSON(
-    `/api/annotation?uri=${encodeURIComponent(uri)}`,
+    `/api/note?uri=${encodeURIComponent(uri)}`,
   )) as APIAnnotation | null;
   if (!item) return null;
 
@@ -151,7 +151,7 @@ export async function fetchAnnotationOG(uri: string): Promise<OGData | null> {
 
 export async function fetchHighlightOG(uri: string): Promise<OGData | null> {
   const item = (await fetchJSON(
-    `/api/annotation?uri=${encodeURIComponent(uri)}`,
+    `/api/note?uri=${encodeURIComponent(uri)}`,
   )) as APIAnnotation | null;
   if (!item) return null;
 
@@ -186,7 +186,7 @@ export async function fetchHighlightOG(uri: string): Promise<OGData | null> {
 
 export async function fetchBookmarkOG(uri: string): Promise<OGData | null> {
   const item = (await fetchJSON(
-    `/api/annotation?uri=${encodeURIComponent(uri)}`,
+    `/api/note?uri=${encodeURIComponent(uri)}`,
   )) as APIAnnotation | null;
   if (!item) return null;
 
