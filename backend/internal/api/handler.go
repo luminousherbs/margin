@@ -370,6 +370,9 @@ func mergeNotes(a, b []db.Note) []db.Note {
 
 func (h *Handler) GetFeed(w http.ResponseWriter, r *http.Request) {
 	limit := parseIntParam(r, "limit", 50)
+	if limit > 100 {
+		limit = 100
+	}
 	offset := parseIntParam(r, "offset", 0)
 	tag := strings.ToLower(r.URL.Query().Get("tag"))
 	creator := r.URL.Query().Get("creator")
