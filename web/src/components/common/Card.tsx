@@ -332,20 +332,16 @@ export default function Card({
     : null;
 
   const decodeHTMLEntities = (text: string) => {
-    const entities: Record<string, string> = {
-      "&amp;": "&",
-      "&lt;": "<",
-      "&gt;": ">",
-      "&quot;": '"',
-      "&#39;": "'",
-      "&#x27;": "'",
-      "&#x2F;": "/",
-      "&nbsp;": " ",
-    };
-    return text.replace(
-      /&(?:amp|lt|gt|quot|nbsp|#39|#x27|#x2F);/g,
-      (match) => entities[match] || match,
-    );
+    if (!text.includes("&")) return text;
+    try {
+      const doc = new DOMParser().parseFromString(
+        `<!doctype html><body>${text}`,
+        "text/html",
+      );
+      return doc.body.textContent ?? text;
+    } catch {
+      return text;
+    }
   };
 
   const displayTitle = decodeHTMLEntities(

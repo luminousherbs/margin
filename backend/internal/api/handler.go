@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	xcharset "golang.org/x/net/html/charset"
 
 	"margin.at/internal/analytics"
 	"margin.at/internal/config"
@@ -1069,27 +1071,46 @@ func (h *Handler) fetchURLMetadata(ctx context.Context, targetURL string) map[st
 		return map[string]string{"title": ""}
 	}
 
-	content := string(body)
+	enc, _, _ := xcharset.DetermineEncoding(body, resp.Header.Get("Content-Type"))
+	decoded, err := enc.NewDecoder().Bytes(body)
+	if err != nil {
+		decoded = body
+	}
+
+	content := string(decoded)
+
+	extractContent := func(rest string) string {
+		for _, prefix := range []string{"content=\"", "content='"} {
+			if contentIdx := strings.Index(rest, prefix); contentIdx != -1 {
+				quote := prefix[len(prefix)-1]
+				start := contentIdx + len(prefix)
+				if end := strings.IndexByte(rest[start:], quote); end != -1 {
+					return html.UnescapeString(rest[start : start+end])
+				}
+			}
+		}
+		return ""
+	}
 
 	extract := func(key string) string {
-		attr := fmt.Sprintf("property=\"og:%s\"", key)
-		if idx := strings.Index(content, attr); idx != -1 {
-			rest := content[idx:]
-			if contentIdx := strings.Index(rest, "content=\""); contentIdx != -1 {
-				start := contentIdx + 9
-				if end := strings.Index(rest[start:], "\""); end != -1 {
-					return rest[start : start+end]
+		for _, attr := range []string{
+			fmt.Sprintf("property=\"og:%s\"", key),
+			fmt.Sprintf("property='og:%s'", key),
+		} {
+			if idx := strings.Index(content, attr); idx != -1 {
+				if v := extractContent(content[idx:]); v != "" {
+					return v
 				}
 			}
 		}
 
-		attr = fmt.Sprintf("name=\"%s\"", key)
-		if idx := strings.Index(content, attr); idx != -1 {
-			rest := content[idx:]
-			if contentIdx := strings.Index(rest, "content=\""); contentIdx != -1 {
-				start := contentIdx + 9
-				if end := strings.Index(rest[start:], "\""); end != -1 {
-					return rest[start : start+end]
+		for _, attr := range []string{
+			fmt.Sprintf("name=\"%s\"", key),
+			fmt.Sprintf("name='%s'", key),
+		} {
+			if idx := strings.Index(content, attr); idx != -1 {
+				if v := extractContent(content[idx:]); v != "" {
+					return v
 				}
 			}
 		}
@@ -1101,7 +1122,7 @@ func (h *Handler) fetchURLMetadata(ctx context.Context, targetURL string) map[st
 		if idx := strings.Index(content, "<title>"); idx != -1 {
 			start := idx + 7
 			if end := strings.Index(content[start:], "</title>"); end != -1 {
-				title = content[start : start+end]
+				title = html.UnescapeString(strings.TrimSpace(content[start : start+end]))
 			}
 		}
 	}
