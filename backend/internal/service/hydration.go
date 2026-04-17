@@ -51,24 +51,24 @@ type APICollection struct {
 }
 
 type APINote struct {
-	ID             string        `json:"id"`
-	CID            string        `json:"cid,omitempty"`
-	Type           string        `json:"type"`
-	Motivation     string        `json:"motivation,omitempty"`
-	Author         domain.Author `json:"creator"`
-	Body           *APIBody      `json:"body,omitempty"`
-	Target         APITarget     `json:"target"`
-	Color          string        `json:"color,omitempty"`
-	Description    string        `json:"description,omitempty"`
-	Tags           []string      `json:"tags,omitempty"`
-	Generator      *APIGenerator `json:"generator,omitempty"`
-	CreatedAt      time.Time     `json:"created"`
-	IndexedAt      time.Time     `json:"indexed"`
-	LikeCount      int           `json:"likeCount"`
-	ReplyCount     int           `json:"replyCount"`
-	ViewerHasLiked bool          `json:"viewerHasLiked"`
-	Labels         []APILabel    `json:"labels,omitempty"`
-	EditedAt       *time.Time    `json:"editedAt,omitempty"`
+	ID             string         `json:"id"`
+	CID            string         `json:"cid,omitempty"`
+	Type           string         `json:"type"`
+	Motivation     string         `json:"motivation,omitempty"`
+	Author         domain.Author  `json:"creator"`
+	Body           *APIBody       `json:"body,omitempty"`
+	Target         APITarget      `json:"target"`
+	Color          string         `json:"color,omitempty"`
+	Description    string         `json:"description,omitempty"`
+	Tags           []string       `json:"tags,omitempty"`
+	Generator      *APIGenerator  `json:"generator,omitempty"`
+	CreatedAt      time.Time      `json:"created"`
+	IndexedAt      time.Time      `json:"indexed"`
+	LikeCount      int            `json:"likeCount"`
+	ReplyCount     int            `json:"replyCount"`
+	ViewerHasLiked bool           `json:"viewerHasLiked"`
+	Labels         []APILabel     `json:"labels,omitempty"`
+	EditedAt       *time.Time     `json:"editedAt,omitempty"`
 	Collection     *APICollection `json:"collection,omitempty"`
 }
 
@@ -80,20 +80,24 @@ type LoadContext struct {
 	URILabels   map[string][]domain.ContentLabel
 	DIDLabels   map[string][]domain.ContentLabel
 	EditTimes   map[string]time.Time
+	Collections map[string]*APICollection
 }
 
 type HydrationService struct {
-	engagement domain.EngagementRepository
-	profiles   domain.ProfileRepository
+	engagement  domain.EngagementRepository
+	profiles    domain.ProfileRepository
+	collections domain.CollectionRepository
 }
 
 func NewHydrationService(
 	engagement domain.EngagementRepository,
 	profiles domain.ProfileRepository,
+	collections domain.CollectionRepository,
 ) *HydrationService {
 	return &HydrationService{
-		engagement: engagement,
-		profiles:   profiles,
+		engagement:  engagement,
+		profiles:    profiles,
+		collections: collections,
 	}
 }
 
@@ -106,6 +110,7 @@ func (h *HydrationService) Load(ctx context.Context, notes []domain.Note, viewer
 		URILabels:   make(map[string][]domain.ContentLabel),
 		DIDLabels:   make(map[string][]domain.ContentLabel),
 		EditTimes:   make(map[string]time.Time),
+		Collections: make(map[string]*APICollection),
 	}
 	if len(notes) == 0 {
 		return lc, nil

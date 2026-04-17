@@ -557,13 +557,10 @@ export async function updateAnnotation(
   labels?: string[],
 ): Promise<boolean> {
   try {
-    const res = await apiRequest(
-      `/api/notes?uri=${encodeURIComponent(uri)}`,
-      {
-        method: "PUT",
-        body: JSON.stringify({ text, tags, labels }),
-      },
-    );
+    const res = await apiRequest(`/api/notes?uri=${encodeURIComponent(uri)}`, {
+      method: "PUT",
+      body: JSON.stringify({ text, tags, labels }),
+    });
     return res.ok;
   } catch (e) {
     console.error("Failed to update annotation:", e);
@@ -1026,9 +1023,7 @@ export async function getAnnotation(
   uri: string,
 ): Promise<AnnotationItem | null> {
   try {
-    const res = await apiRequest(
-      `/api/note?uri=${encodeURIComponent(uri)}`,
-    );
+    const res = await apiRequest(`/api/note?uri=${encodeURIComponent(uri)}`);
     if (!res.ok) return null;
     return normalizeItem(await res.json());
   } catch {

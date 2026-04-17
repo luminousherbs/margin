@@ -40,9 +40,9 @@ func NewClientWithURL(baseURL string) *Client {
 }
 
 type Identity struct {
-	DID       string `json:"did"`
-	Handle    string `json:"handle"`
-	PDS       string `json:"pds"`
+	DID        string `json:"did"`
+	Handle     string `json:"handle"`
+	PDS        string `json:"pds"`
 	SigningKey string `json:"signing_key"`
 }
 
@@ -58,12 +58,12 @@ type HydrationSource struct {
 }
 
 type HydratePayload struct {
-	XRPC                   string            `json:"xrpc"`
-	AtprotoProxy           string            `json:"atproto_proxy"`
-	Authorization          string            `json:"authorization,omitempty"`
-	AtprotoAcceptLabelers  string            `json:"atproto_accept_labelers,omitempty"`
-	Params                 any               `json:"params,omitempty"`
-	HydrationSources       []HydrationSource `json:"hydration_sources"`
+	XRPC                  string            `json:"xrpc"`
+	AtprotoProxy          string            `json:"atproto_proxy"`
+	Authorization         string            `json:"authorization,omitempty"`
+	AtprotoAcceptLabelers string            `json:"atproto_accept_labelers,omitempty"`
+	Params                any               `json:"params,omitempty"`
+	HydrationSources      []HydrationSource `json:"hydration_sources"`
 }
 
 type HydrationResult struct {

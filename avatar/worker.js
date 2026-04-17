@@ -17,7 +17,7 @@ export default {
     const { pathname, searchParams } = url;
 
     if (!pathname || pathname === "/") {
-      return new Response(`This is Margin's avatar service. It fetches your pretty avatar from Bluesky and caches it on Cloudflare.
+      return new Response(`This is Margin's avatar service. It fetches avatars directly from the AT Protocol PDS and caches them on Cloudflare.
 You can't use this directly unfortunately since all requests are signed and may only originate from the appview.`);
     }
 
@@ -74,14 +74,29 @@ You can't use this directly unfortunately since all requests are signed and may 
       } catch (e) {}
 
       if (!avatarUrl) {
-        const profileResponse = await fetch(
-          `https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${decodedActor}`,
-        );
-
-        if (profileResponse.ok) {
-          const profile = await profileResponse.json();
-          avatarUrl = profile.avatar;
-        }
+        try {
+          const identityResp = await fetch(
+            `https://slingshot.microcosm.blue/xrpc/blue.microcosm.identity.resolveMiniDoc?identifier=${encodeURIComponent(decodedActor)}`,
+          );
+          if (identityResp.ok) {
+            const identity = await identityResp.json();
+            const did = identity.did;
+            const pds = identity.pds;
+            if (did && pds) {
+              const profileResp = await fetch(
+                `${pds}/xrpc/com.atproto.repo.getRecord?repo=${encodeURIComponent(did)}&collection=app.bsky.actor.profile&rkey=self`,
+              );
+              if (profileResp.ok) {
+                const profileRecord = await profileResp.json();
+                const avatarBlob = profileRecord?.value?.avatar;
+                const cid = avatarBlob?.ref?.$link;
+                if (cid) {
+                  avatarUrl = `${pds}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
+                }
+              }
+            }
+          }
+        } catch (e) {}
       }
 
       if (!avatarUrl) {

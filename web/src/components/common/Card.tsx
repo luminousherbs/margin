@@ -107,6 +107,7 @@ interface CardProps {
   onDelete?: (uri: string) => void;
   onUpdate?: (item: AnnotationItem) => void;
   hideShare?: boolean;
+  hideCollection?: boolean;
   layout?: "list" | "mosaic";
 }
 
@@ -115,6 +116,7 @@ export default function Card({
   onDelete,
   onUpdate,
   hideShare,
+  hideCollection = false,
   layout = "list",
 }: CardProps) {
   const [item, setItem] = useState(initialItem);
@@ -355,62 +357,63 @@ export default function Card({
 
   return (
     <article className="card p-4 hover:ring-black/10 dark:hover:ring-white/10 transition-all relative overflow-visible">
-      {(item.collection || (item.context && item.context.length > 0)) && (
-        <div className="flex items-center gap-1.5 text-xs text-surface-400 dark:text-surface-500 mb-2 flex-wrap">
-          {item.addedBy && item.addedBy.did !== item.author?.did ? (
-            <>
-              <ProfileHoverCard did={item.addedBy.did}>
-                <a
-                  href={`/profile/${item.addedBy.did}`}
-                  className="flex items-center gap-1.5 font-medium hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-                >
-                  <Avatar
-                    did={item.addedBy.did}
-                    avatar={item.addedBy.avatar}
-                    size="xs"
-                  />
-                  <span>
-                    {item.addedBy.displayName || `@${item.addedBy.handle}`}
-                  </span>
-                </a>
-              </ProfileHoverCard>
-              <span>added to</span>
-            </>
-          ) : (
-            <span>Added to</span>
-          )}
+      {!hideCollection &&
+        (item.collection || (item.context && item.context.length > 0)) && (
+          <div className="flex items-center gap-1.5 text-xs text-surface-400 dark:text-surface-500 mb-2 flex-wrap">
+            {item.addedBy && item.addedBy.did !== item.author?.did ? (
+              <>
+                <ProfileHoverCard did={item.addedBy.did}>
+                  <a
+                    href={`/profile/${item.addedBy.did}`}
+                    className="flex items-center gap-1.5 font-medium hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                  >
+                    <Avatar
+                      did={item.addedBy.did}
+                      avatar={item.addedBy.avatar}
+                      size="xs"
+                    />
+                    <span>
+                      {item.addedBy.displayName || `@${item.addedBy.handle}`}
+                    </span>
+                  </a>
+                </ProfileHoverCard>
+                <span>added to</span>
+              </>
+            ) : (
+              <span>Added to</span>
+            )}
 
-          {item.context && item.context.length > 0 ? (
-            item.context.map((col, index) => (
-              <React.Fragment key={col.uri}>
-                {index > 0 && index < item.context!.length - 1 && (
-                  <span className="text-surface-300 dark:text-surface-600">
-                    ,
-                  </span>
-                )}
-                {index > 0 && index === item.context!.length - 1 && (
-                  <span>and</span>
-                )}
-                <a
-                  href={`/${item.addedBy?.handle || ""}/collection/${(col.uri || "").split("/").pop()}`}
-                  className="inline-flex items-center gap-1 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-                >
-                  <CollectionIcon icon={col.icon} size={14} />
-                  <span className="font-medium">{col.name}</span>
-                </a>
-              </React.Fragment>
-            ))
-          ) : (
-            <a
-              href={`/${item.addedBy?.handle || ""}/collection/${(item.collection!.uri || "").split("/").pop()}`}
-              className="inline-flex items-center gap-1 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-            >
-              <CollectionIcon icon={item.collection!.icon} size={14} />
-              <span className="font-medium">{item.collection!.name}</span>
-            </a>
-          )}
-        </div>
-      )}
+            {item.context && item.context.length > 0 ? (
+              item.context.map((col, index) => (
+                <React.Fragment key={col.uri}>
+                  {index > 0 && index < item.context!.length - 1 && (
+                    <span className="text-surface-300 dark:text-surface-600">
+                      ,
+                    </span>
+                  )}
+                  {index > 0 && index === item.context!.length - 1 && (
+                    <span>and</span>
+                  )}
+                  <a
+                    href={`/${item.addedBy?.handle || ""}/collection/${(col.uri || "").split("/").pop()}`}
+                    className="inline-flex items-center gap-1 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                  >
+                    <CollectionIcon icon={col.icon} size={14} />
+                    <span className="font-medium">{col.name}</span>
+                  </a>
+                </React.Fragment>
+              ))
+            ) : (
+              <a
+                href={`/${item.addedBy?.handle || ""}/collection/${(item.collection!.uri || "").split("/").pop()}`}
+                className="inline-flex items-center gap-1 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+              >
+                <CollectionIcon icon={item.collection!.icon} size={14} />
+                <span className="font-medium">{item.collection!.name}</span>
+              </a>
+            )}
+          </div>
+        )}
 
       <div className="flex items-start gap-3">
         <ProfileHoverCard did={item.author?.did}>

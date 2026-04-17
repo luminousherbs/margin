@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -107,7 +108,8 @@ func NewHandler(database *db.DB, noteWriter *NoteWriteService, refresher *TokenR
 	sessionRepo := postgres.NewSessionRepository(database.DB)
 	profileRepo := &fullProfileRepository{db: database}  // rich resolution: cache → DB → bsky.social
 	profileSvc := service.NewProfileService(profileRepo) // service-lifetime TTL cache on top
-	hydration := service.NewHydrationService(engagementRepo, profileSvc)
+	collectionRepo := postgres.NewCollectionRepository(database.DB)
+	hydration := service.NewHydrationService(engagementRepo, profileSvc, collectionRepo)
 	feedSvc := service.NewFeedService(noteRepo, hydration, database)
 
 	return &Handler{
@@ -392,20 +394,22 @@ func (h *Handler) GetFeed(w http.ResponseWriter, r *http.Request) {
 	creator := r.URL.Query().Get("creator")
 	motivation := r.URL.Query().Get("motivation")
 	feedTypeStr := r.URL.Query().Get("type")
+	feedType := parseFeedType(feedTypeStr)
 
 	var motivations []string
 	if motivation != "" {
 		motivations = []string{motivation}
 	}
 
+	fetchLimit := limit + offset
 	req := service.FeedRequest{
 		ViewerDID:   h.getViewerDID(r),
 		Motivations: motivations,
 		AuthorDID:   creator,
 		Tag:         tag,
-		FeedType:    parseFeedType(feedTypeStr),
-		Limit:       limit,
-		Offset:      offset,
+		FeedType:    feedType,
+		Limit:       fetchLimit,
+		Offset:      0,
 	}
 
 	resp, err := h.feedSvc.GetFeed(r.Context(), req)
@@ -414,12 +418,92 @@ func (h *Handler) GetFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	allItems := make([]interface{}, len(resp.Items))
+	for i, n := range resp.Items {
+		allItems[i] = n
+	}
+
+	if feedType == db.FeedTypeRecent && motivation == "" && tag == "" {
+		var collItems []db.CollectionItem
+		if creator != "" {
+			collItems, _ = h.db.GetCollectionItemsByAuthor(creator)
+			if len(collItems) > fetchLimit {
+				collItems = collItems[:fetchLimit]
+			}
+		} else {
+			collItems, _ = h.db.GetRecentCollectionItems(fetchLimit, 0)
+		}
+
+		if len(collItems) > 0 {
+			viewerDID := h.getViewerDID(r)
+			hydrated, hydrateErr := hydrateCollectionItems(h.db, collItems, viewerDID)
+			if hydrateErr == nil {
+				noteURIsInFeed := make(map[string]bool, len(resp.Items))
+				for _, n := range resp.Items {
+					noteURIsInFeed[n.ID] = true
+				}
+				for _, ci := range hydrated {
+					innerURI := collectionItemInnerURI(ci)
+					if innerURI != "" && noteURIsInFeed[innerURI] {
+						delete(noteURIsInFeed, innerURI)
+						for idx, item := range allItems {
+							if n, ok := item.(service.APINote); ok && n.ID == innerURI {
+								allItems = append(allItems[:idx], allItems[idx+1:]...)
+								break
+							}
+						}
+					}
+					allItems = append(allItems, ci)
+				}
+			}
+		}
+
+		sort.Slice(allItems, func(i, j int) bool {
+			return feedItemCreatedAt(allItems[i]).After(feedItemCreatedAt(allItems[j]))
+		})
+	}
+
+	if offset < len(allItems) {
+		allItems = allItems[offset:]
+	} else {
+		allItems = nil
+	}
+	if len(allItems) > limit {
+		allItems = allItems[:limit]
+	}
+	if allItems == nil {
+		allItems = []interface{}{}
+	}
+
 	WriteSuccess(w, map[string]interface{}{
 		"@context":   "http://www.w3.org/ns/anno.jsonld",
 		"type":       "Collection",
-		"items":      resp.Items,
-		"totalItems": resp.TotalItems,
+		"items":      allItems,
+		"totalItems": len(allItems),
 	})
+}
+
+func collectionItemInnerURI(ci APICollectionItem) string {
+	if ci.Annotation != nil {
+		return ci.Annotation.ID
+	}
+	if ci.Highlight != nil {
+		return ci.Highlight.ID
+	}
+	if ci.Bookmark != nil {
+		return ci.Bookmark.ID
+	}
+	return ""
+}
+
+func feedItemCreatedAt(item interface{}) time.Time {
+	switch v := item.(type) {
+	case service.APINote:
+		return v.CreatedAt
+	case APICollectionItem:
+		return v.CreatedAt
+	}
+	return time.Time{}
 }
 func (h *Handler) GetAnnotation(w http.ResponseWriter, r *http.Request) {
 	uri := r.URL.Query().Get("uri")

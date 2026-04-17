@@ -60,6 +60,10 @@ type SessionRepository interface {
 	GetSession(ctx context.Context, id string) (did, handle, accessToken, refreshToken, dpopKey string, err error)
 }
 
+type CollectionRepository interface {
+	GetCollectionsForNoteURIs(ctx context.Context, noteURIs []string) (map[string]Collection, error)
+}
+
 type NoteService interface{}
 
 type ProfileService interface{}

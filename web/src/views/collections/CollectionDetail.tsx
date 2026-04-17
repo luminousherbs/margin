@@ -244,7 +244,7 @@ export default function CollectionDetail({
         ) : (
           items.map((item) => (
             <div key={item.uri} className="relative group">
-              <Card item={item} hideShare />
+              <Card item={item} hideShare hideCollection />
               {isOwner && !isSemble && item.collectionItemUri && (
                 <button
                   className="absolute top-3 right-3 p-1.5 bg-white/90 dark:bg-surface-800/90 backdrop-blur text-surface-400 dark:text-surface-500 hover:text-red-500 dark:hover:text-red-400 rounded-lg shadow-sm transition-all"
