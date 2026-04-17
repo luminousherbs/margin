@@ -75,6 +75,21 @@ func (db *DB) MarginNoteBookmarkExists(authorDID, targetHash string) (bool, erro
 	return true, nil
 }
 
+func (db *DB) GetCommunityBookmarkURI(authorDID, targetHash string) (string, error) {
+	var uri string
+	err := db.QueryRow(`
+		SELECT uri FROM notes
+		WHERE author_did = $1
+		  AND target_hash = $2
+		  AND uri LIKE 'at://%/community.lexicon.bookmarks.bookmark/%'
+		LIMIT 1
+	`, authorDID, targetHash).Scan(&uri)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return uri, err
+}
+
 func (db *DB) CommunityBookmarkExists(authorDID, targetHash, tagsJSON string) (bool, error) {
 	query := `
 		SELECT 1 FROM notes

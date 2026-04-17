@@ -51,6 +51,7 @@ type NoteIndexDB interface {
 	SaveEditHistory(uri, recordType, previousContent string, previousCID *string) error
 	HashURL(rawURL string) string
 	CommunityBookmarkExists(authorDID, targetHash, tagsJSON string) (bool, error)
+	GetCommunityBookmarkURI(authorDID, targetHash string) (string, error)
 }
 
 type dbAdapter struct{ d *db.DB }
@@ -129,6 +130,9 @@ func (a *dbAdapter) SaveEditHistory(uri, rt, prev string, cid *string) error {
 func (a *dbAdapter) HashURL(rawURL string) string { return db.HashURL(rawURL) }
 func (a *dbAdapter) CommunityBookmarkExists(did, hash, tags string) (bool, error) {
 	return a.d.CommunityBookmarkExists(did, hash, tags)
+}
+func (a *dbAdapter) GetCommunityBookmarkURI(did, hash string) (string, error) {
+	return a.d.GetCommunityBookmarkURI(did, hash)
 }
 
 type NoteWriteService struct {
@@ -1126,13 +1130,16 @@ func (s *NoteWriteService) DeleteBookmark(w http.ResponseWriter, r *http.Request
 
 	did := session.DID
 	collection := xrpc.CollectionNote
+	var targetHash string
 	for _, col := range []string{xrpc.CollectionNote, xrpc.CollectionBookmark, xrpc.CollectionCommunityBookmark} {
 		uri := "at://" + did + "/" + col + "/" + rkey
 		if note, dbErr := s.db.GetNoteByURI(uri); dbErr == nil && note != nil {
 			collection = col
+			targetHash = note.TargetHash
 			break
-		} else if _, dbErr := s.db.GetBookmarkByURI(uri); dbErr == nil {
+		} else if bm, dbErr := s.db.GetBookmarkByURI(uri); dbErr == nil && bm != nil {
 			collection = col
+			targetHash = bm.SourceHash
 			break
 		}
 	}
@@ -1147,6 +1154,19 @@ func (s *NoteWriteService) DeleteBookmark(w http.ResponseWriter, r *http.Request
 	uri := "at://" + did + "/" + collection + "/" + rkey
 	s.db.DeleteBookmark(uri)
 	s.db.DeleteNote(uri)
+
+	if collection != xrpc.CollectionCommunityBookmark && targetHash != "" {
+		if communityURI, err := s.db.GetCommunityBookmarkURI(did, targetHash); err == nil && communityURI != "" {
+			parts := strings.Split(communityURI, "/")
+			if len(parts) == 5 {
+				communityRkey := parts[4]
+				_ = s.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
+					return client.DeleteRecord(r.Context(), did, xrpc.CollectionCommunityBookmark, communityRkey)
+				})
+			}
+			s.db.DeleteNote(communityURI)
+		}
+	}
 
 	WriteSuccess(w, map[string]bool{"success": true})
 }

@@ -1023,6 +1023,7 @@ func hydrateCollectionItemsWithData(database *db.DB, items []db.CollectionItem, 
 					b := APIBookmark{
 						ID:          n.URI,
 						Type:        "Bookmark",
+						Motivation:  "bookmarking",
 						Author:      profiles[n.AuthorDID],
 						Source:      n.TargetSource,
 						Title:       title,
