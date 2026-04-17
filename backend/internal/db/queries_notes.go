@@ -75,36 +75,40 @@ func (db *DB) MarginNoteBookmarkExists(authorDID, targetHash string) (bool, erro
 	return true, nil
 }
 
-func (db *DB) GetCommunityBookmarkURI(authorDID, targetHash string) (string, error) {
+func (db *DB) SaveCommunityBookmarkRef(noteURI, communityURI string) error {
+	_, err := db.Exec(`
+		INSERT INTO community_bookmark_refs (note_uri, community_uri)
+		VALUES ($1, $2)
+		ON CONFLICT (note_uri) DO UPDATE SET community_uri = EXCLUDED.community_uri
+	`, noteURI, communityURI)
+	return err
+}
+
+func (db *DB) GetCommunityBookmarkURI(noteURI string) (string, error) {
 	var uri string
 	err := db.QueryRow(`
-		SELECT uri FROM notes
-		WHERE author_did = $1
-		  AND target_hash = $2
-		  AND uri LIKE 'at://%/community.lexicon.bookmarks.bookmark/%'
-		LIMIT 1
-	`, authorDID, targetHash).Scan(&uri)
+		SELECT community_uri FROM community_bookmark_refs WHERE note_uri = $1
+	`, noteURI).Scan(&uri)
 	if err == sql.ErrNoRows {
 		return "", nil
 	}
 	return uri, err
 }
 
+func (db *DB) DeleteCommunityBookmarkRef(noteURI string) error {
+	_, err := db.Exec(`DELETE FROM community_bookmark_refs WHERE note_uri = $1`, noteURI)
+	return err
+}
+
 func (db *DB) CommunityBookmarkExists(authorDID, targetHash, tagsJSON string) (bool, error) {
-	query := `
-		SELECT 1 FROM notes
-		WHERE author_did = $1
-		  AND target_hash = $2
-		  AND uri LIKE 'at://%/community.lexicon.bookmarks.bookmark/%'
-		  AND COALESCE(tags_json, '[]') = COALESCE($3, '[]')
-		LIMIT 1
-	`
-	normalized := tagsJSON
-	if normalized == "" {
-		normalized = "[]"
-	}
 	var dummy int
-	err := db.QueryRow(query, authorDID, targetHash, normalized).Scan(&dummy)
+	err := db.QueryRow(`
+		SELECT 1 FROM community_bookmark_refs cbr
+		JOIN notes n ON n.uri = cbr.note_uri
+		WHERE n.author_did = $1
+		  AND n.target_hash = $2
+		LIMIT 1
+	`, authorDID, targetHash).Scan(&dummy)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}

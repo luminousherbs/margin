@@ -16,7 +16,6 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"margin.at/internal/db"
-	"margin.at/internal/domain"
 	"margin.at/internal/logger"
 	"margin.at/internal/xrpc"
 )
@@ -222,8 +221,8 @@ func (h *APIKeyHandler) QuickBookmark(w http.ResponseWriter, r *http.Request) {
 	h.db.UpdateAPIKeyLastUsed(apiKey.ID)
 
 	capturedTags := append([]string(nil), req.Tags...)
-	capturedURLHash := db.HashURL(req.URL)
-	go func(did, url, urlHash string) {
+	capturedNoteURI := result.URI
+	go func(did, url, noteURI string) {
 		prefs, dbErr := h.db.GetPreferences(did)
 		communityEnabled := dbErr == nil && prefs != nil && (prefs.EnableCommunityBookmarks == nil || *prefs.EnableCommunityBookmarks)
 		if !communityEnabled {
@@ -246,17 +245,9 @@ func (h *APIKeyHandler) QuickBookmark(w http.ResponseWriter, r *http.Request) {
 		defer cancel()
 		communityResult, communityErr := client.CreateRecord(ctx, did, xrpc.CollectionCommunityBookmark, communityRecord)
 		if communityErr == nil && communityResult != nil {
-			_ = h.db.CreateNote(&domain.Note{
-				URI:          communityResult.URI,
-				AuthorDID:    did,
-				Motivation:   "bookmarking",
-				TargetSource: url,
-				TargetHash:   urlHash,
-				CreatedAt:    time.Now(),
-				IndexedAt:    time.Now(),
-			})
+			_ = h.db.SaveCommunityBookmarkRef(noteURI, communityResult.URI)
 		}
-	}(apiKey.OwnerDID, req.URL, capturedURLHash)
+	}(apiKey.OwnerDID, req.URL, capturedNoteURI)
 
 	var titlePtr, bodyValuePtr, tagsJSONPtr *string
 	if req.Title != "" {

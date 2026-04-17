@@ -51,7 +51,9 @@ type NoteIndexDB interface {
 	SaveEditHistory(uri, recordType, previousContent string, previousCID *string) error
 	HashURL(rawURL string) string
 	CommunityBookmarkExists(authorDID, targetHash, tagsJSON string) (bool, error)
-	GetCommunityBookmarkURI(authorDID, targetHash string) (string, error)
+	SaveCommunityBookmarkRef(noteURI, communityURI string) error
+	GetCommunityBookmarkURI(noteURI string) (string, error)
+	DeleteCommunityBookmarkRef(noteURI string) error
 }
 
 type dbAdapter struct{ d *db.DB }
@@ -131,8 +133,14 @@ func (a *dbAdapter) HashURL(rawURL string) string { return db.HashURL(rawURL) }
 func (a *dbAdapter) CommunityBookmarkExists(did, hash, tags string) (bool, error) {
 	return a.d.CommunityBookmarkExists(did, hash, tags)
 }
-func (a *dbAdapter) GetCommunityBookmarkURI(did, hash string) (string, error) {
-	return a.d.GetCommunityBookmarkURI(did, hash)
+func (a *dbAdapter) SaveCommunityBookmarkRef(noteURI, communityURI string) error {
+	return a.d.SaveCommunityBookmarkRef(noteURI, communityURI)
+}
+func (a *dbAdapter) GetCommunityBookmarkURI(noteURI string) (string, error) {
+	return a.d.GetCommunityBookmarkURI(noteURI)
+}
+func (a *dbAdapter) DeleteCommunityBookmarkRef(noteURI string) error {
+	return a.d.DeleteCommunityBookmarkRef(noteURI)
 }
 
 type NoteWriteService struct {
@@ -1007,6 +1015,7 @@ func (s *NoteWriteService) CreateBookmark(w http.ResponseWriter, r *http.Request
 	capturedTags := append([]string(nil), req.Tags...)
 	capturedURL := req.URL
 	capturedURLHash := urlHash
+	capturedNoteURI := result.URI
 	go func() {
 		prefs, dbErr := s.db.GetPreferences(capturedSession.DID)
 		communityEnabled := dbErr == nil && prefs != nil && (prefs.EnableCommunityBookmarks == nil || *prefs.EnableCommunityBookmarks)
@@ -1037,15 +1046,7 @@ func (s *NoteWriteService) CreateBookmark(w http.ResponseWriter, r *http.Request
 		}
 		communityResult, communityErr := client.CreateRecord(ctx, capturedSession.DID, xrpc.CollectionCommunityBookmark, communityRecord)
 		if communityErr == nil && communityResult != nil {
-			_ = s.db.CreateNote(&domain.Note{
-				URI:          communityResult.URI,
-				AuthorDID:    capturedSession.DID,
-				Motivation:   "bookmarking",
-				TargetSource: capturedURL,
-				TargetHash:   capturedURLHash,
-				CreatedAt:    time.Now(),
-				IndexedAt:    time.Now(),
-			})
+			_ = s.db.SaveCommunityBookmarkRef(capturedNoteURI, communityResult.URI)
 		}
 	}()
 
@@ -1141,16 +1142,13 @@ func (s *NoteWriteService) DeleteBookmark(w http.ResponseWriter, r *http.Request
 
 	did := session.DID
 	collection := xrpc.CollectionNote
-	var targetHash string
 	for _, col := range []string{xrpc.CollectionNote, xrpc.CollectionBookmark, xrpc.CollectionCommunityBookmark} {
 		uri := "at://" + did + "/" + col + "/" + rkey
 		if note, dbErr := s.db.GetNoteByURI(uri); dbErr == nil && note != nil {
 			collection = col
-			targetHash = note.TargetHash
 			break
 		} else if bm, dbErr := s.db.GetBookmarkByURI(uri); dbErr == nil && bm != nil {
 			collection = col
-			targetHash = bm.SourceHash
 			break
 		}
 	}
@@ -1166,8 +1164,8 @@ func (s *NoteWriteService) DeleteBookmark(w http.ResponseWriter, r *http.Request
 	s.db.DeleteBookmark(uri)
 	s.db.DeleteNote(uri)
 
-	if collection != xrpc.CollectionCommunityBookmark && targetHash != "" {
-		if communityURI, err := s.db.GetCommunityBookmarkURI(did, targetHash); err == nil && communityURI != "" {
+	if collection != xrpc.CollectionCommunityBookmark {
+		if communityURI, err := s.db.GetCommunityBookmarkURI(uri); err == nil && communityURI != "" {
 			parts := strings.Split(communityURI, "/")
 			if len(parts) == 5 {
 				communityRkey := parts[4]
@@ -1175,7 +1173,7 @@ func (s *NoteWriteService) DeleteBookmark(w http.ResponseWriter, r *http.Request
 					return client.DeleteRecord(r.Context(), did, xrpc.CollectionCommunityBookmark, communityRkey)
 				})
 			}
-			s.db.DeleteNote(communityURI)
+			s.db.DeleteCommunityBookmarkRef(uri)
 		}
 	}
 
