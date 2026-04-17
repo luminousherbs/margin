@@ -1035,7 +1035,18 @@ func (s *NoteWriteService) CreateBookmark(w http.ResponseWriter, r *http.Request
 		if len(capturedTags) > 0 {
 			communityRecord["tags"] = capturedTags
 		}
-		_, _ = client.CreateRecord(ctx, capturedSession.DID, xrpc.CollectionCommunityBookmark, communityRecord)
+		communityResult, communityErr := client.CreateRecord(ctx, capturedSession.DID, xrpc.CollectionCommunityBookmark, communityRecord)
+		if communityErr == nil && communityResult != nil {
+			_ = s.db.CreateNote(&domain.Note{
+				URI:          communityResult.URI,
+				AuthorDID:    capturedSession.DID,
+				Motivation:   "bookmarking",
+				TargetSource: capturedURL,
+				TargetHash:   capturedURLHash,
+				CreatedAt:    time.Now(),
+				IndexedAt:    time.Now(),
+			})
+		}
 	}()
 
 	var titlePtr *string
