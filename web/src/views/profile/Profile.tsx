@@ -700,8 +700,8 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
             layout="list"
             emptyMessage={
               isOwner
-                ? `You haven't added any ${activeTab} yet.`
-                : `No ${activeTab}`
+                ? `Your ${activeTab} will show up here.`
+                : `Nothing to see here yet.`
             }
           />
         )}

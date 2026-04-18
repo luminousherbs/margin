@@ -35,6 +35,8 @@ import Settings from "./core/Settings";
 import Collections from "./collections/Collections";
 import CollectionDetail from "./collections/CollectionDetail";
 import AnnotationDetail from "./content/AnnotationDetail";
+import UrlPage from "./content/UrlPage";
+import UserUrlPage from "./content/UserUrlPage";
 import Profile from "./profile/Profile";
 
 const PAGE_TITLES: Record<string, string> = {
@@ -104,6 +106,17 @@ function ProfileRoute() {
   const { did } = useParams<{ did: string }>();
   if (!did) return <Navigate to="/home" replace />;
   return <Profile did={did} />;
+}
+
+function UrlRoute() {
+  const params = useParams();
+  const urlPath = params["*"];
+  return <UrlPage urlPath={urlPath} />;
+}
+
+function UserUrlRoute() {
+  const params = useParams();
+  return <UserUrlPage handle={params.handle} urlPath={params["*"]} />;
 }
 
 function AppLayout() {
@@ -276,6 +289,8 @@ function AppLayout() {
                   element={<UriAnnotationRoute />}
                 />
                 <Route path="/at/:did/:rkey" element={<AtAnnotationRoute />} />
+                <Route path="/url/*" element={<UrlRoute />} />
+                <Route path="/:handle/url/*" element={<UserUrlRoute />} />
                 <Route path="/profile/:did" element={<ProfileRoute />} />
                 <Route
                   path="/profile"

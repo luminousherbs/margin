@@ -68,10 +68,10 @@ export default function NewAnnotationPage({
     <div className="max-w-2xl mx-auto pb-20">
       <div className="mb-6 text-center sm:text-left">
         <h1 className="text-2xl font-display font-bold text-surface-900 dark:text-white mb-1">
-          New Annotation
+          Compose
         </h1>
         <p className="text-surface-500 dark:text-surface-400">
-          Write in the margins of the web
+          Highlight a passage, leave a note, or annotate a page — all from here.
         </p>
       </div>
 

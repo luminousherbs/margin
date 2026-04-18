@@ -32,7 +32,7 @@ export default function Login({ initialError }: LoginProps) {
   const [providerIndex, setProviderIndex] = useState(0);
   const [morphClass, setMorphClass] = useState(
     "opacity-100 translate-y-0 blur-0",
-  );
+  );  
   const providers = [
     "AT Protocol",
     "Margin",
@@ -155,8 +155,11 @@ export default function Login({ initialError }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-100 dark:bg-surface-800 p-4">
-      <div className="w-full max-w-[440px] bg-white dark:bg-surface-900 rounded-2xl border border-surface-200/60 dark:border-surface-800 p-8 shadow-sm dark:shadow-none">
+    <div className="relative min-h-screen flex items-center justify-center bg-surface-100 dark:bg-surface-800 p-4 overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 -z-0">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 h-96 w-96 rounded-full bg-primary-200/30 dark:bg-primary-900/20 blur-3xl" />
+      </div>
+      <div className="relative w-full max-w-[440px] bg-white dark:bg-surface-900 rounded-2xl border border-surface-200/60 dark:border-surface-800 p-8 shadow-sm dark:shadow-none">
         <div className="flex flex-col items-center mb-8">
           <h1 className="text-2xl font-bold font-display text-surface-900 dark:text-white text-center leading-snug">
             Sign in with your <br />

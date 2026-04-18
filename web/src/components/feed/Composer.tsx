@@ -7,7 +7,7 @@ import {
   getTrendingTags,
 } from "../../api/client";
 import type { Selector, ContentLabelValue } from "../../types";
-import { X, ShieldAlert } from "lucide-react";
+import { X, ShieldAlert, Highlighter, PenLine } from "lucide-react";
 import TagInput from "../ui/TagInput";
 import { analytics } from "../../lib/analytics";
 
@@ -69,6 +69,33 @@ export default function Composer({
   const highlightedText =
     selector?.type === "TextQuoteSelector" ? selector.exact : null;
 
+  const hasQuote = !!(highlightedText || quoteText.trim());
+  const hasText = !!text.trim();
+  const mode: "highlight" | "annotation" | "note" =
+    hasQuote && !hasText ? "highlight" : hasQuote ? "annotation" : "note";
+
+  const modeCopy = {
+    highlight: {
+      title: "New highlight",
+      icon: Highlighter,
+      submit: "Save highlight",
+      hint: "Saving a passage without a comment. Add text below to turn it into an annotation.",
+    },
+    annotation: {
+      title: "New annotation",
+      icon: PenLine,
+      submit: "Post annotation",
+      hint: null,
+    },
+    note: {
+      title: "New note",
+      icon: PenLine,
+      submit: "Post note",
+      hint: null,
+    },
+  }[mode];
+  const ModeIcon = modeCopy.icon;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim() && !highlightedText && !quoteText.trim()) return;
@@ -103,6 +130,7 @@ export default function Composer({
         analytics.capture("highlight_created", {
           url,
           tag_count: tagList.length,
+          has_color: true,
           has_labels: selfLabels.length > 0,
         });
       } else {
@@ -146,8 +174,16 @@ export default function Composer({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-surface-900 dark:text-white">
-          New Annotation
+        <h3 className="flex items-center gap-2 text-lg font-bold text-surface-900 dark:text-white">
+          <ModeIcon
+            size={18}
+            className={
+              mode === "highlight"
+                ? "text-amber-500"
+                : "text-primary-500 dark:text-primary-400"
+            }
+          />
+          {modeCopy.title}
         </h3>
         {url && (
           <div className="text-xs text-surface-400 dark:text-surface-500 max-w-[200px] truncate">
@@ -155,6 +191,12 @@ export default function Composer({
           </div>
         )}
       </div>
+
+      {modeCopy.hint && (
+        <div className="text-xs text-surface-500 dark:text-surface-400 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-lg px-3 py-2">
+          {modeCopy.hint}
+        </div>
+      )}
 
       {highlightedText && (
         <div className="relative p-3 bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg">
@@ -208,9 +250,9 @@ export default function Composer({
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder={
-          highlightedText || quoteText
-            ? "Add your comment..."
-            : "Write your annotation..."
+          hasQuote
+            ? "Add your thoughts on this passage..."
+            : "What's on your mind?"
         }
         className="w-full p-3 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg text-surface-900 dark:text-white placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:focus:border-primary-400 outline-none min-h-[100px] resize-none"
         maxLength={3000}
@@ -292,7 +334,7 @@ export default function Composer({
               loading || (!text.trim() && !highlightedText && !quoteText.trim())
             }
           >
-            {loading ? "..." : "Post"}
+            {loading ? "..." : modeCopy.submit}
           </button>
         </div>
       </div>

@@ -983,8 +983,14 @@ func (s *NoteWriteService) CreateBookmark(w http.ResponseWriter, r *http.Request
 		req.Tags[i] = strings.ToLower(t)
 	}
 
+	description := strings.TrimSpace(req.Description)
+	motivation := "bookmarking"
+	if description != "" {
+		motivation = "commenting"
+	}
+
 	urlHash := db.HashURL(req.URL)
-	record := xrpc.NewNoteRecord(req.URL, urlHash, "", nil, req.Title, "", req.Description, "bookmarking")
+	record := xrpc.NewNoteRecord(req.URL, urlHash, description, nil, req.Title, "", "", motivation)
 	if len(req.Tags) > 0 {
 		record.Tags = req.Tags
 	}
@@ -996,9 +1002,11 @@ func (s *NoteWriteService) CreateBookmark(w http.ResponseWriter, r *http.Request
 
 	var result *xrpc.CreateRecordOutput
 
-	if existing, err := s.checkDuplicateBookmark(session.DID, req.URL); err == nil && existing != nil {
-		WriteConflict(w, "Bookmark already exists")
-		return
+	if motivation == "bookmarking" {
+		if existing, err := s.checkDuplicateBookmark(session.DID, req.URL); err == nil && existing != nil {
+			WriteConflict(w, "Bookmark already exists")
+			return
+		}
 	}
 
 	err = s.refresher.ExecuteWithAutoRefresh(r, session, func(client *xrpc.Client, did string) error {
@@ -1011,52 +1019,54 @@ func (s *NoteWriteService) CreateBookmark(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	capturedSession := session
-	capturedTags := append([]string(nil), req.Tags...)
-	capturedURL := req.URL
-	capturedURLHash := urlHash
-	capturedNoteURI := result.URI
-	go func() {
-		prefs, dbErr := s.db.GetPreferences(capturedSession.DID)
-		communityEnabled := dbErr == nil && prefs != nil && (prefs.EnableCommunityBookmarks == nil || *prefs.EnableCommunityBookmarks)
-		if !communityEnabled {
-			return
-		}
-
-		tagsJSON := ""
-		if len(capturedTags) > 0 {
-			if b, err := json.Marshal(capturedTags); err == nil {
-				tagsJSON = string(b)
+	if motivation == "bookmarking" {
+		capturedSession := session
+		capturedTags := append([]string(nil), req.Tags...)
+		capturedURL := req.URL
+		capturedURLHash := urlHash
+		capturedNoteURI := result.URI
+		go func() {
+			prefs, dbErr := s.db.GetPreferences(capturedSession.DID)
+			communityEnabled := dbErr == nil && prefs != nil && (prefs.EnableCommunityBookmarks == nil || *prefs.EnableCommunityBookmarks)
+			if !communityEnabled {
+				return
 			}
-		}
-		if exists, err := s.db.CommunityBookmarkExists(capturedSession.DID, capturedURLHash, tagsJSON); err == nil && exists {
-			return
-		}
 
-		client := s.refresher.CreateClientFromSession(capturedSession)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		communityRecord := map[string]interface{}{
-			"$type":     xrpc.CollectionCommunityBookmark,
-			"subject":   capturedURL,
-			"createdAt": time.Now().UTC().Format(time.RFC3339),
-		}
-		if len(capturedTags) > 0 {
-			communityRecord["tags"] = capturedTags
-		}
-		communityResult, communityErr := client.CreateRecord(ctx, capturedSession.DID, xrpc.CollectionCommunityBookmark, communityRecord)
-		if communityErr == nil && communityResult != nil {
-			_ = s.db.SaveCommunityBookmarkRef(capturedNoteURI, communityResult.URI)
-		}
-	}()
+			tagsJSON := ""
+			if len(capturedTags) > 0 {
+				if b, err := json.Marshal(capturedTags); err == nil {
+					tagsJSON = string(b)
+				}
+			}
+			if exists, err := s.db.CommunityBookmarkExists(capturedSession.DID, capturedURLHash, tagsJSON); err == nil && exists {
+				return
+			}
+
+			client := s.refresher.CreateClientFromSession(capturedSession)
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			communityRecord := map[string]interface{}{
+				"$type":     xrpc.CollectionCommunityBookmark,
+				"subject":   capturedURL,
+				"createdAt": time.Now().UTC().Format(time.RFC3339),
+			}
+			if len(capturedTags) > 0 {
+				communityRecord["tags"] = capturedTags
+			}
+			communityResult, communityErr := client.CreateRecord(ctx, capturedSession.DID, xrpc.CollectionCommunityBookmark, communityRecord)
+			if communityErr == nil && communityResult != nil {
+				_ = s.db.SaveCommunityBookmarkRef(capturedNoteURI, communityResult.URI)
+			}
+		}()
+	}
 
 	var titlePtr *string
 	if req.Title != "" {
 		titlePtr = &req.Title
 	}
-	var descPtr *string
-	if req.Description != "" {
-		descPtr = &req.Description
+	var bodyPtr *string
+	if description != "" {
+		bodyPtr = &description
 	}
 
 	var tagsJSONPtr *string
@@ -1070,11 +1080,11 @@ func (s *NoteWriteService) CreateBookmark(w http.ResponseWriter, r *http.Request
 	note := &db.Note{
 		URI:          result.URI,
 		AuthorDID:    session.DID,
-		Motivation:   "bookmarking",
+		Motivation:   motivation,
 		TargetSource: req.URL,
 		TargetHash:   urlHash,
 		TargetTitle:  titlePtr,
-		BodyValue:    descPtr,
+		BodyValue:    bodyPtr,
 		TagsJSON:     tagsJSONPtr,
 		CreatedAt:    time.Now(),
 		IndexedAt:    time.Now(),

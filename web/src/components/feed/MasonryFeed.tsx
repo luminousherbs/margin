@@ -15,7 +15,7 @@ interface MasonryFeedProps {
 
 export default function MasonryFeed({
   motivation,
-  emptyMessage = "No items found.",
+  emptyMessage = "You haven't saved anything here yet.",
   showTabs = false,
   title,
 }: MasonryFeedProps) {
@@ -75,7 +75,7 @@ export default function MasonryFeed({
         emptyMessage={
           activeTab === "my"
             ? emptyMessage
-            : `No ${motivation === "bookmarking" ? "bookmarks" : "highlights"} from the community yet.`
+            : `No ${motivation === "bookmarking" ? "bookmarks" : "highlights"} from the community yet — be the first.`
         }
         creator={creator}
         layout={layout}

@@ -281,8 +281,8 @@ export default function UrlPage({ urlPath }: UrlPageProps) {
       {!loading && !error && totalItems === 0 && (
         <EmptyState
           icon={<Search size={48} />}
-          title="No annotations yet"
-          message="Nobody has annotated this page yet. Be the first — install the Margin extension and start annotating!"
+          title="This page is a blank canvas"
+          message="No one's left notes here yet. Want to be the first? Grab the Margin extension and share what you're thinking."
         />
       )}
 
@@ -306,15 +306,15 @@ export default function UrlPage({ urlPath }: UrlPageProps) {
             {activeTab === "annotations" && annotations.length === 0 && (
               <EmptyState
                 icon={<PenTool size={32} />}
-                title="No annotations"
-                message="There are no annotations for this page yet."
+                title="No annotations yet"
+                message="Nobody has left a written note on this page."
               />
             )}
             {activeTab === "highlights" && highlights.length === 0 && (
               <EmptyState
                 icon={<Highlighter size={32} />}
-                title="No highlights"
-                message="There are no highlights for this page yet."
+                title="No highlights yet"
+                message="Nobody has highlighted a passage from this page."
               />
             )}
 

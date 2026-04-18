@@ -25,7 +25,7 @@ const MARGIN_PROVIDER: Provider = {
   name: "Margin",
   service: "https://margin.cafe",
   Icon: MarginIcon,
-  description: "Hosted by Margin, the easiest way to get started",
+  description: "The easiest way to get started",
 };
 
 const OTHER_PROVIDERS: Provider[] = [
@@ -34,28 +34,35 @@ const OTHER_PROVIDERS: Provider[] = [
     name: "Bluesky",
     service: "https://bsky.social",
     Icon: BlueskyIcon,
-    description: "The most popular option on the AT Protocol",
+    description: "The largest and most popular community",
   },
   {
     id: "blacksky",
     name: "Blacksky",
     service: "https://blacksky.app",
     Icon: BlackskyIcon,
-    description: "For the Culture. A safe space for users and allies",
+    description: "For the Culture — a safe space for users and allies",
+  },
+    {
+    id: "eurosky",
+    name: "Eurosky",
+    service: "https://eurosky.social",
+    Icon: null,
+    description: "Eurosky is your European home on the Atmosphere",
   },
   {
     id: "selfhosted.social",
     name: "selfhosted.social",
     service: "https://selfhosted.social",
     Icon: null,
-    description: "For hackers, designers, and ATProto enthusiasts.",
+    description: "A home for builders, tinkerers, and the curious",
   },
   {
     id: "northsky",
     name: "Northsky",
     service: "https://northsky.social",
     Icon: NorthskyIcon,
-    description: "A Canadian-based worker-owned cooperative",
+    description: "A Canadian worker-owned cooperative",
   },
   {
     id: "tophhie",
@@ -65,19 +72,12 @@ const OTHER_PROVIDERS: Provider[] = [
     description: "A welcoming and friendly community",
   },
   {
-    id: "altq",
-    name: "AltQ",
-    service: "https://altq.net",
-    Icon: null,
-    description: "An independent, self-hosted PDS instance",
-  },
-  {
     id: "custom",
-    name: "Custom",
+    name: "Use a custom PDS",
     service: "",
     custom: true,
     Icon: null,
-    description: "Connect to your own or another custom PDS",
+    description: "Already have a PDS? Enter its address.",
   },
 ];
 
@@ -207,7 +207,7 @@ export default function SignUpModal({ onClose }: SignUpModalProps) {
     } catch (err) {
       console.error(err);
       analytics.captureException(err);
-      setError("Could not connect to this PDS. Please check the URL.");
+      setError("Couldn't connect to that PDS. Double-check the address.");
       setLoading(false);
     }
   };
@@ -232,18 +232,21 @@ export default function SignUpModal({ onClose }: SignUpModalProps) {
                 className="animate-spin text-primary-600 dark:text-primary-400 mx-auto mb-4"
               />
               <p className="text-surface-600 dark:text-surface-400 font-medium">
-                Connecting to provider...
+                Connecting...
               </p>
             </div>
           ) : showCustomInput ? (
             <div>
-              <h2 className="text-2xl font-display font-bold text-surface-900 dark:text-white mb-6">
-                Custom Provider
+              <h2 className="text-2xl font-display font-bold text-surface-900 dark:text-white mb-2">
+                Use a custom PDS
               </h2>
+              <p className="text-sm text-surface-500 dark:text-surface-400 mb-6">
+                Enter the address of the PDS hosting your account.
+              </p>
               <form onSubmit={handleCustomSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                    PDS address (e.g. pds.example.com)
+                    PDS address
                   </label>
                   <input
                     type="text"

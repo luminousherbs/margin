@@ -32,7 +32,7 @@ export default function Feed({
   initialUser,
   motivation,
   showTabs = true,
-  emptyMessage = "No items found.",
+  emptyMessage = "Nothing here yet — annotations from you and people you follow will show up here.",
   initialItems,
   initialHasMore,
 }: FeedProps) {
@@ -91,22 +91,26 @@ export default function Feed({
   return (
     <div className="mx-auto max-w-2xl xl:max-w-none">
       {!user && (
-        <div className="text-center py-10 px-6 mb-4 animate-fade-in">
-          <h1 className="text-2xl font-display font-bold mb-2 tracking-tight text-surface-900 dark:text-white">
+        <div className="relative text-center py-12 px-6 mb-4 animate-fade-in overflow-hidden">
+          <div className="absolute inset-0 -z-10 flex items-center justify-center">
+            <div className="h-48 w-48 rounded-full bg-primary-200/40 dark:bg-primary-900/20 blur-3xl" />
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-display font-bold mb-3 tracking-tight text-surface-900 dark:text-white">
             Welcome to Margin
           </h1>
-          <p className="text-surface-500 dark:text-surface-400 mb-4 max-w-md mx-auto">
-            Annotate, highlight, and bookmark anything on the web.
+          <p className="text-surface-500 dark:text-surface-400 mb-5 max-w-md mx-auto leading-relaxed">
+            A quiet place to annotate, highlight, and save what you read on the
+            web.
           </p>
           <div className="flex gap-3 justify-center">
             <Button onClick={() => (window.location.href = "/login")}>
-              Get Started
+              Get started
             </Button>
             <Button
               variant="secondary"
               onClick={() => window.open("/about", "_blank")}
             >
-              Learn More
+              Learn more
             </Button>
           </div>
         </div>

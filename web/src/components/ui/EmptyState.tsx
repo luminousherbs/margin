@@ -19,15 +19,20 @@ export default function EmptyState({
   return (
     <div
       className={clsx(
-        "text-center py-16 px-6",
-        "bg-surface-50/50 dark:bg-surface-800/50 rounded-2xl",
+        "relative text-center py-14 px-6 overflow-hidden",
+        "bg-gradient-to-b from-surface-50/80 to-surface-50/20 dark:from-surface-800/60 dark:to-surface-800/20 rounded-2xl",
         "border border-dashed border-surface-200 dark:border-surface-700",
         className,
       )}
     >
       {icon && (
-        <div className="flex justify-center mb-4 text-surface-300 dark:text-surface-600">
-          {icon}
+        <div className="relative flex justify-center mb-4">
+          <div className="absolute inset-0 flex justify-center items-center">
+            <div className="h-16 w-16 rounded-full bg-primary-100/60 dark:bg-primary-900/20 blur-xl" />
+          </div>
+          <div className="relative text-surface-400 dark:text-surface-500">
+            {icon}
+          </div>
         </div>
       )}
       {title && (
@@ -35,7 +40,7 @@ export default function EmptyState({
           {title}
         </h3>
       )}
-      <p className="text-surface-500 dark:text-surface-400 max-w-sm mx-auto">
+      <p className="text-surface-500 dark:text-surface-400 max-w-sm mx-auto leading-relaxed">
         {message}
       </p>
       {action && (
