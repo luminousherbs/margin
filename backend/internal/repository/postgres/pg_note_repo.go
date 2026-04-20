@@ -77,6 +77,7 @@ func (r *NoteRepository) List(ctx context.Context, f domain.NoteFilter) ([]domai
 	switch f.FeedType {
 	case domain.FeedTypeMargin:
 		where = append(where, "uri NOT LIKE '%network.cosmik%'")
+		where = append(where, "uri NOT LIKE '%community.lexicon.bookmarks.bookmark%'")
 	case domain.FeedTypeSemble:
 		where = append(where, "uri LIKE '%network.cosmik%'")
 	case domain.FeedTypePopular:

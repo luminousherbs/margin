@@ -190,7 +190,7 @@ export default function Card({
   };
 
   const pageUrl = item.target?.source || item.source;
-  const isBookmark = type === "bookmark";
+  const isBookmark = type === "bookmark" && !item.body?.value;
 
   React.useEffect(() => {
     if (isBookmark && item.uri && !ogData && pageUrl) {
