@@ -1,1 +1,6 @@
-{}
+{
+    "appTitle": "Margin",
+    "nav": {
+        "settings": "Ajustes"
+    }
+}
