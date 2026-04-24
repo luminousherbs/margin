@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { AtSign } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import "../../i18n";
 import SignUpModal from "../../components/modals/SignUpModal";
 import {
   searchActors,
