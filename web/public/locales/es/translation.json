@@ -23,7 +23,8 @@
         "new": "Nueva anotación — Margin",
         "settings": "Configuración — Margin",
         "collections": "Colecciones — Margin",
-        "admin": "Admin — Margin"
+        "admin": "Admin — Margin",
+        "highlights": "Destacados — Margin"
     },
     "sidebar": {
         "getExtension": "Obtén la extensión",
