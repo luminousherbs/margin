@@ -8,6 +8,7 @@ import {
   Users,
 } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import FeedItems from "../../components/feed/FeedItems";
 import { Button, Tabs } from "../../components/ui";
 import LayoutToggle from "../../components/ui/LayoutToggle";
@@ -32,10 +33,12 @@ export default function Feed({
   initialUser,
   motivation,
   showTabs = true,
-  emptyMessage = "Nothing here yet — annotations from you and people you follow will show up here.",
+  emptyMessage,
   initialItems,
   initialHasMore,
 }: FeedProps) {
+  const { t } = useTranslation();
+  const resolvedEmptyMessage = emptyMessage ?? t("feed.defaultEmptyMessage");
   const [tag, setTag] = useState<string | undefined>(
     initialTag ||
       (typeof window !== "undefined"
@@ -74,18 +77,26 @@ export default function Feed({
   };
 
   const tabs = [
-    { id: "all", label: "Recent" },
-    { id: "popular", label: "Popular" },
-    { id: "shelved", label: "Shelved" },
-    { id: "margin", label: "Margin" },
-    { id: "semble", label: "Semble" },
+    { id: "all", label: t("feed.tabs.recent") },
+    { id: "popular", label: t("feed.tabs.popular") },
+    { id: "shelved", label: t("feed.tabs.shelved") },
+    { id: "margin", label: t("feed.tabs.margin") },
+    { id: "semble", label: t("feed.tabs.semble") },
   ];
 
   const filters = [
-    { id: "all", label: "All", icon: null },
-    { id: "commenting", label: "Annotations", icon: MessageSquareText },
-    { id: "highlighting", label: "Highlights", icon: Highlighter },
-    { id: "bookmarking", label: "Bookmarks", icon: Bookmark },
+    { id: "all", label: t("feed.filters.all"), icon: null },
+    {
+      id: "commenting",
+      label: t("feed.filters.annotations"),
+      icon: MessageSquareText,
+    },
+    {
+      id: "highlighting",
+      label: t("feed.filters.highlights"),
+      icon: Highlighter,
+    },
+    { id: "bookmarking", label: t("feed.filters.bookmarks"), icon: Bookmark },
   ];
 
   return (
@@ -96,21 +107,20 @@ export default function Feed({
             <div className="h-48 w-48 rounded-full bg-primary-200/40 dark:bg-primary-900/20 blur-3xl" />
           </div>
           <h1 className="text-3xl sm:text-4xl font-display font-bold mb-3 tracking-tight text-surface-900 dark:text-white">
-            Welcome to Margin
+            {t("feed.welcome")}
           </h1>
           <p className="text-surface-500 dark:text-surface-400 mb-5 max-w-md mx-auto leading-relaxed">
-            A quiet place to annotate, highlight, and save what you read on the
-            web.
+            {t("feed.welcomeTagline")}
           </p>
           <div className="flex gap-3 justify-center">
             <Button onClick={() => (window.location.href = "/login")}>
-              Get started
+              {t("feed.getStarted")}
             </Button>
             <Button
               variant="secondary"
               onClick={() => window.open("/about", "_blank")}
             >
-              Learn more
+              {t("feed.learnMore")}
             </Button>
           </div>
         </div>
@@ -124,7 +134,7 @@ export default function Feed({
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-xl font-bold flex items-center gap-2">
               <span className="text-surface-500 font-normal">
-                Items with tag:
+                {t("feed.itemsWithTag")}
               </span>
               <span className="bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-lg">
                 #{tag}
@@ -134,7 +144,7 @@ export default function Feed({
               onClick={clearTag}
               className="text-sm text-surface-500 hover:text-surface-900 dark:hover:text-white"
             >
-              Clear filter
+              {t("feed.clearFilter")}
             </button>
           </div>
         )}
@@ -167,8 +177,8 @@ export default function Feed({
         {!showTabs && user && (
           <div className="flex items-center gap-1.5">
             {[
-              { id: "everyone", label: "Everyone", icon: Users },
-              { id: "mine", label: "Mine", icon: User },
+              { id: "everyone", label: t("feed.everyone"), icon: Users },
+              { id: "mine", label: t("feed.mine"), icon: User },
             ].map((f) => {
               const isActive = f.id === "mine" ? mineOnly : !mineOnly;
               return (
@@ -199,7 +209,7 @@ export default function Feed({
         type={activeTab}
         motivation={activeFilter}
         creator={mineOnly && user ? user.did : undefined}
-        emptyMessage={emptyMessage}
+        emptyMessage={resolvedEmptyMessage}
         layout={layout}
         tag={tag?.toLowerCase()}
         initialItems={

@@ -18,6 +18,7 @@ import React, { useEffect, useState } from "react";
 import { getUnreadNotificationCount } from "../../api/client";
 import { $user, logout } from "../../store/auth";
 import { AppleIcon } from "../common/Icons";
+import { useTranslation } from "react-i18next";
 
 interface MobileNavProps {
   currentPath?: string;
@@ -28,6 +29,7 @@ export default function MobileNav({
   currentPath: initialPath,
   onNavigate,
 }: MobileNavProps) {
+  const { t } = useTranslation();
   const user = useStore($user);
   const [currentPath, setCurrentPath] = useState(initialPath || "/");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -102,16 +104,28 @@ export default function MobileNav({
                   {
                     href: "/annotations",
                     icon: MessageSquareText,
-                    label: "Annotations",
+                    label: t("nav.annotations"),
                   },
                   {
                     href: "/highlights",
                     icon: Highlighter,
-                    label: "Highlights",
+                    label: t("nav.highlights"),
                   },
-                  { href: "/bookmarks", icon: Bookmark, label: "Bookmarks" },
-                  { href: "/collections", icon: Folder, label: "Collections" },
-                  { href: "/settings", icon: Settings, label: "Settings" },
+                  {
+                    href: "/bookmarks",
+                    icon: Bookmark,
+                    label: t("nav.bookmarks"),
+                  },
+                  {
+                    href: "/collections",
+                    icon: Folder,
+                    label: t("nav.collections"),
+                  },
+                  {
+                    href: "/settings",
+                    icon: Settings,
+                    label: t("nav.settings"),
+                  },
                 ].map(({ href, icon: Icon, label }) => (
                   <a
                     key={href}
@@ -140,7 +154,7 @@ export default function MobileNav({
                   onClick={closeMenu}
                 >
                   <AppleIcon size={20} />
-                  <span>iOS Shortcut</span>
+                  <span>{t("mobileNav.iosShortcut")}</span>
                 </a>
 
                 <div className="h-px bg-surface-200 dark:bg-surface-700 my-2" />
@@ -153,7 +167,7 @@ export default function MobileNav({
                   }}
                 >
                   <LogOut size={20} />
-                  <span>Log Out</span>
+                  <span>{t("nav.logOut")}</span>
                 </button>
               </>
             ) : (
@@ -164,11 +178,19 @@ export default function MobileNav({
                   onClick={closeMenu}
                 >
                   <User size={20} />
-                  <span>Sign In</span>
+                  <span>{t("nav.signIn")}</span>
                 </a>
                 {[
-                  { href: "/collections", icon: Folder, label: "Collections" },
-                  { href: "/settings", icon: Settings, label: "Settings" },
+                  {
+                    href: "/collections",
+                    icon: Folder,
+                    label: t("nav.collections"),
+                  },
+                  {
+                    href: "/settings",
+                    icon: Settings,
+                    label: t("nav.settings"),
+                  },
                 ].map(({ href, icon: Icon, label }) => (
                   <a
                     key={href}
@@ -197,7 +219,7 @@ export default function MobileNav({
                   onClick={closeMenu}
                 >
                   <AppleIcon size={20} />
-                  <span>iOS Shortcut</span>
+                  <span>{t("mobileNav.iosShortcut")}</span>
                 </a>
               </>
             )}

@@ -4,11 +4,45 @@ import react from "@astrojs/react";
 import tailwind from "@astrojs/tailwind";
 import node from "@astrojs/node";
 import { fileURLToPath } from "url";
-import { dirname, resolve } from "path";
+import { dirname, resolve, join } from "path";
+import { readdirSync, existsSync } from "fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const API_PORT = process.env.API_PORT || 8081;
+
+function i18nLanguagesPlugin() {
+  const virtualId = "virtual:i18n-languages";
+  const resolvedId = "\0" + virtualId;
+  return {
+    name: "i18n-languages",
+    resolveId(id) {
+      if (id === virtualId) return resolvedId;
+    },
+    load(id) {
+      if (id !== resolvedId) return;
+      const localesDir = join(__dirname, "public/locales");
+      const languages = readdirSync(localesDir, { withFileTypes: true })
+        .filter(
+          (d) =>
+            d.isDirectory() &&
+            existsSync(join(localesDir, d.name, "translation.json")),
+        )
+        .map((d) => {
+          const code = d.name;
+          const name =
+            new Intl.DisplayNames(["en"], { type: "language" }).of(code) ??
+            code;
+          const nativeName =
+            new Intl.DisplayNames([code], { type: "language" }).of(code) ??
+            name;
+          return { code, name, nativeName };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+      return `export const languages = ${JSON.stringify(languages)};`;
+    },
+  };
+}
 
 // https://astro.build/config
 export default defineConfig({
@@ -21,6 +55,7 @@ export default defineConfig({
     defaultStrategy: "viewport",
   },
   vite: {
+    plugins: [i18nLanguagesPlugin()],
     resolve: {
       alias: {
         "@": resolve(__dirname, "src"),

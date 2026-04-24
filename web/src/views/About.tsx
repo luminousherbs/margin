@@ -1,5 +1,7 @@
 import React from "react";
 import { useStore } from "@nanostores/react";
+import { useTranslation } from "react-i18next";
+import "../i18n";
 
 import { $theme, cycleTheme } from "../store/theme";
 import { $user } from "../store/auth";
@@ -93,6 +95,7 @@ function ExtensionFeature({
 }
 
 export default function About() {
+  const { t } = useTranslation();
   const theme = useStore($theme); // ensure theme is applied on this page
   const user = useStore($user);
 
@@ -166,13 +169,13 @@ export default function About() {
                 href="/home"
                 className="text-[13px] font-medium text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800"
               >
-                Feed
+                {t("nav.feed")}
               </a>
               <a
                 href="/discover"
                 className="text-[13px] font-medium text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800"
               >
-                Discover
+                {t("nav.discover")}
               </a>
             </div>
           </div>
@@ -182,7 +185,7 @@ export default function About() {
                 href="/login"
                 className="text-[13px] font-medium text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800"
               >
-                Sign in
+                {t("nav.signIn")}
               </a>
             )}
 
@@ -193,8 +196,10 @@ export default function About() {
               className="inline-flex items-center gap-1.5 text-[13px] font-semibold px-3.5 py-1.5 bg-surface-900 dark:bg-white text-white dark:text-surface-900 rounded-lg hover:bg-surface-800 dark:hover:bg-surface-100 transition-colors"
             >
               <ExtensionIcon size={14} />
-              <span className="hidden sm:inline">Get Extension</span>
-              <span className="sm:hidden">Install</span>
+              <span className="hidden sm:inline">
+                {t("about.nav.getExtension")}
+              </span>
+              <span className="sm:hidden">{t("about.nav.install")}</span>
             </a>
           </div>
         </div>
@@ -230,32 +235,30 @@ export default function About() {
                 </a>
               </div>
               <span className="pr-4 pl-0.5 text-[13px] font-semibold text-surface-600 dark:text-surface-300">
-                Fully open source{" "}
+                {t("about.hero.openSource")}{" "}
                 <span className="text-primary-500 font-normal">✨</span>
               </span>
             </div>
           </div>
 
           <h1 className="font-display text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-surface-900 dark:text-white leading-[1.05] mb-6">
-            Write on the margins <br className="hidden sm:block" />
+            {t("about.hero.headline")} <br className="hidden sm:block" />
             <span className="text-primary-600 dark:text-primary-400">
-              of the internet.
+              {t("about.hero.headlineAccent")}
             </span>
           </h1>
 
           <p className="text-lg md:text-xl text-surface-500 dark:text-surface-400 max-w-2xl mx-auto leading-relaxed mb-10">
-            Margin is an open annotation layer for the internet. Highlight text,
-            leave notes, and bookmark pages, all stored on your decentralized
-            identity with the{" "}
+            {t("about.hero.descriptionPre")}{" "}
             <a
               href="https://atproto.com"
               target="_blank"
               rel="noreferrer"
               className="text-surface-800 dark:text-surface-200 hover:text-primary-600 dark:hover:text-primary-400 border-b border-surface-300 dark:border-surface-600 hover:border-primary-400 transition-colors font-medium"
             >
-              AT Protocol
+              {t("about.hero.atProtocol")}
             </a>
-            . Not locked in a silo.
+            {t("about.hero.descriptionPost")}
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-4">
@@ -263,7 +266,7 @@ export default function About() {
               href={user ? "/home" : "/login"}
               className="group inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-surface-900 dark:bg-white text-white dark:text-surface-900 rounded-[14px] font-semibold hover:bg-surface-800 dark:hover:bg-surface-200 hover:scale-[1.02] shadow-sm transition-all duration-200 w-full sm:w-auto"
             >
-              {user ? "Open App" : "Get Started"}
+              {user ? t("about.hero.openApp") : t("about.hero.getStarted")}
               <ArrowRight
                 size={18}
                 className="transition-transform group-hover:translate-x-1"
@@ -276,7 +279,7 @@ export default function About() {
               className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-surface-50 dark:bg-surface-800/50 text-surface-700 dark:text-surface-200 hover:text-surface-900 dark:hover:text-white rounded-[14px] font-semibold hover:bg-surface-100 dark:hover:bg-surface-800 hover:scale-[1.02] transition-all duration-200 w-full sm:w-auto"
             >
               <ExtensionIcon size={18} />
-              Install for {extensionLabel}
+              {t("about.hero.installFor", { browser: extensionLabel })}
             </a>
           </div>
         </div>
@@ -285,45 +288,44 @@ export default function About() {
       <section className="max-w-5xl mx-auto px-6 py-20 md:py-24">
         <div className="text-center mb-12">
           <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-surface-900 dark:text-white mb-4">
-            Everything you need to engage with the web
+            {t("about.features.title")}
           </h2>
           <p className="text-surface-500 dark:text-surface-400 max-w-xl mx-auto leading-relaxed">
-            More than bookmarks. A full toolkit for reading, thinking, and
-            sharing on the open web.
+            {t("about.features.subtitle")}
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           <FeatureCard
             icon={MessageSquareText}
-            title="Annotations"
-            description="Leave notes on any web page. Start discussions, share insights, or just jot down your thoughts for later."
+            title={t("about.features.annotations.title")}
+            description={t("about.features.annotations.description")}
             accent
           />
           <FeatureCard
             icon={Highlighter}
-            title="Highlights"
-            description="Select and highlight text on any page with customizable colors. Your highlights are rendered inline with the CSS Highlights API."
+            title={t("about.features.highlights.title")}
+            description={t("about.features.highlights.description")}
           />
           <FeatureCard
             icon={Bookmark}
-            title="Bookmarks"
-            description="Save pages with one click or a keyboard shortcut. All your bookmarks are synced to your AT Protocol identity."
+            title={t("about.features.bookmarks.title")}
+            description={t("about.features.bookmarks.description")}
           />
           <FeatureCard
             icon={FolderOpen}
-            title="Collections"
-            description="Organize your annotations, highlights, and bookmarks into themed collections. Share them publicly or keep them private."
+            title={t("about.features.collections.title")}
+            description={t("about.features.collections.description")}
           />
           <FeatureCard
             icon={Users}
-            title="Social Discovery"
-            description="See what others are saying about the pages you visit. Discover annotations, trending tags, and connect with other readers."
+            title={t("about.features.socialDiscovery.title")}
+            description={t("about.features.socialDiscovery.description")}
           />
           <FeatureCard
             icon={Hash}
-            title="Tags & Search"
-            description="Tag your annotations for easy retrieval. Search by URL, tag, or content to find exactly what you're looking for."
+            title={t("about.features.tagsSearch.title")}
+            description={t("about.features.tagsSearch.description")}
           />
         </div>
       </section>
@@ -334,39 +336,45 @@ export default function About() {
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400 text-xs font-medium mb-5 border border-surface-200/60 dark:border-surface-700/60">
                 <ExtensionIcon size={13} />
-                Browser Extension
+                {t("about.extension.badge")}
               </div>
               <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-surface-900 dark:text-white mb-4">
-                Your annotation toolkit,
+                {t("about.extension.title")}
                 <br />
-                right in the browser
+                {t("about.extension.titleLine2")}
               </h2>
               <p className="text-surface-500 dark:text-surface-400 leading-relaxed mb-8">
-                The Margin extension brings the full annotation experience
-                directly into every page you visit. Just select, annotate, and
-                go.
+                {t("about.extension.description")}
               </p>
 
               <div className="space-y-5">
                 <ExtensionFeature
                   icon={Eye}
-                  title="Inline Overlay"
-                  description="See annotations and highlights rendered directly on the page. Uses the CSS Highlights API for beautiful, native-feeling text underlines."
+                  title={t("about.extension.features.inlineOverlay.title")}
+                  description={t(
+                    "about.extension.features.inlineOverlay.description",
+                  )}
                 />
                 <ExtensionFeature
                   icon={MousePointerClick}
-                  title="Context Menu & Selection"
-                  description="Right-click any selected text to annotate, highlight, or quote it. Or just right-click the page to bookmark it instantly."
+                  title={t("about.extension.features.contextMenu.title")}
+                  description={t(
+                    "about.extension.features.contextMenu.description",
+                  )}
                 />
                 <ExtensionFeature
                   icon={Keyboard}
-                  title="Keyboard Shortcuts"
-                  description="Toggle the overlay, bookmark the current page, or annotate selected text without reaching for the mouse."
+                  title={t("about.extension.features.keyboard.title")}
+                  description={t(
+                    "about.extension.features.keyboard.description",
+                  )}
                 />
                 <ExtensionFeature
                   icon={PanelRight}
-                  title="Side Panel"
-                  description="Open the Margin side panel to browse annotations, bookmarks, and collections without leaving the page you're reading."
+                  title={t("about.extension.features.sidePanel.title")}
+                  description={t(
+                    "about.extension.features.sidePanel.description",
+                  )}
                 />
               </div>
 
@@ -378,7 +386,7 @@ export default function About() {
                   className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-surface-900 dark:bg-white text-white dark:text-surface-900 rounded-lg font-medium text-sm transition-all hover:opacity-90"
                 >
                   <ExtensionIcon size={15} />
-                  Install for {extensionLabel}
+                  {t("about.hero.installFor", { browser: extensionLabel })}
                   <ExternalLink size={12} />
                 </a>
                 {browser !== "chrome" && (
@@ -424,7 +432,7 @@ export default function About() {
                   className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-200 rounded-lg font-medium text-sm transition-all hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200/80 dark:border-surface-700/80"
                 >
                   <AppleIcon size={15} />
-                  iOS Shortcut
+                  {t("about.extension.iosShortcut")}
                   <ExternalLink size={12} />
                 </a>
               </div>
@@ -499,51 +507,32 @@ export default function About() {
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-surface-800 text-surface-600 dark:text-surface-400 text-xs font-medium mb-5 border border-surface-200/60 dark:border-surface-700/60">
               <Shield size={13} />
-              Decentralized
+              {t("about.protocol.badge")}
             </div>
             <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-surface-900 dark:text-white mb-4">
-              Your data, your identity
+              {t("about.protocol.title")}
             </h2>
             <p className="text-surface-500 dark:text-surface-400 leading-relaxed mb-6">
-              Margin is built on the{" "}
+              {t("about.protocol.descriptionPre")}{" "}
               <a
                 href="https://atproto.com"
                 target="_blank"
                 rel="noreferrer"
                 className="text-primary-600 dark:text-primary-400 hover:underline font-medium"
               >
-                AT Protocol
+                {t("about.hero.atProtocol")}
               </a>
-              , the open protocol that powers apps like Bluesky. Your
-              annotations, highlights, and bookmarks are stored in your personal
-              data repository, not locked in a silo.
+              {t("about.protocol.descriptionPost")}
             </p>
             <ul className="space-y-3 text-sm text-surface-600 dark:text-surface-300">
-              <li className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary-600 dark:bg-primary-400" />
-                </div>
-                Sign in with your AT Protocol handle, no new account needed
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary-600 dark:bg-primary-400" />
-                </div>
-                Your data lives in your PDS, portable and under your control
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary-600 dark:bg-primary-400" />
-                </div>
-                Custom Lexicon schemas for annotations, highlights, collections
-                & more
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary-600 dark:bg-primary-400" />
-                </div>
-                Fully open source, check out the code and contribute
-              </li>
+              {([0, 1, 2, 3] as const).map((i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary-600 dark:bg-primary-400" />
+                  </div>
+                  {t(`about.protocol.point${i}`)}
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -609,18 +598,17 @@ export default function About() {
       <section className="border-t border-surface-200/60 dark:border-surface-800/60">
         <div className="max-w-5xl mx-auto px-6 py-20 md:py-24 text-center">
           <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-surface-900 dark:text-white mb-4">
-            Start writing on the margins
+            {t("about.cta.title")}
           </h2>
           <p className="text-surface-500 dark:text-surface-400 max-w-lg mx-auto mb-8">
-            Join the open annotation layer. Sign in with your AT Protocol
-            identity and install the extension to get started.
+            {t("about.cta.description")}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <a
               href={user ? "/home" : "/login"}
               className="inline-flex items-center gap-2 px-7 py-3 bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-400 text-white rounded-xl font-semibold transition-colors"
             >
-              {user ? "Open App" : "Sign in"}
+              {user ? t("about.hero.openApp") : t("about.cta.signIn")}
               <ArrowRight size={16} />
             </a>
             <a
@@ -630,7 +618,7 @@ export default function About() {
               className="inline-flex items-center gap-2 px-7 py-3 text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors font-medium"
             >
               <Github size={16} />
-              View on GitHub
+              {t("about.cta.viewGitHub")}
             </a>
             <a
               href="https://tangled.org/margin.at/margin"
@@ -639,7 +627,7 @@ export default function About() {
               className="inline-flex items-center gap-2 px-7 py-3 text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors font-medium"
             >
               <TangledIcon size={16} />
-              View on Tangled
+              {t("about.cta.viewTangled")}
             </a>
           </div>
           <div className="mt-10 flex items-center gap-5 flex-wrap justify-center">
@@ -666,7 +654,7 @@ export default function About() {
                 className="w-5 h-5 opacity-60"
               />
               <span className="text-sm text-surface-400 dark:text-surface-500">
-                © 2026 Padding Labs LLC
+                {t("sidebar.copyright")}
               </span>
             </div>
             <div className="flex items-center gap-5 text-sm text-surface-400 dark:text-surface-500">
@@ -675,20 +663,20 @@ export default function About() {
                   href="/home"
                   className="hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
                 >
-                  Feed
+                  {t("nav.feed")}
                 </a>
               )}
               <a
                 href="/privacy"
                 className="hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
               >
-                Privacy
+                {t("about.footer.privacy")}
               </a>
               <a
                 href="/terms"
                 className="hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
               >
-                Terms
+                {t("about.footer.terms")}
               </a>
               <a
                 href="https://github.com/margin-at"
@@ -710,17 +698,17 @@ export default function About() {
                 href="mailto:hello@margin.at"
                 className="hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
               >
-                Contact
+                {t("about.footer.contact")}
               </a>
               <div className="w-px h-4 bg-surface-200 dark:bg-surface-700 ml-1" />
               <button
                 onClick={cycleTheme}
                 title={
                   theme === "light"
-                    ? "Light mode"
+                    ? t("nav.themeLight")
                     : theme === "dark"
-                      ? "Dark mode"
-                      : "System theme"
+                      ? t("nav.themeDark")
+                      : t("nav.themeSystem")
                 }
                 className="flex items-center gap-1.5 hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
               >

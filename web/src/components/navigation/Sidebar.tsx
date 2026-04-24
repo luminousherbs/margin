@@ -20,6 +20,7 @@ import { $user, logout } from "../../store/auth";
 import { $theme, cycleTheme } from "../../store/theme";
 import { getUnreadNotificationCount } from "../../api/client";
 import { Avatar, CountBadge } from "../ui";
+import { useTranslation } from "react-i18next";
 
 interface SidebarProps {
   currentPath?: string;
@@ -30,6 +31,7 @@ export default function Sidebar({
   currentPath: initialPath,
   onNavigate,
 }: SidebarProps) {
+  const { t } = useTranslation();
   const user = useStore($user);
   const theme = useStore($theme);
   const currentPath = initialPath || "/";
@@ -49,44 +51,60 @@ export default function Sidebar({
   }, [user]);
 
   const publicNavItems = [
-    { icon: Home, label: "Feed", href: "/home", badge: undefined },
-    { icon: Compass, label: "Discover", href: "/discover", badge: undefined },
+    { icon: Home, label: t("nav.feed"), href: "/home", badge: undefined },
+    {
+      icon: Compass,
+      label: t("nav.discover"),
+      href: "/discover",
+      badge: undefined,
+    },
     {
       icon: MessageSquareText,
-      label: "Annotations",
+      label: t("nav.annotations"),
       href: "/annotations",
       badge: undefined,
     },
     {
       icon: Highlighter,
-      label: "Highlights",
+      label: t("nav.highlights"),
       href: "/highlights",
       badge: undefined,
     },
     {
       icon: Bookmark,
-      label: "Bookmarks",
+      label: t("nav.bookmarks"),
       href: "/bookmarks",
       badge: undefined,
     },
   ];
 
   const authNavItems = [
-    { icon: Home, label: "Feed", href: "/home" },
-    { icon: Compass, label: "Discover", href: "/discover" },
+    { icon: Home, label: t("nav.feed"), href: "/home" },
+    { icon: Compass, label: t("nav.discover"), href: "/discover" },
     {
       icon: Bell,
-      label: "Activity",
+      label: t("nav.activity"),
       href: "/notifications",
       badge: unreadCount,
     },
-    { icon: MessageSquareText, label: "Annotations", href: "/annotations" },
-    { icon: Highlighter, label: "Highlights", href: "/highlights" },
-    { icon: Bookmark, label: "Bookmarks", href: "/bookmarks" },
-    { icon: Folder, label: "Collections", href: "/collections" },
+    {
+      icon: MessageSquareText,
+      label: t("nav.annotations"),
+      href: "/annotations",
+    },
+    { icon: Highlighter, label: t("nav.highlights"), href: "/highlights" },
+    { icon: Bookmark, label: t("nav.bookmarks"), href: "/bookmarks" },
+    { icon: Folder, label: t("nav.collections"), href: "/collections" },
   ];
 
   const navItems = user ? authNavItems : publicNavItems;
+
+  const themeLabel =
+    theme === "light"
+      ? t("nav.themeLight")
+      : theme === "dark"
+        ? t("nav.themeDark")
+        : t("nav.themeSystem");
 
   return (
     <aside className="sticky top-0 h-screen hidden md:flex flex-col justify-between py-6 px-2 lg:px-4 z-50 w-[68px] lg:w-[260px] transition-all duration-200">
@@ -146,7 +164,7 @@ export default function Sidebar({
           {user && (
             <a
               href="/new"
-              title="New annotation"
+              title={t("nav.new")}
               onClick={
                 onNavigate
                   ? (e) => {
@@ -158,7 +176,7 @@ export default function Sidebar({
               className="flex items-center justify-center lg:justify-start gap-3 px-0 lg:px-3 py-2.5 mt-2 rounded-lg bg-primary-600 dark:bg-primary-500 text-white hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors text-[14px] font-semibold"
             >
               <PenSquare size={20} strokeWidth={1.75} />
-              <span className="hidden lg:inline">New</span>
+              <span className="hidden lg:inline">{t("nav.new")}</span>
             </a>
           )}
         </nav>
@@ -167,9 +185,7 @@ export default function Sidebar({
       <div className="space-y-1">
         <button
           onClick={cycleTheme}
-          title={
-            theme === "light" ? "Light" : theme === "dark" ? "Dark" : "System"
-          }
+          title={themeLabel}
           className="flex items-center justify-center lg:justify-start gap-3 px-0 lg:px-3 py-2.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 text-[13px] font-medium text-surface-500 dark:text-surface-400 w-full transition-colors"
         >
           {theme === "light" ? (
@@ -179,16 +195,14 @@ export default function Sidebar({
           ) : (
             <Monitor size={18} />
           )}
-          <span className="hidden lg:inline">
-            {theme === "light" ? "Light" : theme === "dark" ? "Dark" : "System"}
-          </span>
+          <span className="hidden lg:inline">{themeLabel}</span>
         </button>
 
         {user ? (
           <>
             <a
               href="/settings"
-              title="Settings"
+              title={t("nav.settings")}
               onClick={
                 onNavigate
                   ? (e) => {
@@ -200,7 +214,7 @@ export default function Sidebar({
               className="flex items-center justify-center lg:justify-start gap-3 px-0 lg:px-3 py-2.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 text-[13px] font-medium text-surface-500 dark:text-surface-400 transition-colors"
             >
               <Settings size={18} />
-              <span className="hidden lg:inline">Settings</span>
+              <span className="hidden lg:inline">{t("nav.settings")}</span>
             </a>
 
             <div className="h-px bg-surface-200/60 dark:bg-surface-800/60 my-2" />
@@ -231,11 +245,11 @@ export default function Sidebar({
 
             <button
               onClick={logout}
-              title="Log out"
+              title={t("nav.logOut")}
               className="flex items-center justify-center lg:justify-start gap-3 px-0 lg:px-3 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-[13px] font-medium text-surface-400 dark:text-surface-500 hover:text-red-600 dark:hover:text-red-400 w-full text-left transition-colors"
             >
               <LogOut size={16} />
-              <span className="hidden lg:inline">Log out</span>
+              <span className="hidden lg:inline">{t("nav.logOut")}</span>
             </button>
           </>
         ) : (
@@ -244,11 +258,11 @@ export default function Sidebar({
 
             <a
               href="/login"
-              title="Sign in"
+              title={t("nav.signIn")}
               className="flex items-center justify-center lg:justify-start gap-3 px-0 lg:px-3 py-2.5 rounded-lg bg-primary-50 dark:bg-primary-950/40 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-950/60 text-[13px] font-semibold transition-colors"
             >
               <LogIn size={18} />
-              <span className="hidden lg:inline">Sign in</span>
+              <span className="hidden lg:inline">{t("nav.signIn")}</span>
             </a>
           </>
         )}

@@ -1,5 +1,6 @@
 import { useStore } from "@nanostores/react";
 import { clsx } from "clsx";
+import { useTranslation } from "react-i18next";
 import {
   Edit2,
   Eye,
@@ -84,6 +85,7 @@ const motivationMap: Record<Tab, string | undefined> = {
 };
 
 export default function Profile({ did, initialProfile }: ProfileProps) {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(
     initialProfile || null,
   );
@@ -296,27 +298,27 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
   if (!profile) {
     return (
       <EmptyState
-        title="User not found"
-        message="This profile doesn't exist or couldn't be loaded."
+        title={t("profile.notFound")}
+        message={t("profile.notFoundMessage")}
       />
     );
   }
 
   const tabs = [
-    { id: "all", label: "All" },
-    { id: "annotations", label: "Annotations" },
-    { id: "highlights", label: "Highlights" },
-    { id: "bookmarks", label: "Bookmarks" },
-    { id: "collections", label: "Collections" },
+    { id: "all", label: t("urlPage.tabs.all") },
+    { id: "annotations", label: t("urlPage.tabs.annotations") },
+    { id: "highlights", label: t("urlPage.tabs.highlights") },
+    { id: "bookmarks", label: t("urlPage.tabs.bookmarks") },
+    { id: "collections", label: t("urlPage.tabs.collections") },
   ];
 
   const LABEL_DESCRIPTIONS: Record<string, string> = {
-    sexual: "Sexual Content",
-    nudity: "Nudity",
-    violence: "Violence",
-    gore: "Graphic Content",
-    spam: "Spam",
-    misleading: "Misleading",
+    sexual: t("card.labelDescriptions.sexual"),
+    nudity: t("card.labelDescriptions.nudity"),
+    violence: t("card.labelDescriptions.violence"),
+    gore: t("card.labelDescriptions.gore"),
+    spam: t("card.labelDescriptions.spam"),
+    misleading: t("card.labelDescriptions.misleading"),
   };
 
   const accountWarning = (() => {
@@ -389,7 +391,9 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
                     onClick={() => setShowEdit(true)}
                     icon={<Edit2 size={14} />}
                   >
-                    <span className="hidden sm:inline">Edit</span>
+                    <span className="hidden sm:inline">
+                      {t("profile.edit")}
+                    </span>
                   </Button>
                 )}
                 {!isOwner && user && (
@@ -397,7 +401,7 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
                     items={(() => {
                       const items: MoreMenuItem[] = [];
                       items.push({
-                        label: "View profile in Bluesky",
+                        label: t("profile.viewInBluesky"),
                         icon: <BlueskyIcon size={16} />,
                         onClick: () => {
                           const handle = profile.handle || did;
@@ -409,7 +413,9 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
                       });
                       if (modRelation.blocking) {
                         items.push({
-                          label: `Unblock @${profile.handle || "user"}`,
+                          label: t("profile.unblock", {
+                            handle: profile.handle || "user",
+                          }),
                           icon: <ShieldOff size={14} />,
                           onClick: async () => {
                             await unblockUser(did);
@@ -421,7 +427,9 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
                         });
                       } else {
                         items.push({
-                          label: `Block @${profile.handle || "user"}`,
+                          label: t("profile.block", {
+                            handle: profile.handle || "user",
+                          }),
                           icon: <ShieldBan size={14} />,
                           onClick: async () => {
                             await blockUser(did);
@@ -435,7 +443,9 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
                       }
                       if (modRelation.muting) {
                         items.push({
-                          label: `Unmute @${profile.handle || "user"}`,
+                          label: t("profile.unmute", {
+                            handle: profile.handle || "user",
+                          }),
                           icon: <Volume2 size={14} />,
                           onClick: async () => {
                             await unmuteUser(did);
@@ -447,7 +457,9 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
                         });
                       } else {
                         items.push({
-                          label: `Mute @${profile.handle || "user"}`,
+                          label: t("profile.mute", {
+                            handle: profile.handle || "user",
+                          }),
                           icon: <VolumeX size={14} />,
                           onClick: async () => {
                             await muteUser(did);
@@ -459,7 +471,7 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
                         });
                       }
                       items.push({
-                        label: "Report",
+                        label: t("profile.report"),
                         icon: <Flag size={14} />,
                         onClick: () => setShowReportModal(true),
                         variant: "danger",
@@ -550,10 +562,12 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
             <EyeOff size={18} className="text-amber-500 flex-shrink-0" />
             <div className="flex-1">
               <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                Account labeled: {accountWarning.description}
+                {t("profile.accountLabeled", {
+                  description: accountWarning.description,
+                })}
               </p>
               <p className="text-xs text-amber-600/70 dark:text-amber-400/60 mt-0.5">
-                This label was applied by a moderation service you subscribe to.
+                {t("profile.labelApplied")}
               </p>
             </div>
             {!profileRevealed ? (
@@ -562,7 +576,7 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded-lg transition-colors"
               >
                 <Eye size={12} />
-                Show
+                {t("profile.show")}
               </button>
             ) : (
               <button
@@ -570,7 +584,7 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded-lg transition-colors"
               >
                 <EyeOff size={12} />
-                Hide
+                {t("profile.hide")}
               </button>
             )}
           </div>
@@ -583,10 +597,10 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
             <ShieldBan size={18} className="text-red-500 flex-shrink-0" />
             <div className="flex-1">
               <p className="text-sm font-medium text-red-700 dark:text-red-400">
-                You have blocked @{profile.handle}
+                {t("profile.blockedBanner", { handle: profile.handle })}
               </p>
               <p className="text-xs text-red-600/70 dark:text-red-400/60 mt-0.5">
-                Their content is hidden from your feeds.
+                {t("profile.blockedMessage")}
               </p>
             </div>
             <button
@@ -596,7 +610,7 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
               }}
               className="px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
             >
-              Unblock
+              {t("profile.unblock_action")}
             </button>
           </div>
         </div>
@@ -608,10 +622,10 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
             <VolumeX size={18} className="text-amber-500 flex-shrink-0" />
             <div className="flex-1">
               <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                You have muted @{profile.handle}
+                {t("profile.mutedBanner", { handle: profile.handle })}
               </p>
               <p className="text-xs text-amber-600/70 dark:text-amber-400/60 mt-0.5">
-                Their content is hidden from your feeds.
+                {t("profile.mutedMessage")}
               </p>
             </div>
             <button
@@ -621,7 +635,7 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
               }}
               className="px-3 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded-lg transition-colors"
             >
-              Unmute
+              {t("profile.unmute_action")}
             </button>
           </div>
         </div>
@@ -632,8 +646,7 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
           <div className="flex items-center gap-3">
             <ShieldBan size={18} className="text-surface-400 flex-shrink-0" />
             <p className="text-sm text-surface-500 dark:text-surface-400">
-              @{profile.handle} has blocked you. You cannot interact with their
-              content.
+              {t("profile.blockedByBanner", { handle: profile.handle })}
             </p>
           </div>
         </div>
@@ -654,7 +667,7 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
               size={24}
             />
             <p className="text-sm text-surface-400 dark:text-surface-500">
-              Loading...
+              {t("common.loading")}
             </p>
           </div>
         ) : activeTab === "collections" ? (
@@ -663,8 +676,8 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
               icon={<Folder size={40} />}
               message={
                 isOwner
-                  ? "You haven't created any collections yet."
-                  : "No collections"
+                  ? t("profile.emptyCollectionsOwn")
+                  : t("profile.emptyCollectionsOther")
               }
             />
           ) : (
@@ -683,8 +696,7 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
                       {collection.name}
                     </h3>
                     <p className="text-sm text-surface-500 dark:text-surface-400">
-                      {collection.itemCount}{" "}
-                      {collection.itemCount === 1 ? "item" : "items"}
+                      {t("profile.itemCount", { count: collection.itemCount })}
                     </p>
                   </div>
                 </a>
@@ -700,8 +712,8 @@ export default function Profile({ did, initialProfile }: ProfileProps) {
             layout="list"
             emptyMessage={
               isOwner
-                ? `Your ${activeTab} will show up here.`
-                : `Nothing to see here yet.`
+                ? t("profile.emptyTabOwn", { tab: activeTab })
+                : t("profile.emptyTabOther")
             }
           />
         )}

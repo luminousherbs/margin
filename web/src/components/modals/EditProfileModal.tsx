@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import { updateProfile, uploadAvatar, getAvatarUrl } from "../../api/client";
 import type { UserProfile } from "../../types";
 import { Loader2, X, Plus, User as UserIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface EditProfileModalProps {
   profile: UserProfile;
@@ -14,6 +15,7 @@ export default function EditProfileModal({
   onClose,
   onUpdate,
 }: EditProfileModalProps) {
+  const { t } = useTranslation();
   const [displayName, setDisplayName] = useState(profile.displayName || "");
   const [description, setDescription] = useState(profile.description || "");
   const [website, setWebsite] = useState(profile.website || "");
@@ -33,12 +35,12 @@ export default function EditProfileModal({
     if (!file) return;
 
     if (!["image/jpeg", "image/png"].includes(file.type)) {
-      setError("Please select a JPEG or PNG image");
+      setError(t("editProfile.avatarTypeError"));
       return;
     }
 
     if (file.size > 1024 * 1024 * 2) {
-      setError("Image must be under 2MB");
+      setError(t("editProfile.avatarSizeError"));
       return;
     }
 
@@ -52,8 +54,9 @@ export default function EditProfileModal({
       setAvatarBlob(result.blob);
     } catch (err) {
       setError(
-        "Failed to upload: " +
-          (err instanceof Error ? err.message : "Unknown error"),
+        t("editProfile.avatarUploadError", {
+          message: err instanceof Error ? err.message : "Unknown error",
+        }),
       );
       setAvatarPreview(null);
     } finally {
@@ -117,7 +120,7 @@ export default function EditProfileModal({
       >
         <div className="flex items-center justify-between p-4 border-b border-surface-100 dark:border-surface-800">
           <h2 className="text-lg font-bold text-surface-900 dark:text-white">
-            Edit Profile
+            {t("editProfile.title")}
           </h2>
           <button
             onClick={onClose}
@@ -139,7 +142,7 @@ export default function EditProfileModal({
 
           <div className="mb-5">
             <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
-              Avatar
+              {t("editProfile.avatarLabel")}
             </label>
             <div className="flex items-center gap-3">
               <div
@@ -174,14 +177,16 @@ export default function EditProfileModal({
                 className="px-3 py-1.5 rounded-lg bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-900 dark:text-white font-medium text-sm transition-colors"
                 disabled={uploading}
               >
-                {uploading ? "Uploading..." : "Upload"}
+                {uploading
+                  ? t("editProfile.uploading")
+                  : t("editProfile.uploadButton")}
               </button>
             </div>
           </div>
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-              Display Name
+              {t("editProfile.displayNameLabel")}
             </label>
             <input
               type="text"
@@ -194,7 +199,7 @@ export default function EditProfileModal({
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-              Bio
+              {t("editProfile.bioLabel")}
             </label>
             <textarea
               value={description}
@@ -206,7 +211,7 @@ export default function EditProfileModal({
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-              Website
+              {t("editProfile.websiteLabel")}
             </label>
             <input
               type="url"
@@ -219,7 +224,7 @@ export default function EditProfileModal({
 
           <div className="mb-5">
             <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-              Links
+              {t("editProfile.linksLabel")}
             </label>
             <div className="space-y-2">
               {links.map((link, i) => (
@@ -244,7 +249,7 @@ export default function EditProfileModal({
                   type="url"
                   value={newLink}
                   onChange={(e) => setNewLink(e.target.value)}
-                  placeholder="Add a link..."
+                  placeholder={t("editProfile.addLinkPlaceholder")}
                   className="flex-1 px-3 py-2 rounded-lg bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-surface-900 dark:text-white placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:focus:border-primary-400 text-sm"
                   onKeyDown={(e) =>
                     e.key === "Enter" && (e.preventDefault(), handleAddLink())
@@ -268,7 +273,7 @@ export default function EditProfileModal({
               className="px-4 py-2 rounded-lg text-surface-600 dark:text-surface-300 font-medium hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
               disabled={saving}
             >
-              Cancel
+              {t("editProfile.cancel")}
             </button>
             <button
               type="submit"
@@ -276,7 +281,7 @@ export default function EditProfileModal({
               disabled={saving}
             >
               {saving && <Loader2 size={14} className="animate-spin" />}
-              {saving ? "Saving..." : "Save"}
+              {saving ? t("editProfile.saving") : t("editProfile.save")}
             </button>
           </div>
         </form>

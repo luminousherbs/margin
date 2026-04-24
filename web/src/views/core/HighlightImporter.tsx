@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createHighlight } from "../../api/client";
 import type { Selector } from "../../types";
 import { analytics } from "../../lib/analytics";
@@ -29,6 +30,7 @@ interface ImportProgress {
 }
 
 export function HighlightImporter() {
+  const { t } = useTranslation();
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -167,7 +169,7 @@ https://blog.example.com,"Another highlight","Article Title","reading",blue,2024
       const highlights = parseCSV(csv);
 
       if (highlights.length === 0) {
-        alert("No valid highlights found in CSV");
+        alert(t("highlightImporter.noHighlights"));
         setIsImporting(false);
         return;
       }
@@ -224,7 +226,9 @@ https://blog.example.com,"Another highlight","Article Title","reading",blue,2024
     } catch (error) {
       analytics.captureException(error);
       alert(
-        `Error parsing CSV: ${error instanceof Error ? error.message : "Unknown error"}`,
+        t("highlightImporter.errorParsing", {
+          message: error instanceof Error ? error.message : "Unknown error",
+        }),
       );
       setIsImporting(false);
     }
@@ -250,11 +254,12 @@ https://blog.example.com,"Another highlight","Article Title","reading",blue,2024
           <div className="flex flex-col items-center gap-2">
             <Upload className="w-6 h-6 text-surface-500 dark:text-surface-400" />
             <span className="text-sm font-medium text-surface-700 dark:text-surface-300">
-              {isImporting ? "Processing..." : "Click to upload CSV"}
+              {isImporting
+                ? t("highlightImporter.processing")
+                : t("highlightImporter.clickToUpload")}
             </span>
             <span className="text-xs text-surface-500 dark:text-surface-400">
-              Required columns: url, text | Optional: title, tags, color,
-              created_at
+              {t("highlightImporter.requiredColumns")}
             </span>
           </div>
         </label>
@@ -265,7 +270,7 @@ https://blog.example.com,"Another highlight","Article Title","reading",blue,2024
           className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-surface-700 dark:text-surface-300 bg-surface-100 dark:bg-surface-700 hover:bg-surface-200 dark:hover:bg-surface-600 rounded-lg transition"
         >
           <Download size={16} />
-          Download Template
+          {t("highlightImporter.downloadTemplate")}
         </button>
       </div>
     );
@@ -282,7 +287,7 @@ https://blog.example.com,"Another highlight","Article Title","reading",blue,2024
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-surface-700 dark:text-surface-300">
-              Import Progress
+              {t("highlightImporter.importProgress")}
             </span>
             <span className="text-sm text-surface-500 dark:text-surface-400">
               {progress.completed} / {progress.total}
@@ -299,9 +304,13 @@ https://blog.example.com,"Another highlight","Article Title","reading",blue,2024
           </div>
 
           <div className="flex items-center justify-between text-xs text-surface-600 dark:text-surface-400">
-            <span>{successRate}% complete</span>
+            <span>
+              {t("highlightImporter.complete", { rate: successRate })}
+            </span>
             {progress.failed > 0 && (
-              <span className="text-red-500">{progress.failed} failed</span>
+              <span className="text-red-500">
+                {t("highlightImporter.failed", { count: progress.failed })}
+              </span>
             )}
           </div>
         </div>
@@ -311,7 +320,7 @@ https://blog.example.com,"Another highlight","Article Title","reading",blue,2024
         <div className="flex items-center justify-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
           <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
           <span className="text-sm text-blue-700 dark:text-blue-300">
-            Importing highlights...
+            {t("highlightImporter.importing")}
           </span>
         </div>
       )}
@@ -322,7 +331,7 @@ https://blog.example.com,"Another highlight","Article Title","reading",blue,2024
           <div className="flex items-center justify-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
             <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
             <span className="text-sm text-green-700 dark:text-green-300">
-              Successfully imported {progress.completed} highlights!
+              {t("highlightImporter.success", { count: progress.completed })}
             </span>
           </div>
         )}
@@ -333,7 +342,9 @@ https://blog.example.com,"Another highlight","Article Title","reading",blue,2024
             <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-medium text-red-700 dark:text-red-300">
-                {progress.errors.length} errors during import
+                {t("highlightImporter.errorsTitle", {
+                  count: progress.errors.length,
+                })}
               </p>
               <ul className="mt-2 space-y-1">
                 {progress.errors.slice(0, 5).map((err, idx) => (
@@ -341,12 +352,17 @@ https://blog.example.com,"Another highlight","Article Title","reading",blue,2024
                     key={idx}
                     className="text-xs text-red-600 dark:text-red-400"
                   >
-                    Row {err.row}: {err.error}
+                    {t("highlightImporter.row", {
+                      row: err.row,
+                      error: err.error,
+                    })}
                   </li>
                 ))}
                 {progress.errors.length > 5 && (
                   <li className="text-xs text-red-600 dark:text-red-400">
-                    +{progress.errors.length - 5} more errors
+                    {t("highlightImporter.moreErrors", {
+                      count: progress.errors.length - 5,
+                    })}
                   </li>
                 )}
               </ul>
@@ -360,7 +376,7 @@ https://blog.example.com,"Another highlight","Article Title","reading",blue,2024
           onClick={() => setProgress(null)}
           className="w-full px-4 py-2 text-sm font-medium bg-surface-200 dark:bg-surface-700 hover:bg-surface-300 dark:hover:bg-surface-600 rounded-lg transition"
         >
-          Import Another File
+          {t("highlightImporter.importAnother")}
         </button>
       )}
     </div>

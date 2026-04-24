@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
+import { useTranslation } from "react-i18next";
 import RichText from "./RichText";
 import MoreMenu from "./MoreMenu";
 import type { MoreMenuItem } from "./MoreMenu";
@@ -119,6 +120,7 @@ export default function Card({
   hideCollection = false,
   layout = "list",
 }: CardProps) {
+  const { t } = useTranslation();
   const [item, setItem] = useState(initialItem);
   const user = useStore($user);
   const preferences = useStore($preferences);
@@ -229,7 +231,7 @@ export default function Card({
   };
 
   const handleDelete = async () => {
-    if (window.confirm("Delete this item?")) {
+    if (window.confirm(t("card.deleteConfirm"))) {
       const success = await deleteItem(item.uri, type);
       if (success && onDelete) {
         analytics.capture("item_deleted", { type });
@@ -297,7 +299,7 @@ export default function Card({
 
   const timestamp = item.createdAt
     ? formatDistanceToNow(new Date(item.createdAt), { addSuffix: false })
-        .replace("less than a minute", "just now")
+        .replace("less than a minute", t("card.justNow"))
         .replace("about ", "")
         .replace(" hours", "h")
         .replace(" hour", "h")
@@ -347,7 +349,7 @@ export default function Card({
   };
 
   const displayTitle = decodeHTMLEntities(
-    item.title || ogData?.title || pageTitle || "Untitled Bookmark",
+    item.title || ogData?.title || pageTitle || t("card.untitledBookmark"),
   );
   const displayDescription =
     item.description || ogData?.description
@@ -377,10 +379,10 @@ export default function Card({
                     </span>
                   </a>
                 </ProfileHoverCard>
-                <span>added to</span>
+                <span>{t("card.addedToLower")}</span>
               </>
             ) : (
-              <span>Added to</span>
+              <span>{t("card.addedTo")}</span>
             )}
 
             {item.context && item.context.length > 0 ? (
@@ -392,7 +394,7 @@ export default function Card({
                     </span>
                   )}
                   {index > 0 && index === item.context!.length - 1 && (
-                    <span>and</span>
+                    <span>{t("card.and")}</span>
                   )}
                   <a
                     href={`/${item.addedBy?.handle || ""}/collection/${(col.uri || "").split("/").pop()}`}
@@ -463,7 +465,7 @@ export default function Card({
                   className="ml-1 text-surface-400 dark:text-surface-500 hover:text-surface-600 dark:hover:text-surface-400 hover:underline cursor-pointer"
                   title={`Edited ${new Date(item.editedAt).toLocaleString()}`}
                 >
-                  (edited)
+                  {t("card.edited")}
                 </button>
               )}
             </span>
@@ -495,7 +497,7 @@ export default function Card({
                         className="h-3.5"
                       />
                       <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1 rounded-lg bg-surface-800 dark:bg-surface-700 text-white text-[11px] font-medium whitespace-nowrap opacity-0 group-hover/semble:opacity-100 transition-opacity shadow-lg">
-                        Open in Semble
+                        {t("card.openInSemble")}
                         <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-surface-800 dark:border-t-surface-700" />
                       </span>
                     </button>
@@ -514,7 +516,7 @@ export default function Card({
                     className="text-surface-400 dark:text-surface-500 fill-current"
                   />
                   <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1 rounded-lg bg-surface-800 dark:bg-surface-700 text-white text-[11px] font-medium whitespace-nowrap opacity-0 group-hover/cb:opacity-100 transition-opacity shadow-lg">
-                    Community bookmark
+                    {t("card.communityBookmark")}
                     <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-surface-800 dark:border-t-surface-700" />
                   </span>
                 </span>
@@ -548,7 +550,9 @@ export default function Card({
             <div className="flex items-center gap-2 text-surface-500 dark:text-surface-400">
               <EyeOff size={16} />
               <span className="text-sm font-medium">
-                {contentWarning.description}
+                {t(`card.labelDescriptions.${contentWarning.label}`, {
+                  defaultValue: contentWarning.description,
+                })}
               </span>
             </div>
             <button
@@ -556,7 +560,7 @@ export default function Card({
               className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg bg-surface-200 dark:bg-surface-700 text-surface-600 dark:text-surface-300 hover:bg-surface-300 dark:hover:bg-surface-600 transition-colors"
             >
               <Eye size={12} />
-              Show
+              {t("card.show")}
             </button>
           </div>
         )}
@@ -566,7 +570,7 @@ export default function Card({
             className="flex items-center gap-1.5 mb-2 px-2.5 py-1 text-xs font-medium rounded-lg bg-surface-100 dark:bg-surface-800 text-surface-500 dark:text-surface-400 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
           >
             <EyeOff size={12} />
-            Hide Content
+            {t("card.hideContent")}
           </button>
         )}
         {!(contentWarning && !contentRevealed) && isBookmark && (
@@ -741,7 +745,7 @@ export default function Card({
           <button
             onClick={() => setShowCollectionModal(true)}
             className="flex items-center px-2.5 py-1.5 rounded-lg text-surface-400 dark:text-surface-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
-            title="Add to Collection"
+            title={t("card.addToCollectionTitle")}
           >
             <FolderPlus size={16} />
           </button>
@@ -764,23 +768,23 @@ export default function Card({
               <button
                 onClick={() => setShowConvertInput(true)}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-surface-400 dark:text-surface-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all text-xs font-medium"
-                title="Annotate this highlight"
+                title={t("card.annotateTitle")}
               >
                 <MessageSquare size={14} />
-                <span className="hidden sm:inline">Annotate</span>
+                <span className="hidden sm:inline">{t("card.annotate")}</span>
               </button>
             )}
             <button
               onClick={() => setShowEditModal(true)}
               className="flex items-center px-2.5 py-1.5 rounded-lg text-surface-400 dark:text-surface-500 hover:text-surface-600 dark:hover:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-800 transition-all"
-              title="Edit"
+              title={t("card.editTitle")}
             >
               <Edit3 size={14} />
             </button>
             <button
               onClick={handleDelete}
               className="flex items-center px-2.5 py-1.5 rounded-lg text-surface-400 dark:text-surface-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
-              title="Delete"
+              title={t("card.deleteTitle")}
             >
               <Trash2 size={14} />
             </button>
@@ -794,13 +798,15 @@ export default function Card({
               items={(() => {
                 const menuItems: MoreMenuItem[] = [
                   {
-                    label: "Report",
+                    label: t("card.report"),
                     icon: <Flag size={14} />,
                     onClick: () => setShowReportModal(true),
                     variant: "danger",
                   },
                   {
-                    label: `Mute @${item.author?.handle || "user"}`,
+                    label: t("card.muteUser", {
+                      handle: item.author?.handle || "user",
+                    }),
                     icon: <VolumeX size={14} />,
                     onClick: async () => {
                       if (item.author?.did) {
@@ -810,7 +816,9 @@ export default function Card({
                     },
                   },
                   {
-                    label: `Block @${item.author?.handle || "user"}`,
+                    label: t("card.blockUser", {
+                      handle: item.author?.handle || "user",
+                    }),
                     icon: <ShieldBan size={14} />,
                     onClick: async () => {
                       if (item.author?.did) {
@@ -839,7 +847,7 @@ export default function Card({
             <textarea
               value={convertText}
               onChange={(e) => setConvertText(e.target.value)}
-              placeholder="Add your note to convert this highlight into an annotation..."
+              placeholder={t("card.addNotePlaceholder")}
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -858,7 +866,7 @@ export default function Card({
                 onClick={handleConvert}
                 disabled={converting || !convertText.trim()}
                 className="p-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                title="Convert to annotation"
+                title={t("card.convertToAnnotation")}
               >
                 {converting ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
@@ -872,7 +880,7 @@ export default function Card({
                   setConvertText("");
                 }}
                 className="p-2.5 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl transition-all"
-                title="Cancel"
+                title={t("common.cancel")}
               >
                 <X size={16} />
               </button>

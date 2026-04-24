@@ -7,6 +7,7 @@ import {
   Search,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getUserTargetItems } from "../../api/client";
 import Card from "../../components/common/Card";
 import Avatar from "../../components/ui/Avatar";
@@ -19,6 +20,7 @@ interface UserUrlPageProps {
 }
 
 export default function UserUrlPage({ handle, urlPath }: UserUrlPageProps) {
+  const { t } = useTranslation();
   const targetUrl = urlPath || "";
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -133,8 +135,8 @@ export default function UserUrlPage({ handle, urlPath }: UserUrlPageProps) {
     return (
       <EmptyState
         icon={<Search size={48} />}
-        title="No URL specified"
-        message="Please provide a URL to view annotations."
+        title={t("userUrlPage.noUrl")}
+        message={t("userUrlPage.noUrlMessage")}
       />
     );
   }
@@ -174,7 +176,7 @@ export default function UserUrlPage({ handle, urlPath }: UserUrlPageProps) {
         <div className="mt-4 pt-4 border-t border-surface-100 dark:border-surface-700">
           <div className="flex items-center gap-2 text-sm">
             <span className="text-surface-400 dark:text-surface-500 font-medium shrink-0">
-              on
+              {t("userUrlPage.on")}
             </span>
             <a
               href={decodedTargetUrl}
@@ -196,7 +198,7 @@ export default function UserUrlPage({ handle, urlPath }: UserUrlPageProps) {
             size={32}
           />
           <p className="text-surface-500 dark:text-surface-400">
-            Loading annotations...
+            {t("userUrlPage.loadingAnnotations")}
           </p>
         </div>
       )}
@@ -211,8 +213,8 @@ export default function UserUrlPage({ handle, urlPath }: UserUrlPageProps) {
       {!loading && !error && totalItems === 0 && (
         <EmptyState
           icon={<PenTool size={32} />}
-          title="No items found"
-          message={`${displayName} hasn't annotated this page yet.`}
+          title={t("userUrlPage.noItems")}
+          message={t("userUrlPage.noItemsMessage", { name: displayName })}
         />
       )}
 
@@ -221,9 +223,9 @@ export default function UserUrlPage({ handle, urlPath }: UserUrlPageProps) {
           <div className="mb-6">
             <Tabs
               tabs={[
-                { id: "all", label: "All" },
-                { id: "annotations", label: "Annotations" },
-                { id: "highlights", label: "Highlights" },
+                { id: "all", label: t("urlPage.tabs.all") },
+                { id: "annotations", label: t("urlPage.tabs.annotations") },
+                { id: "highlights", label: t("urlPage.tabs.highlights") },
               ]}
               activeTab={activeTab}
               onChange={(id: string) =>
@@ -236,15 +238,15 @@ export default function UserUrlPage({ handle, urlPath }: UserUrlPageProps) {
             {activeTab === "annotations" && annotations.length === 0 && (
               <EmptyState
                 icon={<PenTool size={32} />}
-                title="No annotations"
-                message={`${displayName} hasn't annotated this page yet.`}
+                title={t("userUrlPage.noAnnotations")}
+                message={t("userUrlPage.noItemsMessage", { name: displayName })}
               />
             )}
             {activeTab === "highlights" && highlights.length === 0 && (
               <EmptyState
                 icon={<Highlighter size={32} />}
-                title="No highlights"
-                message={`${displayName} hasn't highlighted this page yet.`}
+                title={t("userUrlPage.noHighlights")}
+                message={t("userUrlPage.noItemsMessage", { name: displayName })}
               />
             )}
 
@@ -257,7 +259,7 @@ export default function UserUrlPage({ handle, urlPath }: UserUrlPageProps) {
             <div className="flex flex-col items-center gap-2 py-6">
               {loadMoreError && (
                 <p className="text-sm text-red-500 dark:text-red-400">
-                  Failed to load more: {loadMoreError}
+                  {t("userUrlPage.failedLoadMore", { message: loadMoreError })}
                 </p>
               )}
               <button
@@ -268,10 +270,10 @@ export default function UserUrlPage({ handle, urlPath }: UserUrlPageProps) {
                 {loadingMore ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    Loading...
+                    {t("userUrlPage.loading")}
                   </>
                 ) : (
-                  "Load more"
+                  t("userUrlPage.loadMore")
                 )}
               </button>
             </div>

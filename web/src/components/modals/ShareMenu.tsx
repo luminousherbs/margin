@@ -15,6 +15,7 @@ import {
   DeerIcon,
 } from "../common/Icons";
 import { analytics } from "../../lib/analytics";
+import { useTranslation } from "react-i18next";
 
 const SembleLogo = () => (
   <img src="/semble-logo.svg" alt="Semble" className="w-4 h-4 opacity-90" />
@@ -39,6 +40,7 @@ export default function ShareMenu({
   type,
   url,
 }: ShareMenuProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -199,7 +201,9 @@ export default function ShareMenu({
           icon
         )}
       </span>
-      <span className="flex-1 text-left">{isCopied ? "Copied!" : label}</span>
+      <span className="flex-1 text-left">
+        {isCopied ? t("shareMenu.copied") : label}
+      </span>
     </button>
   );
 
@@ -249,17 +253,17 @@ export default function ShareMenu({
               <>
                 <div className="px-3 py-2 text-[11px] font-bold text-surface-400 dark:text-surface-500 uppercase tracking-wider flex items-center gap-1.5 select-none">
                   <SembleLogo />
-                  Semble Integration
+                  {t("shareMenu.sembleIntegration")}
                 </div>
                 {renderMenuItem(
-                  "Open on Semble",
+                  t("shareMenu.openOnSemble"),
                   <ExternalLink size={16} />,
                   () => window.open(sembleUrl, "_blank"),
                   false,
                   true,
                 )}
                 {renderMenuItem(
-                  "Copy Semble Link",
+                  t("shareMenu.copySembleLink"),
                   <Copy size={16} />,
                   () => handleCopy(sembleUrl, "semble"),
                   copied === "semble",
@@ -269,14 +273,14 @@ export default function ShareMenu({
             ) : null}
 
             {renderMenuItem(
-              "Copy Link",
+              t("shareMenu.copyLink"),
               <Copy size={16} />,
               () => handleCopy(shareUrl, "link"),
               copied === "link",
             )}
 
             <div className="px-3 pt-3 pb-1 text-[11px] font-bold text-surface-400 dark:text-surface-500 uppercase tracking-wider select-none">
-              Share via App
+              {t("shareMenu.shareViaApp")}
             </div>
 
             <div className="grid grid-cols-5 gap-1 px-1 mb-1">
@@ -295,7 +299,7 @@ export default function ShareMenu({
             <div className="h-px bg-surface-100 dark:bg-surface-800 my-1 mx-2" />
 
             {renderMenuItem(
-              "Copy Universal Link",
+              t("shareMenu.copyUniversalLink"),
               <AturiIcon size={16} />,
               () =>
                 handleCopy(uri.replace("at://", "https://aturi.to/"), "aturi"),
@@ -305,7 +309,7 @@ export default function ShareMenu({
             {typeof navigator !== "undefined" &&
               navigator.share &&
               renderMenuItem(
-                "More Options...",
+                t("shareMenu.moreOptions"),
                 <MoreHorizontal size={16} />,
                 () => {
                   navigator

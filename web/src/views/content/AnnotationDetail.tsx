@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "@nanostores/react";
+import { useTranslation } from "react-i18next";
 import { $user } from "../../store/auth";
 import {
   getAnnotation,
@@ -43,6 +44,7 @@ export default function AnnotationDetail({
   initialReplies,
   resolvedUri,
 }: AnnotationDetailProps) {
+  const { t } = useTranslation();
   const user = useStore($user);
   const navigate = useNavigate();
 
@@ -88,8 +90,9 @@ export default function AnnotationDetail({
           }
         } catch (e) {
           setError(
-            "Failed to resolve handle: " +
-              (e instanceof Error ? e.message : "Unknown error"),
+            t("annotationDetail.failedResolve", {
+              message: e instanceof Error ? e.message : "Unknown error",
+            }),
           );
           setLoading(false);
         }
@@ -98,7 +101,7 @@ export default function AnnotationDetail({
       }
     }
     resolve();
-  }, [uri, did, rkey, handle, type, resolvedUri]);
+  }, [uri, did, rkey, handle, type, resolvedUri, t]);
 
   const refreshReplies = async () => {
     if (!targetUri) return;
@@ -125,7 +128,7 @@ export default function AnnotationDetail({
         ]);
 
         if (!annData) {
-          setError("Annotation not found");
+          setError(t("annotationDetail.notFound"));
         } else {
           setAnnotation(annData);
           setReplies(repliesData.items || []);
@@ -137,7 +140,7 @@ export default function AnnotationDetail({
       }
     }
     fetchData();
-  }, [targetUri]);
+  }, [targetUri, t]);
 
   const handleReply = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -170,8 +173,9 @@ export default function AnnotationDetail({
       await refreshReplies();
     } catch (err) {
       alert(
-        "Failed to post reply: " +
-          (err instanceof Error ? err.message : "Unknown error"),
+        t("annotationDetail.failedReply", {
+          message: err instanceof Error ? err.message : "Unknown error",
+        }),
       );
     } finally {
       setPosting(false);
@@ -179,14 +183,15 @@ export default function AnnotationDetail({
   };
 
   const handleDeleteReply = async (reply: AnnotationItem) => {
-    if (!window.confirm("Delete this reply?")) return;
+    if (!window.confirm(t("annotationDetail.deleteReplyConfirm"))) return;
     try {
       await deleteReply(reply.uri || reply.id!);
       await refreshReplies();
     } catch (err) {
       alert(
-        "Failed to delete: " +
-          (err instanceof Error ? err.message : "Unknown error"),
+        t("annotationDetail.failedDelete", {
+          message: err instanceof Error ? err.message : "Unknown error",
+        }),
       );
     }
   };
@@ -209,10 +214,10 @@ export default function AnnotationDetail({
           <AlertTriangle size={28} />
         </div>
         <h3 className="text-xl font-bold text-surface-900 dark:text-white mb-2">
-          Not found
+          {t("annotationDetail.notFound")}
         </h3>
         <p className="text-surface-500 dark:text-surface-400 text-sm mb-6">
-          {error || "This may have been deleted."}
+          {error || t("annotationDetail.mayBeDeleted")}
         </p>
         <a
           href="/home"
@@ -222,7 +227,7 @@ export default function AnnotationDetail({
           }}
           className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
         >
-          Back to Feed
+          {t("annotationDetail.backToFeed")}
         </a>
       </div>
     );
@@ -240,7 +245,7 @@ export default function AnnotationDetail({
           className="inline-flex items-center gap-1.5 text-sm font-medium text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors"
         >
           <ArrowLeft size={16} />
-          Back
+          {t("annotationDetail.back")}
         </a>
       </div>
 
@@ -258,7 +263,7 @@ export default function AnnotationDetail({
           <div className="mt-6">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-4">
               <MessageSquare size={16} />
-              Replies ({replies.length})
+              {t("annotationDetail.replies", { count: replies.length })}
             </h3>
 
             {user ? (
@@ -266,7 +271,7 @@ export default function AnnotationDetail({
                 {replyingTo && (
                   <div className="flex items-center justify-between bg-surface-50 dark:bg-surface-800 px-3 py-2 rounded-lg mb-3 border border-surface-200 dark:border-surface-700">
                     <span className="text-sm text-surface-600 dark:text-surface-300">
-                      Replying to{" "}
+                      {t("annotationDetail.replyingTo")}{" "}
                       <span className="font-medium text-surface-900 dark:text-white">
                         @
                         {(replyingTo.author || replyingTo.creator)?.handle ||
@@ -297,7 +302,7 @@ export default function AnnotationDetail({
                     <textarea
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
-                      placeholder="Write a reply..."
+                      placeholder={t("annotationDetail.replyPlaceholder")}
                       className="w-full p-3 bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg text-surface-900 dark:text-white placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:focus:border-primary-400 outline-none resize-none min-h-[80px]"
                       rows={2}
                       disabled={posting}
@@ -308,7 +313,7 @@ export default function AnnotationDetail({
                         disabled={posting || !replyText.trim()}
                         onClick={() => handleReply()}
                       >
-                        {posting ? "..." : "Reply"}
+                        {posting ? "..." : t("annotationDetail.reply")}
                       </button>
                     </div>
                   </div>
@@ -317,13 +322,13 @@ export default function AnnotationDetail({
             ) : (
               <div className="bg-surface-50 dark:bg-surface-800/50 rounded-xl p-5 text-center mb-4 border border-dashed border-surface-200 dark:border-surface-700">
                 <p className="text-surface-500 dark:text-surface-400 text-sm mb-2">
-                  Sign in to reply
+                  {t("annotationDetail.signInToReply")}
                 </p>
                 <a
                   href="/login"
                   className="text-primary-600 dark:text-primary-400 font-medium hover:underline text-sm"
                 >
-                  Log in
+                  {t("annotationDetail.logIn")}
                 </a>
               </div>
             )}

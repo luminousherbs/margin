@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   getCollections,
   createCollection,
@@ -28,6 +29,7 @@ interface CollectionsProps {
 }
 
 export default function Collections({ initialCollections }: CollectionsProps) {
+  const { t } = useTranslation();
   const user = useStore($user);
   const theme = useStore($theme);
   const [collections, setCollections] = useState<Collection[]>(
@@ -107,7 +109,7 @@ export default function Collections({ initialCollections }: CollectionsProps) {
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
-    if (window.confirm("Delete this collection?")) {
+    if (window.confirm(t("collections.deleteConfirm"))) {
       const success = await deleteCollection(id);
       if (success) {
         setCollections((prev) => {
@@ -151,27 +153,27 @@ export default function Collections({ initialCollections }: CollectionsProps) {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-display font-bold text-surface-900 dark:text-white">
-            Collections
+            {t("collections.title")}
           </h1>
           <p className="text-surface-500 dark:text-surface-400 mt-1">
-            Organize your annotations and highlights
+            {t("collections.subtitle")}
           </p>
         </div>
         <Button
           onClick={() => setShowCreateModal(true)}
           icon={<Plus size={16} />}
         >
-          New
+          {t("common.new")}
         </Button>
       </div>
 
       {collections.length === 0 ? (
         <EmptyState
           icon={<Folder size={48} />}
-          title="No collections yet"
-          message="Create a collection to organize your highlights and annotations."
+          title={t("collections.none")}
+          message={t("collections.noneMessage")}
           action={{
-            label: "Create collection",
+            label: t("collections.createButton"),
             onClick: () => setShowCreateModal(true),
           }}
         />
@@ -193,8 +195,9 @@ export default function Collections({ initialCollections }: CollectionsProps) {
                     {collection.name}
                   </h3>
                   <p className="text-sm text-surface-500 dark:text-surface-400">
-                    {collection.itemCount}{" "}
-                    {collection.itemCount === 1 ? "item" : "items"}
+                    {t("collections.itemCount", {
+                      count: collection.itemCount,
+                    })}
                     {collection.createdAt &&
                       ` · ${formatDistanceToNow(new Date(collection.createdAt), { addSuffix: true })}`}
                   </p>
@@ -217,7 +220,7 @@ export default function Collections({ initialCollections }: CollectionsProps) {
           <div className="bg-white dark:bg-surface-900 rounded-2xl shadow-2xl max-w-md w-full animate-scale-in ring-1 ring-black/5 dark:ring-white/10">
             <div className="flex items-center justify-between p-5 border-b border-surface-100 dark:border-surface-800">
               <h2 className="text-xl font-bold text-surface-900 dark:text-white">
-                New Collection
+                {t("collections.newTitle")}
               </h2>
               <button
                 onClick={() => setShowCreateModal(false)}
@@ -229,7 +232,7 @@ export default function Collections({ initialCollections }: CollectionsProps) {
             <form onSubmit={handleCreate} className="p-5">
               <div className="mb-4">
                 <Input
-                  label="Name"
+                  label={t("collections.nameLabel")}
                   value={newItemName}
                   onChange={(e) => setNewItemName(e.target.value)}
                   placeholder="e.g. Design Inspiration"
@@ -239,7 +242,7 @@ export default function Collections({ initialCollections }: CollectionsProps) {
               </div>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
-                  Icon
+                  {t("collections.iconLabel")}
                 </label>
 
                 <div className="flex gap-2 mb-3 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl">
@@ -252,7 +255,7 @@ export default function Collections({ initialCollections }: CollectionsProps) {
                         : "text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-200"
                     }`}
                   >
-                    Icons
+                    {t("collections.iconsTab")}
                   </button>
                   <button
                     type="button"
@@ -263,7 +266,7 @@ export default function Collections({ initialCollections }: CollectionsProps) {
                         : "text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-200"
                     }`}
                   >
-                    Emojis
+                    {t("collections.emojisTab")}
                   </button>
                 </div>
 
@@ -326,13 +329,13 @@ export default function Collections({ initialCollections }: CollectionsProps) {
               </div>
               <div className="mb-6">
                 <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
-                  Description
+                  {t("collections.descriptionLabel")}
                 </label>
                 <textarea
                   value={newItemDesc}
                   onChange={(e) => setNewItemDesc(e.target.value)}
                   className="w-full px-3 py-2.5 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl text-surface-900 dark:text-white placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:focus:border-primary-400 min-h-[80px] resize-none"
-                  placeholder="What's this collection for?"
+                  placeholder={t("collections.descriptionPlaceholder")}
                 />
               </div>
               <div className="flex justify-end gap-2">
@@ -341,10 +344,10 @@ export default function Collections({ initialCollections }: CollectionsProps) {
                   variant="ghost"
                   onClick={() => setShowCreateModal(false)}
                 >
-                  Cancel
+                  {t("collections.cancel")}
                 </Button>
                 <Button type="submit" loading={creating}>
-                  Create Collection
+                  {t("collections.create")}
                 </Button>
               </div>
             </form>

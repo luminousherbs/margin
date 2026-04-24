@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Flag, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { reportUser } from "../../api/client";
 import type { ReportReasonType } from "../../types";
 
@@ -11,37 +12,13 @@ interface ReportModalProps {
   subjectHandle?: string;
 }
 
-const REASONS: {
-  value: ReportReasonType;
-  label: string;
-  description: string;
-}[] = [
-  { value: "spam", label: "Spam", description: "Unwanted repetitive content" },
-  {
-    value: "violation",
-    label: "Rule violation",
-    description: "Violates community guidelines",
-  },
-  {
-    value: "misleading",
-    label: "Misleading",
-    description: "False or misleading information",
-  },
-  {
-    value: "rude",
-    label: "Rude or harassing",
-    description: "Targeting or harassing a user",
-  },
-  {
-    value: "sexual",
-    label: "Inappropriate content",
-    description: "Sexual or explicit material",
-  },
-  {
-    value: "other",
-    label: "Other",
-    description: "Something else not listed above",
-  },
+const REASON_VALUES: { value: ReportReasonType; descKey: string }[] = [
+  { value: "spam", descKey: "spam" },
+  { value: "violation", descKey: "ruleViolation" },
+  { value: "misleading", descKey: "misleading" },
+  { value: "rude", descKey: "rudeOrHarassing" },
+  { value: "sexual", descKey: "inappropriateContent" },
+  { value: "other", descKey: "other" },
 ];
 
 export default function ReportModal({
@@ -51,6 +28,7 @@ export default function ReportModal({
   subjectUri,
   subjectHandle,
 }: ReportModalProps) {
+  const { t } = useTranslation();
   const [selectedReason, setSelectedReason] = useState<ReportReasonType | null>(
     null,
   );
@@ -105,10 +83,10 @@ export default function ReportModal({
               <Flag size={20} className="text-green-600 dark:text-green-400" />
             </div>
             <h3 className="text-lg font-semibold text-surface-900 dark:text-white">
-              Report submitted
+              {t("report.submitted")}
             </h3>
             <p className="text-surface-500 dark:text-surface-400 text-sm mt-1">
-              Thank you. We'll review this shortly.
+              {t("report.submittedMessage")}
             </p>
           </div>
         ) : (
@@ -120,11 +98,13 @@ export default function ReportModal({
                 </div>
                 <div>
                   <h3 className="text-base font-semibold text-surface-900 dark:text-white">
-                    Report {subjectHandle ? `@${subjectHandle}` : "user"}
+                    {subjectHandle
+                      ? t("report.titleUser", { handle: subjectHandle })
+                      : t("report.titleGeneric")}
                   </h3>
                   {subjectUri && (
                     <p className="text-xs text-surface-400 dark:text-surface-500">
-                      Reporting specific content
+                      {t("report.reportingContent")}
                     </p>
                   )}
                 </div>
@@ -139,35 +119,26 @@ export default function ReportModal({
 
             <div className="p-4 space-y-2">
               <p className="text-sm font-medium text-surface-700 dark:text-surface-300 mb-3">
-                What's the issue?
+                {t("report.issueLabel")}
               </p>
-              {REASONS.map((reason) => (
+              {REASON_VALUES.map((r) => (
                 <button
-                  key={reason.value}
-                  onClick={() => setSelectedReason(reason.value)}
+                  key={r.value}
+                  onClick={() => setSelectedReason(r.value)}
                   className={`w-full text-left px-3.5 py-2.5 rounded-xl border transition-all ${
-                    selectedReason === reason.value
+                    selectedReason === r.value
                       ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20"
                       : "border-surface-200 dark:border-surface-700 hover:border-surface-300 dark:hover:border-surface-600"
                   }`}
                 >
                   <span
                     className={`text-sm font-medium ${
-                      selectedReason === reason.value
+                      selectedReason === r.value
                         ? "text-primary-700 dark:text-primary-300"
                         : "text-surface-800 dark:text-surface-200"
                     }`}
                   >
-                    {reason.label}
-                  </span>
-                  <span
-                    className={`block text-xs mt-0.5 ${
-                      selectedReason === reason.value
-                        ? "text-primary-600/70 dark:text-primary-400/70"
-                        : "text-surface-400 dark:text-surface-500"
-                    }`}
-                  >
-                    {reason.description}
+                    {t(`report.reasons.${r.descKey}`)}
                   </span>
                 </button>
               ))}
@@ -178,7 +149,7 @@ export default function ReportModal({
                 <textarea
                   value={additionalText}
                   onChange={(e) => setAdditionalText(e.target.value)}
-                  placeholder="Additional details (optional)"
+                  placeholder={t("report.detailsPlaceholder")}
                   rows={2}
                   className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-800 dark:text-surface-200 placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 resize-none"
                 />
@@ -190,14 +161,14 @@ export default function ReportModal({
                 onClick={handleClose}
                 className="px-4 py-2 text-sm font-medium text-surface-600 dark:text-surface-400 hover:text-surface-800 dark:hover:text-surface-200 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
               >
-                Cancel
+                {t("report.cancel")}
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={!selectedReason || submitting}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? "Submitting…" : "Submit Report"}
+                {submitting ? t("report.submitting") : t("report.submit")}
               </button>
             </div>
           </>

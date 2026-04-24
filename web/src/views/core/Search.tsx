@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useStore } from "@nanostores/react";
+import { useTranslation } from "react-i18next";
 import { searchItems } from "../../api/client";
 import type { AnnotationItem } from "../../types";
 import Card from "../../components/common/Card";
@@ -39,6 +40,7 @@ export default function Search({
   initialResults,
   initialHasMore,
 }: SearchProps) {
+  const { t } = useTranslation();
   const user = useStore($user);
   const layout = useStore($feedLayout);
 
@@ -63,10 +65,18 @@ export default function Search({
   }, [myItemsOnly]);
 
   const filters = [
-    { id: "all", label: "All", icon: null },
-    { id: "commenting", label: "Annotations", icon: MessageSquareText },
-    { id: "highlighting", label: "Highlights", icon: Highlighter },
-    { id: "bookmarking", label: "Bookmarks", icon: Bookmark },
+    { id: "all", label: t("search.filters.all"), icon: null },
+    {
+      id: "commenting",
+      label: t("search.filters.annotations"),
+      icon: MessageSquareText,
+    },
+    {
+      id: "highlighting",
+      label: t("search.filters.highlights"),
+      icon: Highlighter,
+    },
+    { id: "bookmarking", label: t("search.filters.bookmarks"), icon: Bookmark },
   ];
 
   const doSearch = useCallback(
@@ -203,7 +213,7 @@ export default function Search({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search annotations, highlights, bookmarks..."
+            placeholder={t("search.placeholder")}
             autoFocus
             className="w-full pl-11 pr-4 py-3 bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl text-sm focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-400/20 placeholder:text-surface-400"
           />
@@ -252,7 +262,7 @@ export default function Search({
                 )}
               >
                 <SlidersHorizontal size={12} />
-                Mine
+                {t("search.filters.mine")}
               </button>
             )}
 
@@ -367,8 +377,8 @@ export default function Search({
       {!loading && initialQuery && filteredResults.length === 0 && (
         <EmptyState
           icon={<SearchIcon size={48} />}
-          title="No results found"
-          message={`Nothing matched "${initialQuery}". Try different keywords.`}
+          title={t("search.noResults")}
+          message={t("search.noResultsMessage", { query: initialQuery })}
         />
       )}
 
@@ -380,8 +390,11 @@ export default function Search({
           )}
         >
           <p className="text-xs text-surface-400 dark:text-surface-500 font-medium mb-3 px-1">
-            {filteredResults.length}
-            {hasMore ? "+" : ""} results for &ldquo;{initialQuery}&rdquo;
+            {t("search.resultCount", {
+              count: filteredResults.length,
+              hasMore: hasMore ? "+" : "",
+              query: initialQuery,
+            })}
           </p>
 
           {layout === "mosaic" ? (
@@ -414,7 +427,7 @@ export default function Search({
               {loading ? (
                 <Loader2 className="animate-spin mx-auto" size={16} />
               ) : (
-                "Load more"
+                t("search.loadMore")
               )}
             </button>
           )}
@@ -424,8 +437,8 @@ export default function Search({
       {!initialQuery && !loading && (
         <EmptyState
           icon={<SearchIcon size={48} />}
-          title="Search your library"
-          message="Find annotations, highlights, and bookmarks by keyword, URL, or tag."
+          title={t("search.emptyTitle")}
+          message={t("search.emptyMessage")}
         />
       )}
     </div>

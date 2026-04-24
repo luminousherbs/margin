@@ -1,5 +1,7 @@
 import { useStore } from "@nanostores/react";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { I18nextProvider } from "react-i18next";
+import i18n from "../i18n";
 import type { UserProfile } from "../types";
 
 declare global {
@@ -344,8 +346,12 @@ export default function AppShell() {
   }, []);
 
   return (
-    <BrowserRouter>
-      <AppLayout />
-    </BrowserRouter>
+    <I18nextProvider i18n={i18n}>
+      <Suspense fallback={null}>
+        <BrowserRouter>
+          <AppLayout />
+        </BrowserRouter>
+      </Suspense>
+    </I18nextProvider>
   );
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
   X,
   Plus,
@@ -34,6 +35,7 @@ export default function AddToCollectionModal({
   onClose,
   annotationUri,
 }: AddToCollectionModalProps) {
+  const { t } = useTranslation();
   const user = useStore($user);
   const theme = useStore($theme);
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -66,11 +68,11 @@ export default function AddToCollectionModal({
       setCollections(data);
     } catch (err) {
       console.error(err);
-      setError("Failed to load collections");
+      setError(t("addToCollection.failedLoad"));
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, t]);
 
   useEffect(() => {
     if (isOpen && user) {
@@ -92,7 +94,7 @@ export default function AddToCollectionModal({
       analytics.capture("item_added_to_collection");
     } catch (err) {
       console.error(err);
-      setError("Failed to add to collection");
+      setError(t("addToCollection.failedAdd"));
     } finally {
       setAddingTo(null);
     }
@@ -122,7 +124,7 @@ export default function AddToCollectionModal({
       }
     } catch (err) {
       console.error(err);
-      setError("Failed to create collection");
+      setError(t("addToCollection.failedCreate"));
     } finally {
       setCreating(false);
     }
@@ -141,7 +143,7 @@ export default function AddToCollectionModal({
       >
         <div className="p-4 flex justify-between items-center border-b border-surface-100 dark:border-surface-800">
           <h2 className="text-xl font-display font-bold text-surface-900 dark:text-white">
-            Add to Collection
+            {t("addToCollection.title")}
           </h2>
           <button
             onClick={onClose}
@@ -159,41 +161,41 @@ export default function AddToCollectionModal({
                 className="animate-spin text-primary-600 dark:text-primary-400 mx-auto mb-3"
               />
               <p className="text-surface-500 dark:text-surface-400 font-medium">
-                Loading collections...
+                {t("addToCollection.loading")}
               </p>
             </div>
           ) : showNewForm ? (
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                  Collection name
+                  {t("addToCollection.collectionNameLabel")}
                 </label>
                 <input
                   type="text"
                   className="w-full px-4 py-3 bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl focus:border-primary-500 dark:focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-surface-900 dark:text-white placeholder-surface-400 dark:placeholder-surface-500"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="My Collection"
+                  placeholder={t("addToCollection.namePlaceholder")}
                   autoFocus
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                  Description (optional)
+                  {t("addToCollection.descriptionLabel")}
                 </label>
                 <textarea
                   className="w-full px-4 py-3 bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl focus:border-primary-500 dark:focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-surface-900 dark:text-white placeholder-surface-400 dark:placeholder-surface-500 resize-none"
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
-                  placeholder="What's this collection about?"
+                  placeholder={t("addToCollection.descriptionPlaceholder")}
                   rows={2}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
-                  Icon
+                  {t("addToCollection.iconLabel")}
                 </label>
 
                 <div className="flex gap-2 mb-3 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl">
@@ -206,7 +208,7 @@ export default function AddToCollectionModal({
                         : "text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-200"
                     }`}
                   >
-                    Icons
+                    {t("addToCollection.iconsTab")}
                   </button>
                   <button
                     type="button"
@@ -217,7 +219,7 @@ export default function AddToCollectionModal({
                         : "text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-200"
                     }`}
                   >
-                    Emojis
+                    {t("addToCollection.emojisTab")}
                   </button>
                 </div>
 
@@ -280,7 +282,7 @@ export default function AddToCollectionModal({
 
                 {newIcon && (
                   <p className="mt-2 text-sm text-surface-600 dark:text-surface-300 flex items-center gap-2">
-                    Selected:
+                    {t("addToCollection.selected")}
                     <span className="inline-flex items-center justify-center w-8 h-8 bg-surface-100 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
                       <CollectionIcon
                         icon={ICON_MAP[newIcon] ? `icon:${newIcon}` : newIcon}
@@ -308,7 +310,7 @@ export default function AddToCollectionModal({
                     setError(null);
                   }}
                 >
-                  Back
+                  {t("addToCollection.back")}
                 </button>
                 <button
                   type="submit"
@@ -316,7 +318,9 @@ export default function AddToCollectionModal({
                   disabled={!newName.trim() || creating}
                 >
                   {creating && <Loader2 size={16} className="animate-spin" />}
-                  {creating ? "Creating..." : "Create"}
+                  {creating
+                    ? t("addToCollection.creating")
+                    : t("addToCollection.create")}
                 </button>
               </div>
             </form>
@@ -337,10 +341,10 @@ export default function AddToCollectionModal({
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-surface-900 dark:text-white group-hover:text-primary-700 dark:group-hover:text-primary-400 transition-colors">
-                    New Collection
+                    {t("addToCollection.newCollectionButton")}
                   </h3>
                   <span className="text-sm text-surface-500 dark:text-surface-400">
-                    Create a new collection
+                    {t("addToCollection.createNewDescription")}
                   </span>
                 </div>
                 <ChevronRight
@@ -352,7 +356,7 @@ export default function AddToCollectionModal({
               {collections.length === 0 ? (
                 <div className="text-center py-6">
                   <p className="text-surface-500 dark:text-surface-400">
-                    No collections yet
+                    {t("addToCollection.none")}
                   </p>
                 </div>
               ) : (
@@ -404,7 +408,7 @@ export default function AddToCollectionModal({
                 onClick={onClose}
                 className="w-full mt-4 py-3 bg-surface-900 dark:bg-white text-white dark:text-surface-900 font-semibold rounded-xl hover:bg-surface-800 dark:hover:bg-surface-100 transition-colors"
               >
-                Done
+                {t("addToCollection.done")}
               </button>
             </div>
           )}

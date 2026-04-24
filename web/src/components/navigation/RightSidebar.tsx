@@ -7,6 +7,7 @@ import {
   type Tag,
 } from "../../api/client";
 import { Avatar } from "../ui";
+import { useTranslation } from "react-i18next";
 
 function looksLikeUrl(query: string): boolean {
   const q = query.trim().toLowerCase();
@@ -22,6 +23,7 @@ interface RightSidebarProps {
 }
 
 export default function RightSidebar({ onNavigate }: RightSidebarProps) {
+  const { t } = useTranslation();
   const navigate = (path: string) => {
     if (onNavigate) onNavigate(path);
     else window.location.href = path;
@@ -169,7 +171,7 @@ export default function RightSidebar({ onNavigate }: RightSidebarProps) {
               suggestions.length > 0 &&
               setShowSuggestions(true)
             }
-            placeholder="Search people, tags, URLs..."
+            placeholder={t("sidebar.searchPlaceholder")}
             className="w-full bg-surface-100 dark:bg-surface-800/80 rounded-lg pl-9 pr-4 py-2 text-sm text-surface-900 dark:text-white placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:bg-white dark:focus:bg-surface-800 transition-all border border-transparent focus:border-surface-200 dark:focus:border-surface-700"
           />
 
@@ -202,10 +204,10 @@ export default function RightSidebar({ onNavigate }: RightSidebarProps) {
 
         <div className="rounded-xl p-4 bg-gradient-to-br from-primary-50 to-primary-100/50 dark:from-primary-950/30 dark:to-primary-900/10 border border-primary-200/40 dark:border-primary-800/30">
           <h3 className="font-semibold text-sm mb-1 text-surface-900 dark:text-white">
-            Get the Extension
+            {t("sidebar.getExtension")}
           </h3>
           <p className="text-surface-500 dark:text-surface-400 text-xs mb-3 leading-relaxed">
-            Highlight, annotate, and bookmark from any page.
+            {t("sidebar.extensionTagline")}
           </p>
           <a
             href={extensionLink}
@@ -213,32 +215,31 @@ export default function RightSidebar({ onNavigate }: RightSidebarProps) {
             rel="noopener noreferrer"
             className="flex items-center justify-center w-full px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-400 text-white dark:text-white rounded-lg transition-colors text-sm font-medium"
           >
-            Download for{" "}
             {browser === "firefox"
-              ? "Firefox"
+              ? t("sidebar.downloadForFirefox")
               : browser === "edge"
-                ? "Edge"
-                : "Chrome"}
+                ? t("sidebar.downloadForEdge")
+                : t("sidebar.downloadForChrome")}
           </a>
         </div>
 
         <div>
           <h3 className="font-semibold text-sm px-1 mb-3 text-surface-900 dark:text-white tracking-tight">
-            Trending
+            {t("sidebar.trending")}
           </h3>
           {tags.length > 0 ? (
             <div className="flex flex-col">
-              {tags.map((t) => (
+              {tags.map((tag) => (
                 <a
-                  key={t.tag}
-                  href={`/home?tag=${encodeURIComponent(t.tag)}`}
+                  key={tag.tag}
+                  href={`/home?tag=${encodeURIComponent(tag.tag)}`}
                   className="px-2 py-2.5 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-lg transition-colors group"
                 >
                   <div className="font-semibold text-sm text-surface-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                    #{t.tag}
+                    #{tag.tag}
                   </div>
                   <div className="text-xs text-surface-400 dark:text-surface-500 mt-0.5">
-                    {t.count} {t.count === 1 ? "post" : "posts"}
+                    {t("sidebar.postCount", { count: tag.count })}
                   </div>
                 </a>
               ))}
@@ -246,7 +247,7 @@ export default function RightSidebar({ onNavigate }: RightSidebarProps) {
           ) : (
             <div className="px-2">
               <p className="text-sm text-surface-400 dark:text-surface-500">
-                Nothing trending right now.
+                {t("sidebar.nothingTrending")}
               </p>
             </div>
           )}
@@ -321,7 +322,7 @@ export default function RightSidebar({ onNavigate }: RightSidebarProps) {
               <Coffee size={12} className="shrink-0" />
               Support on Ko-fi
             </a>
-            <span>© 2026 Padding Labs LLC</span>
+            <span>{t("sidebar.copyright")}</span>
           </div>
         </div>
       </div>

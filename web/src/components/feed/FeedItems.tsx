@@ -1,5 +1,6 @@
 import { Clock, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { type GetFeedParams, getFeed } from "../../api/client";
 import Card from "../../components/common/Card";
 import { EmptyState } from "../../components/ui";
@@ -38,6 +39,7 @@ export default function FeedItems({
   initialItems,
   initialHasMore,
 }: FeedItemsProps) {
+  const { t } = useTranslation();
   const [items, setItems] = useState<AnnotationItem[]>(initialItems || []);
   const [loading, setLoading] = useState(!initialItems);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -169,7 +171,7 @@ export default function FeedItems({
           size={32}
         />
         <p className="text-sm text-surface-400 dark:text-surface-500">
-          Loading...
+          {t("feed.loading")}
         </p>
       </div>
     );
@@ -179,7 +181,7 @@ export default function FeedItems({
     return (
       <EmptyState
         icon={<Clock size={48} />}
-        title="Nothing here yet"
+        title={t("feed.nothingHereYet")}
         message={emptyMessage}
       />
     );
@@ -196,10 +198,10 @@ export default function FeedItems({
         {loadingMore ? (
           <>
             <Loader2 size={16} className="animate-spin" />
-            Loading...
+            {t("common.loading")}
           </>
         ) : (
-          "Load more"
+          t("common.loadMore")
         )}
       </button>
     </div>

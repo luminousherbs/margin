@@ -1,4 +1,5 @@
 import { useStore } from "@nanostores/react";
+import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   Check,
@@ -38,6 +39,7 @@ export default function UrlPage({ urlPath }: UrlPageProps) {
     "all" | "annotations" | "highlights"
   >("all");
   const [copied, setCopied] = useState(false);
+  const { t } = useTranslation();
   const user = useStore($user);
 
   const LIMIT = 50;
@@ -153,11 +155,10 @@ export default function UrlPage({ urlPath }: UrlPageProps) {
             />
           </div>
           <h1 className="text-3xl font-display font-bold text-surface-900 dark:text-white mb-3">
-            URL Annotations
+            {t("urlPage.title")}
           </h1>
           <p className="text-surface-500 dark:text-surface-400 max-w-md mx-auto mb-8">
-            Enter a URL to see all public annotations and highlights from the
-            Margin community.
+            {t("urlPage.description")}
           </p>
 
           <form
@@ -175,12 +176,12 @@ export default function UrlPage({ urlPath }: UrlPageProps) {
             <div className="flex-1">
               <Input
                 name="q"
-                placeholder="https://example.com/article"
+                placeholder={t("urlPage.urlPlaceholder")}
                 className="w-full bg-surface-50 dark:bg-surface-800"
                 autoFocus
               />
             </div>
-            <Button type="submit">View</Button>
+            <Button type="submit">{t("urlPage.view")}</Button>
           </form>
         </div>
       </div>
@@ -233,18 +234,18 @@ export default function UrlPage({ urlPath }: UrlPageProps) {
               <button
                 onClick={handleNavigateMyAnnotations}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-100 dark:bg-surface-700 hover:bg-surface-200 dark:hover:bg-surface-600 text-surface-700 dark:text-surface-200 text-sm font-medium rounded-lg transition-colors"
-                title="See your annotations for this page"
+                title={t("urlPage.myAnnotations")}
               >
-                <User size={14} /> My Annotations
+                <User size={14} /> {t("urlPage.myAnnotations")}
               </button>
             )}
             <button
               onClick={handleCopyLink}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-100 dark:bg-surface-700 hover:bg-surface-200 dark:hover:bg-surface-600 text-surface-700 dark:text-surface-200 text-sm font-medium rounded-lg transition-colors"
-              title="Copy shareable link"
+              title={t("urlPage.share")}
             >
               {copied ? <Check size={14} /> : <Copy size={14} />}
-              {copied ? "Copied!" : "Share"}
+              {copied ? t("urlPage.copied") : t("urlPage.share")}
             </button>
           </div>
         </div>
@@ -253,7 +254,7 @@ export default function UrlPage({ urlPath }: UrlPageProps) {
           <div className="mt-4 pt-4 border-t border-surface-100 dark:border-surface-700 flex items-center gap-4 text-sm text-surface-500 dark:text-surface-400">
             <span className="flex items-center gap-1.5">
               <Users size={14} />
-              {authorCount} contributor{authorCount !== 1 ? "s" : ""}
+              {t("urlPage.contributor", { count: authorCount })}
             </span>
           </div>
         )}
@@ -266,7 +267,7 @@ export default function UrlPage({ urlPath }: UrlPageProps) {
             size={32}
           />
           <p className="text-surface-500 dark:text-surface-400">
-            Loading annotations...
+            {t("urlPage.loadingAnnotations")}
           </p>
         </div>
       )}
@@ -281,8 +282,8 @@ export default function UrlPage({ urlPath }: UrlPageProps) {
       {!loading && !error && totalItems === 0 && (
         <EmptyState
           icon={<Search size={48} />}
-          title="This page is a blank canvas"
-          message="No one's left notes here yet. Want to be the first? Grab the Margin extension and share what you're thinking."
+          title={t("urlPage.blankCanvas")}
+          message={t("urlPage.blankCanvasMessage")}
         />
       )}
 
@@ -291,9 +292,9 @@ export default function UrlPage({ urlPath }: UrlPageProps) {
           <div className="mb-6">
             <Tabs
               tabs={[
-                { id: "all", label: "All" },
-                { id: "annotations", label: "Annotations" },
-                { id: "highlights", label: "Highlights" },
+                { id: "all", label: t("urlPage.tabs.all") },
+                { id: "annotations", label: t("urlPage.tabs.annotations") },
+                { id: "highlights", label: t("urlPage.tabs.highlights") },
               ]}
               activeTab={activeTab}
               onChange={(id: string) =>
@@ -306,15 +307,15 @@ export default function UrlPage({ urlPath }: UrlPageProps) {
             {activeTab === "annotations" && annotations.length === 0 && (
               <EmptyState
                 icon={<PenTool size={32} />}
-                title="No annotations yet"
-                message="Nobody has left a written note on this page."
+                title={t("urlPage.noAnnotationsYet")}
+                message={t("urlPage.noAnnotationsMessage")}
               />
             )}
             {activeTab === "highlights" && highlights.length === 0 && (
               <EmptyState
                 icon={<Highlighter size={32} />}
-                title="No highlights yet"
-                message="Nobody has highlighted a passage from this page."
+                title={t("urlPage.noHighlightsYet")}
+                message={t("urlPage.noHighlightsMessage")}
               />
             )}
 
@@ -327,7 +328,7 @@ export default function UrlPage({ urlPath }: UrlPageProps) {
             <div className="flex flex-col items-center gap-2 py-6">
               {loadMoreError && (
                 <p className="text-sm text-red-500 dark:text-red-400">
-                  Failed to load more: {loadMoreError}
+                  {t("urlPage.failedLoadMore", { message: loadMoreError })}
                 </p>
               )}
               <button
@@ -338,10 +339,10 @@ export default function UrlPage({ urlPath }: UrlPageProps) {
                 {loadingMore ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    Loading...
+                    {t("urlPage.loading")}
                   </>
                 ) : (
-                  "Load more"
+                  t("urlPage.loadMore")
                 )}
               </button>
             </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { AtSign } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import SignUpModal from "../../components/modals/SignUpModal";
 import {
   searchActors,
@@ -16,6 +17,7 @@ interface LoginProps {
 }
 
 export default function Login({ initialError }: LoginProps) {
+  const { t } = useTranslation();
   useStore($theme); // ensure theme is applied on this page
   const [handle, setHandle] = useState("");
   const [suggestions, setSuggestions] = useState<ActorSearchItem[]>([]);
@@ -32,7 +34,7 @@ export default function Login({ initialError }: LoginProps) {
   const [providerIndex, setProviderIndex] = useState(0);
   const [morphClass, setMorphClass] = useState(
     "opacity-100 translate-y-0 blur-0",
-  );  
+  );
   const providers = [
     "AT Protocol",
     "Margin",
@@ -162,13 +164,13 @@ export default function Login({ initialError }: LoginProps) {
       <div className="relative w-full max-w-[440px] bg-white dark:bg-surface-900 rounded-2xl border border-surface-200/60 dark:border-surface-800 p-8 shadow-sm dark:shadow-none">
         <div className="flex flex-col items-center mb-8">
           <h1 className="text-2xl font-bold font-display text-surface-900 dark:text-white text-center leading-snug">
-            Sign in with your <br />
+            {t("login.signInWith")} <br />
             <span
               className={`inline-block transition-all duration-400 ease-out text-transparent bg-clip-text bg-gradient-to-r from-[#027bff] to-[#0285FF] ${morphClass}`}
             >
               {providers[providerIndex]}
             </span>{" "}
-            handle
+            {t("login.handleSuffix")}
           </h1>
         </div>
 
@@ -208,7 +210,7 @@ export default function Login({ initialError }: LoginProps) {
                 !handle.includes(".") &&
                 setShowSuggestions(true)
               }
-              placeholder="handle.margin.cafe"
+              placeholder={t("login.handlePlaceholder")}
               className="w-full pl-12 pr-4 py-3.5 bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-700 rounded-xl focus:border-[#027bff] dark:focus:border-[#027bff] outline-none focus:ring-4 focus:ring-[#027bff]/10 transition-all font-medium text-lg text-surface-900 dark:text-white placeholder:text-surface-400 dark:placeholder:text-surface-500"
               autoCapitalize="none"
               autoCorrect="off"
@@ -255,23 +257,23 @@ export default function Login({ initialError }: LoginProps) {
             disabled={loading || !handle}
             className="w-full py-3.5 bg-[#027bff] hover:bg-[#0269d9] active:scale-[0.98] text-white rounded-xl font-bold text-lg shadow-md shadow-[#027bff]/20 focus:outline-none focus:ring-4 focus:ring-[#027bff]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 mt-2"
           >
-            {loading ? "Connecting..." : "Continue"}
+            {loading ? t("login.connecting") : t("login.continue")}
           </button>
 
           <p className="text-center text-sm text-surface-400 dark:text-surface-500 mt-2 leading-relaxed">
-            By signing in, you agree to our{" "}
+            {t("login.termsPrefix")}{" "}
             <a
               href="/terms"
               className="text-surface-900 dark:text-white hover:underline font-medium hover:text-[#027bff] dark:hover:text-[#027bff] transition-colors"
             >
-              Terms of Service
+              {t("login.termsLink")}
             </a>{" "}
-            and{" "}
+            {t("login.termsAnd")}{" "}
             <a
               href="/privacy"
               className="text-surface-900 dark:text-white hover:underline font-medium hover:text-[#027bff] dark:hover:text-[#027bff] transition-colors"
             >
-              Privacy Policy
+              {t("login.privacyLink")}
             </a>
           </p>
 
@@ -288,7 +290,7 @@ export default function Login({ initialError }: LoginProps) {
             onClick={() => setShowSignUp(true)}
             className="w-full py-3.5 bg-transparent border border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800 text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white rounded-xl font-bold transition-all text-sm"
           >
-            Create New Account
+            {t("login.createAccount")}
           </button>
         </form>
       </div>

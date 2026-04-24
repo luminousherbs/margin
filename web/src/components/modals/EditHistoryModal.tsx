@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X, Loader2, History } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { formatDistanceToNow } from "date-fns";
 import type { AnnotationItem, EditHistoryItem } from "../../types";
 
@@ -14,6 +15,7 @@ export default function EditHistoryModal({
   onClose,
   item,
 }: EditHistoryModalProps) {
+  const { t } = useTranslation();
   const [history, setHistory] = useState<EditHistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export default function EditHistoryModal({
         setHistory(data);
       } catch (err) {
         console.error(err);
-        setError("Failed to load edit history");
+        setError(t("editHistory.failedLoad"));
       } finally {
         setLoading(false);
       }
@@ -46,7 +48,7 @@ export default function EditHistoryModal({
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [isOpen, item.uri]);
+  }, [isOpen, item.uri, t]);
 
   if (!isOpen) return null;
 
@@ -63,7 +65,7 @@ export default function EditHistoryModal({
           <div className="flex items-center gap-2">
             <History className="text-surface-500" size={20} />
             <h2 className="text-xl font-display font-bold text-surface-900 dark:text-white">
-              Edit History
+              {t("editHistory.title")}
             </h2>
           </div>
           <button
@@ -83,19 +85,23 @@ export default function EditHistoryModal({
             <div className="p-8 text-center text-red-500">{error}</div>
           ) : history.length === 0 ? (
             <div className="p-8 text-center text-surface-500">
-              No edit history found.
+              {t("editHistory.noHistory")}
             </div>
           ) : (
             <div className="divide-y divide-surface-100 dark:divide-surface-800">
               <div className="p-4 bg-primary-50/50 dark:bg-primary-900/10">
                 <div className="flex justify-between items-start mb-2">
                   <span className="text-xs font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400">
-                    Current Version
+                    {t("editHistory.currentVersion")}
                   </span>
                   <span className="text-xs text-surface-400">
                     {item.editedAt
-                      ? `Edited ${formatDistanceToNow(new Date(item.editedAt))} ago`
-                      : `Posted ${formatDistanceToNow(new Date(item.createdAt))} ago`}
+                      ? t("editHistory.editedAgo", {
+                          time: formatDistanceToNow(new Date(item.editedAt)),
+                        })
+                      : t("editHistory.postedAgo", {
+                          time: formatDistanceToNow(new Date(item.createdAt)),
+                        })}
                   </span>
                 </div>
                 <div className="text-surface-900 dark:text-white whitespace-pre-wrap text-sm">
@@ -110,13 +116,15 @@ export default function EditHistoryModal({
                 >
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-xs font-medium text-surface-500">
-                      Previous Version
+                      {t("editHistory.previousVersion")}
                     </span>
                     <span
                       className="text-xs text-surface-400"
                       title={new Date(edit.editedAt).toLocaleString()}
                     >
-                      {formatDistanceToNow(new Date(edit.editedAt))} ago
+                      {t("editHistory.timeAgo", {
+                        time: formatDistanceToNow(new Date(edit.editedAt)),
+                      })}
                     </span>
                   </div>
                   <div className="text-surface-600 dark:text-surface-300 whitespace-pre-wrap text-sm">
@@ -133,7 +141,7 @@ export default function EditHistoryModal({
             onClick={onClose}
             className="w-full py-2.5 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-200 font-medium rounded-xl hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors"
           >
-            Close
+            {t("editHistory.close")}
           </button>
         </div>
       </div>

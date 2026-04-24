@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   getCollection,
   getCollectionItems,
@@ -34,6 +35,7 @@ export default function CollectionDetail({
   initialItems,
   resolvedUri,
 }: CollectionDetailProps) {
+  const { t } = useTranslation();
   const user = useStore($user);
   const navigate = useNavigate();
   const [collection, setCollection] = useState<Collection | null>(
@@ -59,7 +61,7 @@ export default function CollectionDetail({
             if (did) {
               targetUri = `at://${did}/at.margin.collection/${rkey}`;
             } else {
-              setError("Collection not found");
+              setError(t("collectionDetail.notFound"));
               setLoading(false);
               return;
             }
@@ -73,22 +75,22 @@ export default function CollectionDetail({
             const colItems = await getCollectionItems(col.uri);
             setItems(colItems.filter((i) => i && i.uri));
           } else {
-            setError("Collection not found");
+            setError(t("collectionDetail.notFound"));
           }
         }
       } catch {
-        setError("Failed to load collection");
+        setError(t("collectionDetail.failedToLoad"));
       } finally {
         setLoading(false);
       }
     };
 
     loadData();
-  }, [handle, rkey, uri, initialCollection, resolvedUri]);
+  }, [handle, rkey, uri, initialCollection, resolvedUri, t]);
 
   const handleDelete = async () => {
     if (!collection) return;
-    if (window.confirm("Delete this collection?")) {
+    if (window.confirm(t("collectionDetail.deleteConfirm"))) {
       await deleteCollection(collection.id);
       navigate("/collections");
     }
@@ -96,7 +98,7 @@ export default function CollectionDetail({
 
   const handleRemoveItem = async (item: AnnotationItem) => {
     if (!item.collectionItemUri) return;
-    if (!window.confirm("Remove from collection?")) return;
+    if (!window.confirm(t("collectionDetail.removeConfirm"))) return;
     const success = await removeCollectionItem(item.collectionItemUri);
     if (success) {
       setItems((prev) =>
@@ -119,7 +121,7 @@ export default function CollectionDetail({
   if (error || !collection) {
     return (
       <div className="text-center py-20 text-red-500 dark:text-red-400">
-        {error || "Collection not found"}
+        {error || t("collectionDetail.notFound")}
       </div>
     );
   }
@@ -146,7 +148,7 @@ export default function CollectionDetail({
         className="inline-flex items-center gap-1.5 text-sm font-medium text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white mb-4 transition-colors"
       >
         <ArrowLeft size={16} />
-        Collections
+        {t("collectionDetail.backLink")}
       </a>
 
       <div className="bg-white dark:bg-surface-900 rounded-xl p-4 ring-1 ring-black/5 dark:ring-white/5 mb-4">
@@ -165,10 +167,10 @@ export default function CollectionDetail({
             )}
             <div className="flex items-center gap-2 mt-2 text-xs text-surface-500 dark:text-surface-400">
               <span className="font-medium bg-surface-100 dark:bg-surface-800 px-2 py-0.5 rounded">
-                {items.length} items
+                {t("collections.itemCount", { count: items.length })}
               </span>
               <span>
-                by{" "}
+                {t("collectionDetail.by")}{" "}
                 <a
                   href={`/profile/${collection.creator?.did}`}
                   className="hover:text-primary-600 dark:hover:text-primary-400 hover:underline transition-colors"
@@ -191,14 +193,14 @@ export default function CollectionDetail({
                 <button
                   onClick={() => setIsEditModalOpen(true)}
                   className="p-2 text-surface-400 dark:text-surface-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors"
-                  title="Edit collection"
+                  title={t("collectionDetail.edit")}
                 >
                   <Edit3 size={18} />
                 </button>
                 <button
                   onClick={handleDelete}
                   className="p-2 text-surface-400 dark:text-surface-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                  title="Delete collection"
+                  title={t("collectionDetail.delete")}
                 >
                   <Trash2 size={18} />
                 </button>
@@ -212,7 +214,7 @@ export default function CollectionDetail({
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
               >
                 <img src="/semble-logo.svg" alt="" className="w-3.5 h-3.5" />
-                View in Semble
+                {t("collectionDetail.viewInSemble")}
                 <ExternalLink size={12} />
               </a>
             )}
@@ -239,7 +241,7 @@ export default function CollectionDetail({
               size={28}
               className="mx-auto mb-2 text-surface-300 dark:text-surface-600"
             />
-            <p className="text-sm">Collection is empty</p>
+            <p className="text-sm">{t("collectionDetail.empty")}</p>
           </div>
         ) : (
           items.map((item) => (
@@ -249,7 +251,7 @@ export default function CollectionDetail({
                 <button
                   className="absolute top-3 right-3 p-1.5 bg-white/90 dark:bg-surface-800/90 backdrop-blur text-surface-400 dark:text-surface-500 hover:text-red-500 dark:hover:text-red-400 rounded-lg shadow-sm transition-all"
                   onClick={() => handleRemoveItem(item)}
-                  title="Remove from collection"
+                  title={t("collectionDetail.removeFromCollection")}
                 >
                   <Trash2 size={16} />
                 </button>

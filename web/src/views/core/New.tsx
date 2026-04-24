@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "@nanostores/react";
+import { useTranslation } from "react-i18next";
 import { $user } from "../../store/auth";
 import Composer from "../../components/feed/Composer";
 import type { Selector } from "../../types";
@@ -16,6 +17,7 @@ export default function NewAnnotationPage({
   initialSelectorJson,
   initialQuote,
 }: NewAnnotationProps) {
+  const { t } = useTranslation();
   const user = useStore($user);
   const navigate = useNavigate();
 
@@ -44,16 +46,16 @@ export default function NewAnnotationPage({
       <div className="max-w-sm mx-auto py-16 px-4">
         <div className="bg-white dark:bg-surface-900 rounded-xl ring-1 ring-black/5 dark:ring-white/5 p-6 text-center">
           <h2 className="text-xl font-bold text-surface-900 dark:text-white mb-2">
-            Sign in to create
+            {t("new.signInRequired")}
           </h2>
           <p className="text-surface-500 dark:text-surface-400 text-sm mb-5">
-            You need a Bluesky account
+            {t("new.needsAccount")}
           </p>
           <a
             href="/login"
             className="block w-full py-2.5 px-4 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
           >
-            Sign in with Bluesky
+            {t("new.signInButton")}
           </a>
         </div>
       </div>
@@ -68,10 +70,10 @@ export default function NewAnnotationPage({
     <div className="max-w-2xl mx-auto pb-20">
       <div className="mb-6 text-center sm:text-left">
         <h1 className="text-2xl font-display font-bold text-surface-900 dark:text-white mb-1">
-          Compose
+          {t("new.composeTitle")}
         </h1>
         <p className="text-surface-500 dark:text-surface-400">
-          Highlight a passage, leave a note, or annotate a page — all from here.
+          {t("new.composeTagline")}
         </p>
       </div>
 
@@ -81,14 +83,14 @@ export default function NewAnnotationPage({
             htmlFor="url-input"
             className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5"
           >
-            URL to annotate
+            {t("new.urlLabel")}
           </label>
           <input
             id="url-input"
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://example.com/article"
+            placeholder={t("new.urlPlaceholder")}
             className="w-full p-3 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-lg text-surface-900 dark:text-white placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:focus:border-primary-400 outline-none transition-all"
             required
           />

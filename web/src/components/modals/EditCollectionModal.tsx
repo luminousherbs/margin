@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import CollectionIcon from "../common/CollectionIcon";
 import { ICON_MAP } from "../common/iconMap";
 import { Theme } from "emoji-picker-react";
@@ -30,6 +31,7 @@ export default function EditCollectionModal({
     initialIsIcon || !collection.icon ? "icon" : "emoji",
   );
   const [icon, setIcon] = useState(initialIconValue);
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const theme = useStore($theme);
@@ -74,11 +76,11 @@ export default function EditCollectionModal({
         onUpdate(updated);
         onClose();
       } else {
-        setError("Failed to update collection");
+        setError(t("editCollection.failedUpdate"));
       }
     } catch (err) {
       console.error(err);
-      setError("An error occurred while updating");
+      setError(t("editCollection.errorUpdating"));
     } finally {
       setLoading(false);
     }
@@ -97,7 +99,7 @@ export default function EditCollectionModal({
       >
         <div className="p-4 flex justify-between items-center border-b border-surface-100 dark:border-surface-800">
           <h2 className="text-xl font-display font-bold text-surface-900 dark:text-white">
-            Edit Collection
+            {t("editCollection.title")}
           </h2>
           <button
             onClick={onClose}
@@ -111,34 +113,34 @@ export default function EditCollectionModal({
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                Collection name
+                {t("editCollection.nameLabel")}
               </label>
               <input
                 type="text"
                 className="w-full px-4 py-3 bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl focus:border-primary-500 dark:focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-surface-900 dark:text-white placeholder-surface-400 dark:placeholder-surface-500"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="My Collection"
+                placeholder={t("editCollection.namePlaceholder")}
                 autoFocus
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                Description (optional)
+                {t("editCollection.descriptionLabel")}
               </label>
               <textarea
                 className="w-full px-4 py-3 bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl focus:border-primary-500 dark:focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-surface-900 dark:text-white placeholder-surface-400 dark:placeholder-surface-500 resize-none"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="What's this collection about?"
+                placeholder={t("editCollection.descriptionPlaceholder")}
                 rows={3}
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
-                Icon
+                {t("editCollection.iconLabel")}
               </label>
 
               <div className="flex gap-2 mb-3 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl">
@@ -151,7 +153,7 @@ export default function EditCollectionModal({
                       : "text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-200"
                   }`}
                 >
-                  Icons
+                  {t("editCollection.iconsTab")}
                 </button>
                 <button
                   type="button"
@@ -162,7 +164,7 @@ export default function EditCollectionModal({
                       : "text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-200"
                   }`}
                 >
-                  Emojis
+                  {t("editCollection.emojisTab")}
                 </button>
               </div>
 
@@ -223,7 +225,7 @@ export default function EditCollectionModal({
 
               {icon && (
                 <p className="mt-2 text-sm text-surface-600 dark:text-surface-300 flex items-center gap-2">
-                  Selected:
+                  {t("editCollection.selected")}
                   <span className="inline-flex items-center justify-center w-8 h-8 bg-surface-100 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
                     <CollectionIcon
                       icon={ICON_MAP[icon] ? `icon:${icon}` : icon}
@@ -246,7 +248,7 @@ export default function EditCollectionModal({
                 className="flex-1 py-3 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-200 font-semibold rounded-xl hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors"
                 onClick={onClose}
               >
-                Cancel
+                {t("editCollection.cancel")}
               </button>
               <button
                 type="submit"
@@ -254,7 +256,9 @@ export default function EditCollectionModal({
                 disabled={!name.trim() || loading}
               >
                 {loading && <Loader2 size={16} className="animate-spin" />}
-                {loading ? "Saving..." : "Save Changes"}
+                {loading
+                  ? t("editCollection.saving")
+                  : t("editCollection.save")}
               </button>
             </div>
           </form>

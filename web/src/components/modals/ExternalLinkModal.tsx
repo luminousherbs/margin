@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Button } from "../ui";
 import { ExternalLink, Shield } from "lucide-react";
 import { addSkippedHostname } from "../../store/preferences";
+import { useTranslation } from "react-i18next";
 
 interface ExternalLinkModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ export default function ExternalLinkModal({
   onClose,
   url,
 }: ExternalLinkModalProps) {
+  const { t } = useTranslation();
   const [dontAskAgain, setDontAskAgain] = useState(false);
 
   if (!isOpen || !url) return null;
@@ -57,10 +59,10 @@ export default function ExternalLinkModal({
             </div>
             <div className="min-w-0">
               <h2 className="text-base font-semibold text-surface-900 dark:text-white">
-                Leaving Margin
+                {t("externalLink.title")}
               </h2>
               <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
-                You're about to visit an external site.
+                {t("externalLink.message")}
               </p>
             </div>
           </div>
@@ -85,10 +87,7 @@ export default function ExternalLinkModal({
               className="rounded border-surface-300 dark:border-surface-600 text-primary-600 focus:ring-primary-500 w-3.5 h-3.5 cursor-pointer"
             />
             <span className="text-xs text-surface-500 dark:text-surface-400 group-hover:text-surface-600 dark:group-hover:text-surface-300 transition-colors">
-              Always allow links to{" "}
-              <span className="font-medium text-surface-700 dark:text-surface-200">
-                {hostname}
-              </span>
+              {t("externalLink.alwaysAllow", { hostname })}
             </span>
           </label>
 
@@ -98,7 +97,7 @@ export default function ExternalLinkModal({
               variant="ghost"
               className="flex-1 justify-center"
             >
-              Cancel
+              {t("externalLink.cancel")}
             </Button>
             <Button
               onClick={handleContinue}
@@ -106,7 +105,7 @@ export default function ExternalLinkModal({
               className="flex-1 justify-center"
               icon={<ExternalLink size={14} />}
             >
-              Open Link
+              {t("externalLink.open")}
             </Button>
           </div>
         </div>

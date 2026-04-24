@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useStore } from "@nanostores/react";
+import { useTranslation } from "react-i18next";
+import i18n from "../../i18n";
+import { languages } from "virtual:i18n-languages";
 import { $user, logout } from "../../store/auth";
 import { $theme, setTheme, type Theme } from "../../store/theme";
 import {
@@ -65,6 +68,7 @@ import IOSShortcutModal from "../../components/modals/IOSShortcutModal";
 import { analytics } from "../../lib/analytics";
 
 export default function Settings() {
+  const { t } = useTranslation();
   const user = useStore($user);
   const theme = useStore($theme);
   const [keys, setKeys] = useState<APIKey[]>([]);
@@ -81,6 +85,7 @@ export default function Settings() {
   const [addingLabeler, setAddingLabeler] = useState(false);
   const [isShortcutModalOpen, setIsShortcutModalOpen] = useState(false);
   const preferences = useStore($preferences);
+  const currentLanguage = i18n.resolvedLanguage ?? i18n.language ?? "en";
 
   useEffect(() => {
     const loadKeys = async () => {
@@ -123,7 +128,7 @@ export default function Settings() {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm("Revoke this key? Apps using it will stop working.")) {
+    if (window.confirm(t("settings.apiKeys.revokeConfirm"))) {
       const success = await deleteAPIKey(id);
       if (success) {
         setKeys((prev) => prev.filter((k) => k.id !== id));
@@ -140,21 +145,21 @@ export default function Settings() {
   if (!user) return null;
 
   const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
-    { value: "light", label: "Light", icon: Sun },
-    { value: "dark", label: "Dark", icon: Moon },
-    { value: "system", label: "System", icon: Monitor },
+    { value: "light", label: t("nav.themeLight"), icon: Sun },
+    { value: "dark", label: t("nav.themeDark"), icon: Moon },
+    { value: "system", label: t("nav.themeSystem"), icon: Monitor },
   ];
 
   return (
     <div className="max-w-2xl mx-auto animate-slide-up">
       <h1 className="text-3xl font-display font-bold text-surface-900 dark:text-white mb-8">
-        Settings
+        {t("settings.title")}
       </h1>
 
       <div className="space-y-6">
         <section className="card p-5">
           <h2 className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-4">
-            Profile
+            {t("settings.sections.profile")}
           </h2>
           <div className="flex gap-4 items-center">
             <Avatar did={user.did} avatar={user.avatar} size="lg" />
@@ -175,7 +180,7 @@ export default function Settings() {
 
         <section className="card p-5">
           <h2 className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-4">
-            Appearance
+            {t("settings.sections.appearance")}
           </h2>
           <div className="flex gap-2">
             {themeOptions.map((opt) => (
@@ -213,10 +218,10 @@ export default function Settings() {
           <div className="mt-6 flex items-center justify-between">
             <div>
               <h3 className="text-sm font-medium text-surface-900 dark:text-white">
-                Disable external link warning
+                {t("settings.appearance.disableExternalLinkWarning")}
               </h3>
               <p className="text-sm text-surface-500 dark:text-surface-400">
-                Don't ask for confirmation when opening external links
+                {t("settings.appearance.disableExternalLinkWarningDesc")}
               </p>
             </div>
             <Switch
@@ -228,10 +233,10 @@ export default function Settings() {
           <div className="mt-6 flex items-center justify-between">
             <div>
               <h3 className="text-sm font-medium text-surface-900 dark:text-white">
-                Share bookmarks to community feed
+                {t("settings.appearance.communityBookmarks")}
               </h3>
               <p className="text-sm text-surface-500 dark:text-surface-400">
-                Your saved bookmarks will appear in the community bookmarks feed
+                {t("settings.appearance.communityBookmarksDesc")}
               </p>
             </div>
             <Switch
@@ -241,24 +246,56 @@ export default function Settings() {
           </div>
         </section>
 
+        {languages.length > 1 && (
+          <section className="card p-5">
+            <h2 className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-4">
+              {t("settings.sections.language")}
+            </h2>
+            <div>
+              <p className="text-sm text-surface-500 dark:text-surface-400 mb-3">
+                {t("settings.language.description")}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {languages.map((lang) => (
+                  <button
+                    key={lang.code}
+                    onClick={() => i18n.changeLanguage(lang.code)}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium border-2 transition-all ${
+                      currentLanguage.startsWith(lang.code)
+                        ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300"
+                        : "border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400 hover:border-surface-300 dark:hover:border-surface-600"
+                    }`}
+                  >
+                    {lang.nativeName}
+                    {lang.nativeName !== lang.name && (
+                      <span className="ml-1.5 text-xs opacity-60">
+                        ({lang.name})
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
         <section className="card p-5">
           <h2 className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-4 flex items-center gap-2">
             <Upload size={16} />
-            Batch Import Highlights
+            {t("settings.sections.batchImport")}
           </h2>
           <p className="text-sm text-surface-500 dark:text-surface-400 mb-4">
-            Upload highlights from CSV. Required: url, text. Optional: title,
-            tags, color, created_at
+            {t("settings.batchImport.description")}
           </p>
           <HighlightImporter />
         </section>
 
         <section className="card p-5">
           <h2 className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">
-            API Keys
+            {t("settings.sections.apiKeys")}
           </h2>
           <p className="text-sm text-surface-400 dark:text-surface-500 mb-5">
-            For the iOS shortcut and other apps
+            {t("settings.apiKeys.description")}
           </p>
 
           <form onSubmit={handleCreate} className="flex gap-2 mb-5">
@@ -266,7 +303,7 @@ export default function Settings() {
               <Input
                 value={newKeyName}
                 onChange={(e) => setNewKeyName(e.target.value)}
-                placeholder="Key name, e.g. iOS Shortcut"
+                placeholder={t("settings.apiKeys.keyNamePlaceholder")}
               />
             </div>
             <Button
@@ -275,7 +312,7 @@ export default function Settings() {
               loading={creating}
               icon={<Plus size={16} />}
             >
-              Generate
+              {t("settings.apiKeys.generate")}
             </Button>
           </form>
 
@@ -290,7 +327,7 @@ export default function Settings() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-green-800 dark:text-green-200 text-sm font-medium mb-2">
-                    Copy now - you won't see this again!
+                    {t("settings.apiKeys.copyNow")}
                   </p>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 bg-white dark:bg-surface-900 border border-green-200 dark:border-green-800 px-3 py-2 rounded-lg text-xs font-mono text-green-900 dark:text-green-100 break-all">
@@ -318,7 +355,7 @@ export default function Settings() {
           ) : keys.length === 0 ? (
             <EmptyState
               icon={<Key size={40} />}
-              message="No API keys yet. Create one to use with the browser extension."
+              message={t("settings.apiKeys.empty")}
             />
           ) : (
             <div className="space-y-2">
@@ -339,7 +376,9 @@ export default function Settings() {
                         {key.name}
                       </p>
                       <p className="text-xs text-surface-500 dark:text-surface-400">
-                        Created {new Date(key.createdAt).toLocaleDateString()}
+                        {t("settings.apiKeys.created", {
+                          date: new Date(key.createdAt).toLocaleDateString(),
+                        })}
                       </p>
                     </div>
                   </div>
@@ -357,10 +396,10 @@ export default function Settings() {
 
         <section className="card p-5">
           <h2 className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">
-            Moderation
+            {t("settings.sections.moderation")}
           </h2>
           <p className="text-sm text-surface-400 dark:text-surface-500 mb-5">
-            Manage blocked and muted accounts
+            {t("settings.moderation.description")}
           </p>
 
           {modLoading ? (
@@ -373,11 +412,13 @@ export default function Settings() {
               <div>
                 <h3 className="text-sm font-medium text-surface-700 dark:text-surface-300 mb-2 flex items-center gap-2">
                   <ShieldBan size={14} />
-                  Blocked accounts ({blocks.length})
+                  {t("settings.moderation.blockedAccounts", {
+                    count: blocks.length,
+                  })}
                 </h3>
                 {blocks.length === 0 ? (
                   <p className="text-sm text-surface-400 dark:text-surface-500 pl-6">
-                    No blocked accounts
+                    {t("settings.moderation.noBlocked")}
                   </p>
                 ) : (
                   <div className="space-y-1.5">
@@ -418,7 +459,7 @@ export default function Settings() {
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-surface-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                         >
                           <ShieldOff size={12} />
-                          Unblock
+                          {t("settings.moderation.unblock")}
                         </button>
                       </div>
                     ))}
@@ -429,11 +470,13 @@ export default function Settings() {
               <div>
                 <h3 className="text-sm font-medium text-surface-700 dark:text-surface-300 mb-2 flex items-center gap-2">
                   <VolumeX size={14} />
-                  Muted accounts ({mutes.length})
+                  {t("settings.moderation.mutedAccounts", {
+                    count: mutes.length,
+                  })}
                 </h3>
                 {mutes.length === 0 ? (
                   <p className="text-sm text-surface-400 dark:text-surface-500 pl-6">
-                    No muted accounts
+                    {t("settings.moderation.noMuted")}
                   </p>
                 ) : (
                   <div className="space-y-1.5">
@@ -474,7 +517,7 @@ export default function Settings() {
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-surface-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                         >
                           <Volume2 size={12} />
-                          Unmute
+                          {t("settings.moderation.unmute")}
                         </button>
                       </div>
                     ))}
@@ -487,22 +530,22 @@ export default function Settings() {
 
         <section className="card p-5">
           <h2 className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">
-            Content Filtering
+            {t("settings.sections.contentFiltering")}
           </h2>
           <p className="text-sm text-surface-400 dark:text-surface-500 mb-5">
-            Subscribe to labelers and configure how labeled content appears
+            {t("settings.contentFiltering.description")}
           </p>
 
           <div className="space-y-5">
             <div>
               <h3 className="text-sm font-medium text-surface-700 dark:text-surface-300 mb-3 flex items-center gap-2">
                 <Shield size={14} />
-                Subscribed Labelers
+                {t("settings.contentFiltering.subscribedLabelers")}
               </h3>
 
               {preferences.subscribedLabelers.length === 0 ? (
                 <p className="text-sm text-surface-400 dark:text-surface-500 pl-6 mb-3">
-                  No labelers subscribed
+                  {t("settings.contentFiltering.noLabelers")}
                 </p>
               ) : (
                 <div className="space-y-1.5 mb-3">
@@ -534,7 +577,7 @@ export default function Settings() {
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-surface-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                       >
                         <XCircle size={12} />
-                        Remove
+                        {t("settings.contentFiltering.remove")}
                       </button>
                     </div>
                   ))}
@@ -556,7 +599,9 @@ export default function Settings() {
                   <Input
                     value={newLabelerDid}
                     onChange={(e) => setNewLabelerDid(e.target.value)}
-                    placeholder="did:plc:... (labeler DID)"
+                    placeholder={t(
+                      "settings.contentFiltering.labelerDidPlaceholder",
+                    )}
                   />
                 </div>
                 <Button
@@ -565,7 +610,7 @@ export default function Settings() {
                   loading={addingLabeler}
                   icon={<Plus size={16} />}
                 >
-                  Add
+                  {t("settings.contentFiltering.add")}
                 </Button>
               </form>
             </div>
@@ -574,12 +619,10 @@ export default function Settings() {
               <div>
                 <h3 className="text-sm font-medium text-surface-700 dark:text-surface-300 mb-3 flex items-center gap-2">
                   <Eye size={14} />
-                  Label Visibility
+                  {t("settings.contentFiltering.labelVisibility")}
                 </h3>
                 <p className="text-xs text-surface-400 dark:text-surface-500 mb-3 pl-6">
-                  Choose how to handle each label type: <strong>Warn</strong>{" "}
-                  shows a blur overlay, <strong>Hide</strong> removes content
-                  entirely, <strong>Ignore</strong> shows content normally.
+                  {t("settings.contentFiltering.labelVisibilityDesc")}
                 </p>
 
                 <div className="space-y-4">
@@ -613,17 +656,29 @@ export default function Settings() {
                               label: string;
                               icon: typeof Eye;
                             }[] = [
-                              { value: "warn", label: "Warn", icon: EyeOff },
-                              { value: "hide", label: "Hide", icon: XCircle },
-                              { value: "ignore", label: "Ignore", icon: Eye },
+                              {
+                                value: "warn",
+                                label: t("settings.contentFiltering.warn"),
+                                icon: EyeOff,
+                              },
+                              {
+                                value: "hide",
+                                label: t("settings.contentFiltering.hide"),
+                                icon: XCircle,
+                              },
+                              {
+                                value: "ignore",
+                                label: t("settings.contentFiltering.ignore"),
+                                icon: Eye,
+                              },
                             ];
                             return (
                               <div
                                 key={label}
                                 className="flex items-center justify-between py-1.5"
                               >
-                                <span className="text-sm text-surface-600 dark:text-surface-400 capitalize">
-                                  {label}
+                                <span className="text-sm text-surface-600 dark:text-surface-400">
+                                  {t(`card.labelDescriptions.${label}`)}
                                 </span>
                                 <div className="flex gap-1">
                                   {options.map((opt) => (
@@ -666,17 +721,17 @@ export default function Settings() {
 
         <section className="card p-5">
           <h2 className="text-xs font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">
-            iOS Shortcut
+            {t("settings.sections.iosShortcut")}
           </h2>
           <p className="text-sm text-surface-400 dark:text-surface-500 mb-4">
-            Save pages to Margin from Safari on iPhone and iPad
+            {t("settings.iosShortcut.description")}
           </p>
           <button
             onClick={() => setIsShortcutModalOpen(true)}
             className="inline-flex items-center gap-2.5 px-4 py-2.5 bg-surface-900 dark:bg-white text-white dark:text-surface-900 rounded-xl font-medium text-sm transition-all hover:opacity-90"
           >
             <AppleIcon size={16} />
-            Setup iOS Shortcut
+            {t("settings.iosShortcut.setupButton")}
           </button>
         </section>
 
@@ -686,7 +741,7 @@ export default function Settings() {
             className="flex items-center gap-3 w-full text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 p-3 -m-3 rounded-xl transition-colors"
           >
             <LogOut size={20} />
-            <span className="font-medium">Log out</span>
+            <span className="font-medium">{t("settings.logout")}</span>
           </button>
         </section>
       </div>

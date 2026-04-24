@@ -1,5 +1,6 @@
 import React from "react";
 import { formatDistanceToNow } from "date-fns";
+import { useTranslation } from "react-i18next";
 import { MessageSquare, Trash2, Reply } from "lucide-react";
 import type { AnnotationItem, UserProfile } from "../../types";
 import { getAvatarUrl } from "../../api/client";
@@ -196,11 +197,12 @@ export default function ReplyList({
   onDelete,
   isInline = false,
 }: ReplyListProps) {
+  const { t } = useTranslation();
   if (!replies || replies.length === 0) {
     return (
       <div className="py-8 text-center">
         <p className="text-surface-500 dark:text-surface-400 text-sm">
-          No replies yet
+          {t("replyList.noReplies")}
         </p>
       </div>
     );

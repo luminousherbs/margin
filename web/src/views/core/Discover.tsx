@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Loader2, ExternalLink, Compass, Tag } from "lucide-react";
 import { useStore } from "@nanostores/react";
 import { clsx } from "clsx";
+import { useTranslation } from "react-i18next";
 import { getDocuments, getRecommendations } from "../../api/client";
 import type { DocumentItem } from "../../api/client";
 import { Tabs, EmptyState } from "../../components/ui";
@@ -19,6 +20,7 @@ export default function Discover({
   initialDocuments,
   initialHasMore,
 }: DiscoverProps) {
+  const { t } = useTranslation();
   const user = useStore($user);
   const layout = useStore($feedLayout);
   const [activeTab, setActiveTab] = useState("new");
@@ -32,9 +34,9 @@ export default function Discover({
   const limit = 30;
 
   const tabs = [
-    { id: "new", label: "New" },
-    { id: "popular", label: "Popular" },
-    ...(user ? [{ id: "recommended", label: "For You" }] : []),
+    { id: "new", label: t("discover.tabs.new") },
+    { id: "popular", label: t("discover.tabs.popular") },
+    ...(user ? [{ id: "recommended", label: t("discover.tabs.forYou") }] : []),
   ];
 
   const fetchItems = useCallback(
@@ -104,17 +106,17 @@ export default function Discover({
       ) : activeTab === "recommended" && recommendationsUnavailable ? (
         <EmptyState
           icon={<Compass size={40} />}
-          title="Coming soon"
-          message="Personalized recommendations aren't available on this server yet."
+          title={t("discover.comingSoon")}
+          message={t("discover.forYouNotAvailable")}
         />
       ) : items.length === 0 ? (
         <EmptyState
           icon={<Compass size={40} />}
-          title="Nothing here yet"
+          title={t("feed.nothingHereYet")}
           message={
             activeTab === "recommended"
-              ? "Start annotating and highlighting to get personalized recommendations."
-              : "No documents have been discovered yet. Check back soon!"
+              ? t("discover.startAnnotating")
+              : t("discover.noDocumentsYet")
           }
         />
       ) : (
@@ -148,7 +150,7 @@ export default function Discover({
               onClick={loadMore}
               className="w-full py-3 text-sm font-medium text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-lg transition-colors"
             >
-              Load more
+              {t("discover.loadMore")}
             </button>
           )}
         </div>

@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 import { getNotifications, markNotificationsRead } from "../../api/client";
 import type { NotificationItem, AnnotationItem } from "../../types";
@@ -34,21 +36,22 @@ function getContentType(
 function getNotificationVerb(
   notifType: string,
   contentType: string,
+  t: TFunction,
   subject?: AnnotationItem,
 ): string {
   switch (notifType) {
     case "like":
       switch (contentType) {
         case "annotation":
-          return "liked your annotation";
+          return t("notifications.likedAnnotation");
         case "highlight":
-          return "liked your highlight";
+          return t("notifications.likedHighlight");
         case "bookmark":
-          return "liked your bookmark";
+          return t("notifications.likedBookmark");
         case "reply":
-          return "liked your reply";
+          return t("notifications.likedReply");
         default:
-          return "liked your post";
+          return t("notifications.likedPost");
       }
     case "reply": {
       const parentUri = subject?.inReplyTo;
@@ -56,15 +59,15 @@ function getNotificationVerb(
         ? getContentType(parentUri) === "reply"
         : false;
       return parentIsReply
-        ? "replied to your reply"
-        : "replied to your annotation";
+        ? t("notifications.repliedToReply")
+        : t("notifications.repliedToAnnotation");
     }
     case "mention":
-      return "mentioned you in an annotation";
+      return t("notifications.mentionedInAnnotation");
     case "follow":
-      return "followed you";
+      return t("notifications.followedYou");
     case "highlight":
-      return "highlighted your page";
+      return t("notifications.highlightedPage");
     default:
       return notifType;
   }
@@ -121,9 +124,11 @@ const NotificationIcon = ({ type }: { type: string }) => {
 function SubjectPreview({
   subject,
   subjectUri,
+  t,
 }: {
   subject: AnnotationItem | unknown;
   subjectUri: string;
+  t: TFunction;
 }) {
   const item = subject as AnnotationItem | undefined;
   if (!item?.uri && !subjectUri) return null;
@@ -196,13 +201,15 @@ function SubjectPreview({
         )}
         {parentUri && (
           <p className="text-surface-400 dark:text-surface-500 text-xs mt-1">
-            in reply to{" "}
+            {t("notifications.inReplyTo")}{" "}
             <a
               href={`/annotation/${encodeURIComponent(parentUri)}`}
               className="hover:underline text-primary-500"
               onClick={(e) => e.stopPropagation()}
             >
-              {parentIsReply ? "a reply" : "an annotation"}
+              {parentIsReply
+                ? t("notifications.aReply")
+                : t("notifications.anAnnotation")}
             </a>
           </p>
         )}
@@ -229,6 +236,7 @@ interface NotificationsProps {
 export default function Notifications({
   initialNotifications,
 }: NotificationsProps) {
+  const { t } = useTranslation();
   const [notifications, setNotifications] = useState<NotificationItem[]>(
     initialNotifications || [],
   );
@@ -275,7 +283,7 @@ export default function Notifications({
     return (
       <div className="max-w-2xl mx-auto animate-fade-in">
         <h1 className="text-3xl font-display font-bold text-surface-900 dark:text-white mb-6">
-          Activity
+          {t("notifications.title")}
         </h1>
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -296,12 +304,12 @@ export default function Notifications({
     return (
       <div className="max-w-2xl mx-auto animate-fade-in">
         <h1 className="text-3xl font-display font-bold text-surface-900 dark:text-white mb-6">
-          Activity
+          {t("notifications.title")}
         </h1>
         <EmptyState
           icon={<Bell size={48} />}
-          title="No activity yet"
-          message="Interactions with your content will appear here."
+          title={t("notifications.noActivity")}
+          message={t("notifications.noActivityMessage")}
         />
       </div>
     );
@@ -310,7 +318,7 @@ export default function Notifications({
   return (
     <div className="max-w-2xl mx-auto animate-slide-up">
       <h1 className="text-3xl font-display font-bold text-surface-900 dark:text-white mb-6">
-        Activity
+        {t("notifications.title")}
       </h1>
       <div className="space-y-2">
         {notifications.map((n) => {
@@ -318,6 +326,7 @@ export default function Notifications({
           const verb = getNotificationVerb(
             n.type,
             contentType,
+            t,
             n.subject as AnnotationItem,
           );
           const timeAgo = formatDistanceToNow(new Date(n.createdAt), {
@@ -371,6 +380,7 @@ export default function Notifications({
                     <SubjectPreview
                       subject={n.subject}
                       subjectUri={n.subjectUri || ""}
+                      t={t}
                     />
                   )}
                 </div>

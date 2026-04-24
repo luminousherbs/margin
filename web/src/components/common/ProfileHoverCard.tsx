@@ -4,6 +4,7 @@ import RichText from "./RichText";
 import { getProfile } from "../../api/client";
 import type { UserProfile } from "../../types";
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface ProfileHoverCardProps {
   did?: string;
@@ -18,6 +19,7 @@ export default function ProfileHoverCard({
   children,
   className,
 }: ProfileHoverCardProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
@@ -143,12 +145,12 @@ export default function ProfileHoverCard({
                 href={`/profile/${profile.did}`}
                 className="block w-full text-center py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors"
               >
-                View Profile
+                {t("profileHoverCard.viewProfile")}
               </a>
             </div>
           ) : (
             <p className="text-sm text-surface-500 text-center py-2">
-              Profile not found
+              {t("profileHoverCard.notFound")}
             </p>
           )}
         </div>

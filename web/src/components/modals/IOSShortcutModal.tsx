@@ -1,15 +1,8 @@
 import React from "react";
 import { Button } from "../ui";
-import {
-  X,
-  ExternalLink,
-  Key,
-  Share,
-  Bookmark,
-  PenTool,
-  MoreHorizontal,
-} from "lucide-react";
+import { X, ExternalLink, Key, Bookmark, PenTool } from "lucide-react";
 import { AppleIcon } from "../common/Icons";
+import { useTranslation } from "react-i18next";
 
 interface IOSShortcutModalProps {
   isOpen: boolean;
@@ -20,6 +13,7 @@ export default function IOSShortcutModal({
   isOpen,
   onClose,
 }: IOSShortcutModalProps) {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   return (
@@ -37,7 +31,7 @@ export default function IOSShortcutModal({
               <AppleIcon size={16} />
             </div>
             <h2 className="text-lg font-semibold text-surface-900 dark:text-white">
-              Save from iOS Safari
+              {t("iosShortcut.title")}
             </h2>
           </div>
           <button
@@ -63,7 +57,7 @@ export default function IOSShortcutModal({
 
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-surface-900 dark:text-white uppercase tracking-wider">
-              How to use the shortcut
+              {t("iosShortcut.howTo")}
             </h3>
 
             <div className="space-y-3">
@@ -73,7 +67,7 @@ export default function IOSShortcutModal({
                 </div>
                 <div>
                   <p className="text-surface-900 dark:text-white font-medium">
-                    Install the shortcut
+                    {t("iosShortcut.step1Title")}
                   </p>
                   <a
                     href="https://www.icloud.com/shortcuts/1e33ebf52f55431fae1e187cfe9738c3"
@@ -81,7 +75,7 @@ export default function IOSShortcutModal({
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 mt-1.5 px-3 py-1.5 bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-900 dark:text-white rounded-lg text-xs font-medium transition-colors"
                   >
-                    <ExternalLink size={14} /> Get iOS Shortcut
+                    <ExternalLink size={14} /> {t("iosShortcut.step1Link")}
                   </a>
                 </div>
               </div>
@@ -92,11 +86,11 @@ export default function IOSShortcutModal({
                 </div>
                 <div>
                   <p className="text-surface-900 dark:text-white font-medium flex items-center gap-1.5">
-                    Generate an API Key{" "}
+                    {t("iosShortcut.step2Title")}{" "}
                     <Key size={14} className="text-surface-400" />
                   </p>
                   <p className="text-surface-600 dark:text-surface-400 mt-0.5">
-                    Create a new key on this settings page and copy it.
+                    {t("iosShortcut.step2Description")}
                   </p>
                 </div>
               </div>
@@ -107,14 +101,10 @@ export default function IOSShortcutModal({
                 </div>
                 <div>
                   <p className="text-surface-900 dark:text-white font-medium">
-                    Configure the shortcut
+                    {t("iosShortcut.step3Title")}
                   </p>
                   <p className="text-surface-600 dark:text-surface-400 mt-0.5">
-                    In the Shortcuts app, click the{" "}
-                    <MoreHorizontal size={14} className="inline mx-0.5" /> menu
-                    on the <strong>Save to Margin</strong> shortcut, and paste
-                    your API key in the Text action right below the setup
-                    comment.
+                    {t("iosShortcut.step3Description")}
                   </p>
                 </div>
               </div>
@@ -125,16 +115,11 @@ export default function IOSShortcutModal({
                 </div>
                 <div>
                   <p className="text-surface-900 dark:text-white font-medium flex items-center gap-1.5">
-                    To Bookmark a page{" "}
+                    {t("iosShortcut.step4Title")}{" "}
                     <Bookmark size={14} className="text-surface-400" />
                   </p>
                   <p className="text-surface-600 dark:text-surface-400 mt-0.5">
-                    Don't select any text. Click the{" "}
-                    <MoreHorizontal size={14} className="inline mx-0.5" /> menu
-                    in Safari, press{" "}
-                    <Share size={12} className="inline mx-0.5" />{" "}
-                    <strong>Share</strong>, and select{" "}
-                    <strong>Save to Margin</strong>.
+                    {t("iosShortcut.step4Description")}
                   </p>
                 </div>
               </div>
@@ -145,14 +130,11 @@ export default function IOSShortcutModal({
                 </div>
                 <div>
                   <p className="text-surface-900 dark:text-white font-medium flex items-center gap-1.5">
-                    To Highlight text{" "}
+                    {t("iosShortcut.step5Title")}{" "}
                     <PenTool size={14} className="text-surface-400" />
                   </p>
                   <p className="text-surface-600 dark:text-surface-400 mt-0.5">
-                    Select text on the page, click the{" "}
-                    <MoreHorizontal size={14} className="inline mx-0.5" /> menu,
-                    press <strong>Share</strong>, and select{" "}
-                    <strong>Save to Margin</strong>. Leave the Note field empty.
+                    {t("iosShortcut.step5Description")}
                   </p>
                 </div>
               </div>
@@ -163,13 +145,10 @@ export default function IOSShortcutModal({
                 </div>
                 <div>
                   <p className="text-surface-900 dark:text-white font-medium">
-                    To Add an Annotation
+                    {t("iosShortcut.step6Title")}
                   </p>
                   <p className="text-surface-600 dark:text-surface-400 mt-0.5">
-                    Select text, share to <strong>Save to Margin</strong> (via
-                    the <MoreHorizontal size={14} className="inline mx-0.5" />{" "}
-                    menu), enter your custom note in the Note field, and press
-                    Done!
+                    {t("iosShortcut.step6Description")}
                   </p>
                 </div>
               </div>
@@ -183,7 +162,7 @@ export default function IOSShortcutModal({
             variant="primary"
             className="w-full justify-center"
           >
-            Got it
+            {t("iosShortcut.gotIt")}
           </Button>
         </div>
       </div>

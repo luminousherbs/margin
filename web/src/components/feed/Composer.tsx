@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   createAnnotation,
   createHighlight,
@@ -11,13 +12,13 @@ import { X, ShieldAlert, Highlighter, PenLine } from "lucide-react";
 import TagInput from "../ui/TagInput";
 import { analytics } from "../../lib/analytics";
 
-const SELF_LABEL_OPTIONS: { value: ContentLabelValue; label: string }[] = [
-  { value: "sexual", label: "Sexual" },
-  { value: "nudity", label: "Nudity" },
-  { value: "violence", label: "Violence" },
-  { value: "gore", label: "Gore" },
-  { value: "spam", label: "Spam" },
-  { value: "misleading", label: "Misleading" },
+const SELF_LABEL_VALUES: ContentLabelValue[] = [
+  "sexual",
+  "nudity",
+  "violence",
+  "gore",
+  "spam",
+  "misleading",
 ];
 
 interface ComposerProps {
@@ -33,6 +34,7 @@ export default function Composer({
   onSuccess,
   onCancel,
 }: ComposerProps) {
+  const { t } = useTranslation();
   const [text, setText] = useState("");
   const [quoteText, setQuoteText] = useState("");
   const [tags, setTags] = useState<string[]>([]);
@@ -76,21 +78,21 @@ export default function Composer({
 
   const modeCopy = {
     highlight: {
-      title: "New highlight",
+      title: t("composer.newHighlight"),
       icon: Highlighter,
-      submit: "Save highlight",
-      hint: "Saving a passage without a comment. Add text below to turn it into an annotation.",
+      submit: t("composer.saveHighlight"),
+      hint: t("composer.highlightHint"),
     },
     annotation: {
-      title: "New annotation",
+      title: t("composer.newAnnotation"),
       icon: PenLine,
-      submit: "Post annotation",
+      submit: t("composer.postAnnotation"),
       hint: null,
     },
     note: {
-      title: "New note",
+      title: t("composer.newNote"),
       icon: PenLine,
-      submit: "Post note",
+      submit: t("composer.postNote"),
       hint: null,
     },
   }[mode];
@@ -221,14 +223,14 @@ export default function Composer({
               className="text-left text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium py-1"
               onClick={() => setShowQuoteInput(true)}
             >
-              + Add a quote from the page
+              {t("composer.addQuote")}
             </button>
           ) : (
             <div className="flex flex-col gap-2">
               <textarea
                 value={quoteText}
                 onChange={(e) => setQuoteText(e.target.value)}
-                placeholder="Paste or type the text you're annotating..."
+                placeholder={t("composer.quotePlaceholder")}
                 className="w-full text-sm p-3 bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg text-surface-900 dark:text-white placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:focus:border-primary-400 outline-none"
                 rows={2}
               />
@@ -238,7 +240,7 @@ export default function Composer({
                   className="text-xs text-red-500 dark:text-red-400 font-medium"
                   onClick={handleRemoveSelector}
                 >
-                  Remove Quote
+                  {t("composer.removeQuote")}
                 </button>
               </div>
             </div>
@@ -251,8 +253,8 @@ export default function Composer({
         onChange={(e) => setText(e.target.value)}
         placeholder={
           hasQuote
-            ? "Add your thoughts on this passage..."
-            : "What's on your mind?"
+            ? t("composer.thoughtsPlaceholder")
+            : t("composer.mindPlaceholder")
         }
         className="w-full p-3 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg text-surface-900 dark:text-white placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:focus:border-primary-400 outline-none min-h-[100px] resize-none"
         maxLength={3000}
@@ -263,7 +265,7 @@ export default function Composer({
         tags={tags}
         onChange={setTags}
         suggestions={tagSuggestions}
-        placeholder="Add tags..."
+        placeholder={t("composer.tagsPlaceholder")}
         disabled={loading}
       />
 
@@ -275,31 +277,32 @@ export default function Composer({
         >
           <ShieldAlert size={14} />
           <span>
-            Content Warning
-            {selfLabels.length > 0 ? ` (${selfLabels.length})` : ""}
+            {selfLabels.length > 0
+              ? t("composer.contentWarningCount", { count: selfLabels.length })
+              : t("composer.contentWarning")}
           </span>
         </button>
 
         {showLabelPicker && (
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {SELF_LABEL_OPTIONS.map((opt) => (
+            {SELF_LABEL_VALUES.map((value) => (
               <button
-                key={opt.value}
+                key={value}
                 type="button"
                 onClick={() =>
                   setSelfLabels((prev) =>
-                    prev.includes(opt.value)
-                      ? prev.filter((v) => v !== opt.value)
-                      : [...prev, opt.value],
+                    prev.includes(value)
+                      ? prev.filter((v) => v !== value)
+                      : [...prev, value],
                   )
                 }
                 className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-all ${
-                  selfLabels.includes(opt.value)
+                  selfLabels.includes(value)
                     ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 ring-1 ring-amber-300 dark:ring-amber-700"
                     : "bg-surface-100 dark:bg-surface-800 text-surface-500 dark:text-surface-400 hover:bg-surface-200 dark:hover:bg-surface-700"
                 }`}
               >
-                {opt.label}
+                {t(`composer.labels.${value}`)}
               </button>
             ))}
           </div>
@@ -324,7 +327,7 @@ export default function Composer({
               onClick={onCancel}
               disabled={loading}
             >
-              Cancel
+              {t("composer.cancel")}
             </button>
           )}
           <button
@@ -334,7 +337,7 @@ export default function Composer({
               loading || (!text.trim() && !highlightedText && !quoteText.trim())
             }
           >
-            {loading ? "..." : modeCopy.submit}
+            {loading ? "…" : modeCopy.submit}
           </button>
         </div>
       </div>

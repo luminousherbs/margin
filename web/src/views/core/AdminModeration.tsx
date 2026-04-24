@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useStore } from "@nanostores/react";
+import { useTranslation } from "react-i18next";
 import { $user } from "../../store/auth";
 import {
   checkAdminAccess,
@@ -38,27 +39,28 @@ const STATUS_COLORS: Record<string, string> = {
     "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
 };
 
-const REASON_LABELS: Record<string, string> = {
-  spam: "Spam",
-  violation: "Rule Violation",
-  misleading: "Misleading",
-  sexual: "Inappropriate",
-  rude: "Rude / Harassing",
-  other: "Other",
+const REASON_LABEL_KEYS: Record<string, string> = {
+  spam: "adminModeration.reasons.spam",
+  violation: "adminModeration.reasons.violation",
+  misleading: "adminModeration.reasons.misleading",
+  sexual: "adminModeration.reasons.sexual",
+  rude: "adminModeration.reasons.rude",
+  other: "adminModeration.reasons.other",
 };
 
-const LABEL_OPTIONS = [
-  { val: "sexual", label: "Sexual Content" },
-  { val: "nudity", label: "Nudity" },
-  { val: "violence", label: "Violence" },
-  { val: "gore", label: "Graphic Content" },
-  { val: "spam", label: "Spam" },
-  { val: "misleading", label: "Misleading" },
+const LABEL_VALS = [
+  "sexual",
+  "nudity",
+  "violence",
+  "gore",
+  "spam",
+  "misleading",
 ];
 
 type Tab = "reports" | "labels" | "actions";
 
 export default function AdminModeration() {
+  const { t } = useTranslation();
   const user = useStore($user);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -141,7 +143,7 @@ export default function AdminModeration() {
   };
 
   const handleDeleteLabel = async (id: number) => {
-    if (!window.confirm("Remove this label?")) return;
+    if (!window.confirm(t("adminModeration.labels.removeConfirm"))) return;
     const success = await adminDeleteLabel(id);
     if (success) setLabels((prev) => prev.filter((l) => l.id !== id));
   };
@@ -163,8 +165,8 @@ export default function AdminModeration() {
     return (
       <EmptyState
         icon={<Shield size={40} />}
-        title="Access Denied"
-        message="You don't have permission to access the moderation dashboard."
+        title={t("adminModeration.accessDenied")}
+        message={t("adminModeration.accessDeniedMessage")}
       />
     );
   }
@@ -178,10 +180,13 @@ export default function AdminModeration() {
               size={24}
               className="text-primary-600 dark:text-primary-400"
             />
-            Moderation
+            {t("adminModeration.title")}
           </h1>
           <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
-            {pendingCount} pending · {totalCount} total reports
+            {t("adminModeration.stats", {
+              pending: pendingCount,
+              total: totalCount,
+            })}
           </p>
         </div>
       </div>
@@ -190,15 +195,19 @@ export default function AdminModeration() {
         {[
           {
             id: "reports" as Tab,
-            label: "Reports",
+            label: t("adminModeration.tabs.reports"),
             icon: <FileText size={15} />,
           },
           {
             id: "actions" as Tab,
-            label: "Actions",
+            label: t("adminModeration.tabs.actions"),
             icon: <EyeOff size={15} />,
           },
-          { id: "labels" as Tab, label: "Labels", icon: <Tag size={15} /> },
+          {
+            id: "labels" as Tab,
+            label: t("adminModeration.tabs.labels"),
+            icon: <Tag size={15} />,
+          },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -230,8 +239,11 @@ export default function AdminModeration() {
                   }`}
                 >
                   {status
-                    ? status.charAt(0).toUpperCase() + status.slice(1)
-                    : "All"}
+                    ? t(`adminModeration.filters.${status}`, {
+                        defaultValue:
+                          status.charAt(0).toUpperCase() + status.slice(1),
+                      })
+                    : t("adminModeration.filters.all")}
                 </button>
               ),
             )}
@@ -240,11 +252,13 @@ export default function AdminModeration() {
           {reports.length === 0 ? (
             <EmptyState
               icon={<CheckCircle size={40} />}
-              title="No reports"
+              title={t("adminModeration.reports.empty")}
               message={
                 statusFilter === "pending"
-                  ? "No pending reports to review."
-                  : `No ${statusFilter || ""} reports found.`
+                  ? t("adminModeration.reports.emptyPending")
+                  : t("adminModeration.reports.emptyFiltered", {
+                      status: statusFilter || "",
+                    })
               }
             />
           ) : (
@@ -281,7 +295,9 @@ export default function AdminModeration() {
                         </span>
                       </div>
                       <p className="text-xs text-surface-500 dark:text-surface-400">
-                        {REASON_LABELS[report.reasonType] || report.reasonType}{" "}
+                        {REASON_LABEL_KEYS[report.reasonType]
+                          ? t(REASON_LABEL_KEYS[report.reasonType])
+                          : report.reasonType}{" "}
                         · reported by @
                         {report.reporter.handle || report.reporter.did} ·{" "}
                         {new Date(report.createdAt).toLocaleDateString()}
@@ -299,7 +315,7 @@ export default function AdminModeration() {
                       <div className="grid grid-cols-2 gap-3 text-sm">
                         <div>
                           <span className="text-surface-400 dark:text-surface-500 text-xs uppercase tracking-wider">
-                            Reported User
+                            {t("adminModeration.reports.reportedUser")}
                           </span>
                           <a
                             href={`/profile/${report.subject.did}`}
@@ -310,7 +326,7 @@ export default function AdminModeration() {
                         </div>
                         <div>
                           <span className="text-surface-400 dark:text-surface-500 text-xs uppercase tracking-wider">
-                            Reporter
+                            {t("adminModeration.reports.reporter")}
                           </span>
                           <a
                             href={`/profile/${report.reporter.did}`}
@@ -324,7 +340,7 @@ export default function AdminModeration() {
                       {report.reasonText && (
                         <div>
                           <span className="text-surface-400 dark:text-surface-500 text-xs uppercase tracking-wider">
-                            Details
+                            {t("adminModeration.reports.details")}
                           </span>
                           <p className="text-sm text-surface-700 dark:text-surface-300 mt-1">
                             {report.reasonText}
@@ -335,7 +351,7 @@ export default function AdminModeration() {
                       {report.subjectUri && (
                         <div>
                           <span className="text-surface-400 dark:text-surface-500 text-xs uppercase tracking-wider">
-                            Content URI
+                            {t("adminModeration.reports.contentUri")}
                           </span>
                           <p className="text-xs text-surface-500 font-mono mt-1 break-all">
                             {report.subjectUri}
@@ -354,7 +370,7 @@ export default function AdminModeration() {
                             loading={actionLoading === report.id}
                             icon={<Eye size={14} />}
                           >
-                            Acknowledge
+                            {t("adminModeration.reports.acknowledge")}
                           </Button>
                           <Button
                             size="sm"
@@ -363,7 +379,7 @@ export default function AdminModeration() {
                             loading={actionLoading === report.id}
                             icon={<XCircle size={14} />}
                           >
-                            Dismiss
+                            {t("adminModeration.reports.dismiss")}
                           </Button>
                           <Button
                             size="sm"
@@ -372,7 +388,7 @@ export default function AdminModeration() {
                             icon={<AlertTriangle size={14} />}
                             className="!bg-red-600 hover:!bg-red-700 !text-white"
                           >
-                            Takedown
+                            {t("adminModeration.reports.takedown")}
                           </Button>
                         </div>
                       )}
@@ -393,17 +409,16 @@ export default function AdminModeration() {
                 size={16}
                 className="text-primary-600 dark:text-primary-400"
               />
-              Apply Content Warning
+              {t("adminModeration.actions.applyWarning")}
             </h3>
             <p className="text-sm text-surface-500 dark:text-surface-400 mb-4">
-              Add a content warning label to a specific post or account. Users
-              will see a blur overlay with the option to reveal.
+              {t("adminModeration.actions.applyWarningDesc")}
             </p>
 
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-surface-600 dark:text-surface-400 mb-1.5">
-                  Account DID
+                  {t("adminModeration.actions.accountDid")}
                 </label>
                 <input
                   type="text"
@@ -416,9 +431,9 @@ export default function AdminModeration() {
 
               <div>
                 <label className="block text-xs font-medium text-surface-600 dark:text-surface-400 mb-1.5">
-                  Content URI{" "}
+                  {t("adminModeration.actions.contentUri")}{" "}
                   <span className="text-surface-400">
-                    (optional — leave empty for account-level label)
+                    ({t("adminModeration.actions.contentUriOptional")})
                   </span>
                 </label>
                 <input
@@ -432,20 +447,20 @@ export default function AdminModeration() {
 
               <div>
                 <label className="block text-xs font-medium text-surface-600 dark:text-surface-400 mb-1.5">
-                  Label Type
+                  {t("adminModeration.actions.labelType")}
                 </label>
                 <div className="grid grid-cols-3 gap-2">
-                  {LABEL_OPTIONS.map((opt) => (
+                  {LABEL_VALS.map((val) => (
                     <button
-                      key={opt.val}
-                      onClick={() => setLabelVal(opt.val)}
+                      key={val}
+                      onClick={() => setLabelVal(val)}
                       className={`px-3 py-2 text-sm font-medium rounded-lg border transition-all ${
-                        labelVal === opt.val
+                        labelVal === val
                           ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 ring-2 ring-primary-500/20"
                           : "border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400 hover:bg-surface-50 dark:hover:bg-surface-800"
                       }`}
                     >
-                      {opt.label}
+                      {t(`card.labelDescriptions.${val}`)}
                     </button>
                   ))}
                 </div>
@@ -459,11 +474,12 @@ export default function AdminModeration() {
                   icon={<Plus size={14} />}
                   size="sm"
                 >
-                  Apply Label
+                  {t("adminModeration.actions.applyLabel")}
                 </Button>
                 {labelSuccess && (
                   <span className="text-sm text-green-600 dark:text-green-400 flex items-center gap-1.5">
-                    <CheckCircle size={14} /> Label applied
+                    <CheckCircle size={14} />{" "}
+                    {t("adminModeration.actions.labelApplied")}
                   </span>
                 )}
               </div>
@@ -477,8 +493,8 @@ export default function AdminModeration() {
           {labels.length === 0 ? (
             <EmptyState
               icon={<Tag size={40} />}
-              title="No labels"
-              message="No content labels have been applied yet."
+              title={t("adminModeration.labels.empty")}
+              message={t("adminModeration.labels.emptyMessage")}
             />
           ) : (
             <div className="space-y-2">
@@ -519,7 +535,7 @@ export default function AdminModeration() {
                     <p className="text-xs text-surface-500 dark:text-surface-400 truncate">
                       {label.uri !== label.src
                         ? label.uri
-                        : "Account-level label"}{" "}
+                        : t("adminModeration.labels.accountLevel")}{" "}
                       · {new Date(label.createdAt).toLocaleDateString()} · by @
                       {label.createdBy.handle || label.createdBy.did}
                     </p>
@@ -527,7 +543,7 @@ export default function AdminModeration() {
                   <button
                     onClick={() => handleDeleteLabel(label.id)}
                     className="p-2 rounded-lg text-surface-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                    title="Remove label"
+                    title={t("adminModeration.labels.removeTitle")}
                   >
                     <Trash2 size={14} />
                   </button>
