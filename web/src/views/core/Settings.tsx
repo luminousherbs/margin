@@ -85,7 +85,16 @@ export default function Settings() {
   const [isShortcutModalOpen, setIsShortcutModalOpen] = useState(false);
   const preferences = useStore($preferences);
   const { i18n: i18nInstance } = useTranslation();
-  const currentLanguage = i18nInstance.resolvedLanguage ?? i18nInstance.language ?? "en";
+  const [currentLanguage, setCurrentLanguage] = useState(
+    () => i18nInstance.resolvedLanguage ?? i18nInstance.language ?? "en"
+  );
+
+  useEffect(() => {
+    const handler = (lng: string) =>
+      setCurrentLanguage(lng);
+    i18nInstance.on("languageChanged", handler);
+    return () => { i18nInstance.off("languageChanged", handler); };
+  }, [i18nInstance]);
 
   useEffect(() => {
     const loadKeys = async () => {
