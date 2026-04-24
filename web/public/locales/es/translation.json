@@ -53,7 +53,8 @@
         "filters": {
             "all": "Todo",
             "annotations": "Anotaciones",
-            "highlights": "Destacados"
+            "highlights": "Destacados",
+            "bookmarks": "Marcadores"
         },
         "itemsWithTag": "Elementos con la etiqueta:",
         "clearFilter": "Limpiar filtro",
@@ -149,7 +150,8 @@
         "notFound": "Colección no encontrada",
         "failedToLoad": "Error al cargar la colección",
         "deleteConfirm": "¿Eliminar esta colección?",
-        "removeConfirm": "¿Eliminar de la colección?"
+        "removeConfirm": "¿Eliminar de la colección?",
+        "backLink": "Colecciones"
     },
     "profile": {
         "notFound": "Usuario no encontrado",
@@ -209,7 +211,8 @@
         "customPdsError": "No se pudo conectar con ese PDS. Revisa la dirección.",
         "providers": {
             "margin": {
-                "description": "La forma más fácil de empezar"
+                "description": "La forma más fácil de empezar",
+                "name": "Margin"
             },
             "bluesky": {
                 "name": "Bluesky",
