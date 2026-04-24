@@ -1,5 +1,12 @@
 /// <reference types="astro/client" />
 
+declare module "virtual:i18n-resources" {
+  export const resources: Record<
+    string,
+    { translation: Record<string, unknown> }
+  >;
+}
+
 declare module "virtual:i18n-languages" {
   export const languages: { code: string; name: string; nativeName: string }[];
 }

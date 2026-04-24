@@ -5,11 +5,41 @@ import tailwind from "@astrojs/tailwind";
 import node from "@astrojs/node";
 import { fileURLToPath } from "url";
 import { dirname, resolve, join } from "path";
-import { readdirSync, existsSync } from "fs";
+import { readdirSync, existsSync, readFileSync } from "fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const API_PORT = process.env.API_PORT || 8081;
+
+function i18nResourcesPlugin() {
+  const virtualId = "virtual:i18n-resources";
+  const resolvedId = "\0" + virtualId;
+  return {
+    name: "i18n-resources",
+    resolveId(id) {
+      if (id === virtualId) return resolvedId;
+    },
+    load(id) {
+      if (id !== resolvedId) return;
+      const localesDir = join(__dirname, "public/locales");
+      const resources = /** @type {Record<string, unknown>} */ ({});
+      readdirSync(localesDir, { withFileTypes: true })
+        .filter(
+          (d) =>
+            d.isDirectory() &&
+            existsSync(join(localesDir, d.name, "translation.json")),
+        )
+        .forEach((d) => {
+          const content = readFileSync(
+            join(localesDir, d.name, "translation.json"),
+            "utf-8",
+          );
+          resources[d.name] = { translation: JSON.parse(content) };
+        });
+      return `export const resources = ${JSON.stringify(resources)};`;
+    },
+  };
+}
 
 function i18nLanguagesPlugin() {
   const virtualId = "virtual:i18n-languages";
@@ -55,7 +85,7 @@ export default defineConfig({
     defaultStrategy: "viewport",
   },
   vite: {
-    plugins: [i18nLanguagesPlugin()],
+    plugins: [i18nResourcesPlugin(), i18nLanguagesPlugin()],
     resolve: {
       alias: {
         "@": resolve(__dirname, "src"),

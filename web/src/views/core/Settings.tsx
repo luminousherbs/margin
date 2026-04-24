@@ -86,14 +86,15 @@ export default function Settings() {
   const preferences = useStore($preferences);
   const { i18n: i18nInstance } = useTranslation();
   const [currentLanguage, setCurrentLanguage] = useState(
-    () => i18nInstance.resolvedLanguage ?? i18nInstance.language ?? "en"
+    () => i18nInstance.resolvedLanguage ?? i18nInstance.language ?? "en",
   );
 
   useEffect(() => {
-    const handler = (lng: string) =>
-      setCurrentLanguage(lng);
+    const handler = (lng: string) => setCurrentLanguage(lng);
     i18nInstance.on("languageChanged", handler);
-    return () => { i18nInstance.off("languageChanged", handler); };
+    return () => {
+      i18nInstance.off("languageChanged", handler);
+    };
   }, [i18nInstance]);
 
   useEffect(() => {
