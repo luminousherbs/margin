@@ -1,6 +1,119 @@
 {
     "appTitle": "Margin",
     "nav": {
-        "settings": "Ajustes"
+        "settings": "Ajustes",
+        "annotations": "Anotaciones",
+        "collections": "Colecciones",
+        "activity": "Actividad",
+        "signIn": "Iniciar sesión",
+        "logOut": "Cerrar sesión",
+        "themeLight": "Claro",
+        "themeDark": "Oscuro",
+        "themeSystem": "Sistema",
+        "bookmarks": "Marcadores",
+        "new": "Nuevo",
+        "feed": "Feed"
+    },
+    "pageTitles": {
+        "home": "Inicio — Margin",
+        "bookmarks": "Marcadores — Margin",
+        "annotations": "Anotaciones — Margin",
+        "search": "Buscar — Margin",
+        "notifications": "Notificaciones — Margin",
+        "new": "Nueva anotación — Margin",
+        "settings": "Configuración — Margin",
+        "collections": "Colecciones — Margin",
+        "admin": "Admin — Margin"
+    },
+    "sidebar": {
+        "getExtension": "Obtén la extensión",
+        "extensionTagline": "Resalta, anota y guarda marcadores desde cualquier página.",
+        "downloadForFirefox": "Descargar para Firefox",
+        "downloadForEdge": "Descargar para Edge",
+        "downloadForChrome": "Descargar para Chrome",
+        "trending": "Tendencias",
+        "nothingTrending": "No hay nada en tendencia ahora mismo.",
+        "searchPlaceholder": "Buscar personas, etiquetas, URLs…",
+        "copyright": "© 2026 Padding Labs LLC"
+    },
+    "mobileNav": {
+        "iosShortcut": "Atajo de iOS"
+    },
+    "feed": {
+        "welcome": "Bienvenido a Margin",
+        "welcomeTagline": "Un lugar tranquilo para anotar, resaltar y guardar lo que lees en la web.",
+        "getStarted": "Empezar",
+        "learnMore": "Más información",
+        "tabs": {
+            "recent": "Recientes",
+            "popular": "Popular",
+            "margin": "Margin",
+            "semble": "Semble"
+        },
+        "filters": {
+            "all": "Todo",
+            "annotations": "Anotaciones"
+        },
+        "itemsWithTag": "Elementos con la etiqueta:",
+        "clearFilter": "Limpiar filtro",
+        "everyone": "Todos",
+        "mine": "Mío",
+        "defaultEmptyMessage": "Todavía no hay nada aquí — las anotaciones tuyas y de las personas a las que sigues aparecerán aquí.",
+        "nothingHereYet": "Aún no hay nada aquí",
+        "loading": "Cargando…"
+    },
+    "discover": {
+        "tabs": {
+            "new": "Nuevo",
+            "popular": "Popular",
+            "forYou": "Para ti"
+        },
+        "comingSoon": "Próximamente",
+        "forYouNotAvailable": "Las recomendaciones personalizadas aún no están disponibles en este servidor.",
+        "noDocumentsYet": "Aún no se han descubierto documentos. ¡Vuelve pronto!",
+        "startAnnotating": "Empieza a anotar y resaltar para recibir recomendaciones personalizadas.",
+        "loadMore": "Cargar más"
+    },
+    "search": {
+        "placeholder": "Buscar anotaciones, resaltados, marcadores…",
+        "noResults": "No se encontraron resultados",
+        "noResultsMessage": "No se encontró nada que coincida con \"{{query}}\". Prueba con otras palabras clave.",
+        "emptyTitle": "Busca en tu biblioteca",
+        "emptyMessage": "Busca anotaciones, resaltados y marcadores por palabra clave, URL o etiqueta.",
+        "filters": {
+            "all": "Todo",
+            "annotations": "Anotaciones",
+            "bookmarks": "Marcadores",
+            "mine": "Mío"
+        },
+        "resultCount": "{{count}}{{hasMore}} resultados para \"{{query}}\"",
+        "loadMore": "Cargar más"
+    },
+    "notifications": {
+        "title": "Actividad",
+        "noActivity": "Aún no hay actividad",
+        "noActivityMessage": "Las interacciones con tu contenido aparecerán aquí.",
+        "likedAnnotation": "le gustó tu anotación",
+        "likedHighlight": "le dio me gusta a tu resaltado",
+        "likedBookmark": "le dio me gusta a tu marcador",
+        "likedReply": "le gustó tu respuesta",
+        "likedPost": "le dio me gusta a tu publicación",
+        "repliedToReply": "respondió a tu respuesta",
+        "repliedToAnnotation": "respondió a tu anotación",
+        "mentionedInAnnotation": "te mencionó en una anotación",
+        "followedYou": "te ha empezado a seguir",
+        "highlightedPage": "resaltó tu página",
+        "inReplyTo": "en respuesta a",
+        "aReply": "una respuesta",
+        "anAnnotation": "una anotación"
+    },
+    "collections": {
+        "title": "Colecciones",
+        "subtitle": "Organiza tus anotaciones y resaltados",
+        "none": "Aún no hay colecciones",
+        "noneMessage": "Crea una colección para organizar tus destacados y anotaciones.",
+        "createButton": "Crear colección",
+        "newTitle": "Nueva colección",
+        "editTitle": "Editar colección"
     }
 }
