@@ -220,7 +220,8 @@
                 "description": "La comunidad más grande y popular"
             },
             "blacksky": {
-                "name": "Blacksky"
+                "name": "Blacksky",
+                "description": "For the Culture — un espacio seguro para usuarios y aliados"
             },
             "eurosky": {
                 "name": "Eurosky"
