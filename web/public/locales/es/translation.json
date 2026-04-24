@@ -287,7 +287,7 @@
         "untitledBookmark": "Marcador sin título",
         "addNotePlaceholder": "Añade tu nota para convertir este resaltado en una anotación…",
         "addToCollectionTitle": "Añadir a la colección",
-        "annotateTitle": "Anota este resaltado",
+        "annotateTitle": "Anotar este resaltado",
         "editTitle": "Editar",
         "deleteTitle": "Eliminar",
         "report": "Reportar",
@@ -305,6 +305,74 @@
         }
     },
     "profileHoverCard": {
-        "viewProfile": "Ver perfil"
+        "viewProfile": "Ver perfil",
+        "notFound": "Perfil no encontrado"
+    },
+    "replyList": {
+        "noReplies": "Aún no hay respuestas"
+    },
+    "shareMenu": {
+        "sembleIntegration": "Integración con Semble",
+        "openOnSemble": "Abrir en Semble",
+        "copySembleLink": "Copiar enlace de Semble",
+        "copyLink": "Copiar enlace",
+        "shareViaApp": "Compartir vía app",
+        "copyUniversalLink": "Copiar enlace universal",
+        "moreOptions": "Más opciones…",
+        "copied": "¡Copiado!"
+    },
+    "addToCollection": {
+        "title": "Añadir a la colección",
+        "loading": "Cargando colecciones…",
+        "collectionNameLabel": "Nombre de la colección",
+        "namePlaceholder": "Mi colección",
+        "descriptionLabel": "Descripción (opcional)",
+        "descriptionPlaceholder": "¿De qué trata esta colección?",
+        "iconLabel": "Icono",
+        "iconsTab": "Iconos",
+        "emojisTab": "Emojis",
+        "selected": "Seleccionado:",
+        "back": "Volver",
+        "create": "Crear",
+        "creating": "Creando…",
+        "newCollectionButton": "Nueva colección",
+        "createNewDescription": "Crear una nueva colección",
+        "none": "Aún no hay colecciones",
+        "done": "Hecho",
+        "failedLoad": "Error al cargar las colecciones",
+        "failedAdd": "Error al añadir a la colección",
+        "failedCreate": "Error al crear la colección"
+    },
+    "editItem": {
+        "editAnnotation": "Editar anotación",
+        "editHighlight": "Editar resaltado",
+        "editBookmark": "Editar marcador",
+        "textLabel": "Texto",
+        "textPlaceholder": "Escribe tu anotación…",
+        "colorLabel": "Color",
+        "tagsLabel": "Etiquetas",
+        "tagPlaceholder": "Añadir una etiqueta…",
+        "contentWarning": "Advertencia de contenido",
+        "cancel": "Cancelar",
+        "save": "Guardar",
+        "saving": "Guardando…",
+        "failedSave": "Error al guardar los cambios. Por favor, inténtalo de nuevo.",
+        "titleLabel": "Título",
+        "titlePlaceholder": "Título del marcador",
+        "descriptionLabel": "Descripción",
+        "descriptionPlaceholder": "Descripción opcional…"
+    },
+    "editCollection": {
+        "title": "Editar colección",
+        "nameLabel": "Nombre de la colección",
+        "namePlaceholder": "Mi colección",
+        "descriptionLabel": "Descripción (opcional)",
+        "descriptionPlaceholder": "¿De qué trata esta colección?",
+        "iconLabel": "Icono",
+        "iconsTab": "Iconos",
+        "emojisTab": "Emojis",
+        "selected": "Seleccionado:",
+        "cancel": "Cancelar",
+        "save": "Guardar cambios"
     }
 }
