@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useStore } from "@nanostores/react";
 import { useTranslation } from "react-i18next";
-import i18n from "../../i18n";
 import { languages } from "virtual:i18n-languages";
 import { $user, logout } from "../../store/auth";
 import { $theme, setTheme, type Theme } from "../../store/theme";
@@ -85,7 +84,8 @@ export default function Settings() {
   const [addingLabeler, setAddingLabeler] = useState(false);
   const [isShortcutModalOpen, setIsShortcutModalOpen] = useState(false);
   const preferences = useStore($preferences);
-  const currentLanguage = i18n.resolvedLanguage ?? i18n.language ?? "en";
+  const { i18n: i18nInstance } = useTranslation();
+  const currentLanguage = i18nInstance.resolvedLanguage ?? i18nInstance.language ?? "en";
 
   useEffect(() => {
     const loadKeys = async () => {
@@ -259,7 +259,7 @@ export default function Settings() {
                 {languages.map((lang) => (
                   <button
                     key={lang.code}
-                    onClick={() => i18n.changeLanguage(lang.code)}
+                    onClick={() => i18nInstance.changeLanguage(lang.code)}
                     className={`px-4 py-2 rounded-xl text-sm font-medium border-2 transition-all ${
                       currentLanguage.startsWith(lang.code)
                         ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300"
