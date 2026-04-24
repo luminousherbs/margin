@@ -12,7 +12,8 @@
         "themeSystem": "Sistema",
         "bookmarks": "Marcadores",
         "new": "Nuevo",
-        "feed": "Feed"
+        "feed": "Feed",
+        "highlights": "Resaltados"
     },
     "pageTitles": {
         "home": "Inicio — Margin",
@@ -24,7 +25,7 @@
         "settings": "Configuración — Margin",
         "collections": "Colecciones — Margin",
         "admin": "Admin — Margin",
-        "highlights": "Destacados — Margin"
+        "highlights": "Resaltados — Margin"
     },
     "sidebar": {
         "getExtension": "Obtén la extensión",
@@ -54,7 +55,7 @@
         "filters": {
             "all": "Todo",
             "annotations": "Anotaciones",
-            "highlights": "Destacados",
+            "highlights": "Resaltados",
             "bookmarks": "Marcadores"
         },
         "itemsWithTag": "Elementos con la etiqueta:",
@@ -88,7 +89,7 @@
             "annotations": "Anotaciones",
             "bookmarks": "Marcadores",
             "mine": "Mío",
-            "highlights": "Destacados"
+            "highlights": "Resaltados"
         },
         "resultCount": "{{count}}{{hasMore}} resultados para \"{{query}}\"",
         "loadMore": "Cargar más"
@@ -113,9 +114,9 @@
     },
     "collections": {
         "title": "Colecciones",
-        "subtitle": "Organiza tus anotaciones y destacados",
+        "subtitle": "Organiza tus anotaciones y resaltados",
         "none": "Aún no hay colecciones",
-        "noneMessage": "Crea una colección para organizar tus destacados y anotaciones.",
+        "noneMessage": "Crea una colección para organizar tus resaltados y anotaciones.",
         "createButton": "Crear colección",
         "newTitle": "Nueva colección",
         "editTitle": "Editar colección",
@@ -221,10 +222,11 @@
             },
             "blacksky": {
                 "name": "Blacksky",
-                "description": "For the Culture — un espacio seguro para usuarios y aliados"
+                "description": "Para la cultura — un espacio seguro para usuarios y aliados"
             },
             "eurosky": {
-                "name": "Eurosky"
+                "name": "Eurosky",
+                "description": "Eurosky es tu hogar europeo en la Atmosphere"
             },
             "selfhostedSocial": {
                 "name": "selfhosted.social",
@@ -280,6 +282,29 @@
         "deleteConfirm": "¿Eliminar este elemento?",
         "hideContent": "Ocultar contenido",
         "show": "Mostrar",
-        "edited": "(editado)"
+        "edited": "(editado)",
+        "annotate": "Anotar",
+        "untitledBookmark": "Marcador sin título",
+        "addNotePlaceholder": "Añade tu nota para convertir este resaltado en una anotación…",
+        "addToCollectionTitle": "Añadir a la colección",
+        "annotateTitle": "Anota este resaltado",
+        "editTitle": "Editar",
+        "deleteTitle": "Eliminar",
+        "report": "Reportar",
+        "muteUser": "Silenciar a {{handle}}",
+        "blockUser": "Bloquear a {{handle}}",
+        "convertToAnnotation": "Convertir en anotación",
+        "justNow": "hace un momento",
+        "labelDescriptions": {
+            "sexual": "Contenido sexual",
+            "nudity": "Desnudez",
+            "violence": "Violencia",
+            "gore": "Contenido gráfico",
+            "spam": "Spam",
+            "misleading": "Engañoso"
+        }
+    },
+    "profileHoverCard": {
+        "viewProfile": "Ver perfil"
     }
 }
