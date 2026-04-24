@@ -108,6 +108,12 @@ Thank you for making Margin possible!
 
 <!-- sponsors --><!-- sponsors -->
 
+## Translations
+
+Help translate Margin at [translate.margin.at](https://translate.margin.at/engage/margin/).
+
+<a href="https://translate.margin.at/engage/margin/"><img src="https://translate.margin.at/widget/margin/svg-badge.svg" alt="Translation status"></a>
+
 ## License
 
 MIT
