@@ -732,12 +732,26 @@ func (s *NoteWriteService) CreateReply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.ParentURI == "" || req.ParentCID == "" {
-		WriteBadRequest(w, "parentUri and parentCid are required")
+	if req.ParentURI == "" {
+		WriteBadRequest(w, "parentUri is required")
 		return
 	}
-	if req.RootURI == "" || req.RootCID == "" {
-		WriteBadRequest(w, "rootUri and rootCid are required")
+	if req.ParentCID == "" {
+		req.ParentCID = s.resolveCID(r, req.ParentURI)
+	}
+	if req.ParentCID == "" {
+		WriteBadRequest(w, "parentCid is required and could not be resolved")
+		return
+	}
+	if req.RootURI == "" {
+		WriteBadRequest(w, "rootUri is required")
+		return
+	}
+	if req.RootCID == "" {
+		req.RootCID = s.resolveCID(r, req.RootURI)
+	}
+	if req.RootCID == "" {
+		WriteBadRequest(w, "rootCid is required and could not be resolved")
 		return
 	}
 	if req.Text == "" {

@@ -153,14 +153,14 @@ export default function AnnotationDetail({
         : targetUri;
       const parentCid = replyingTo ? replyingTo.cid : annotation.cid;
 
-      if (!parentUri || !parentCid || !annotation.cid)
+      if (!parentUri)
         throw new Error("Missing parent info");
 
       await createReply(
         parentUri,
-        parentCid,
+        parentCid || "",
         targetUri,
-        annotation.cid,
+        annotation.cid || "",
         replyText,
       );
 
