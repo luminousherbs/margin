@@ -9,6 +9,10 @@ import {
   adminCreateLabel,
   adminDeleteLabel,
   adminGetLabels,
+  adminBanAccount,
+  adminUnbanAccount,
+  adminGetBannedAccounts,
+  type BannedAccount,
 } from "../../api/client";
 import type { ModerationReport, HydratedLabel } from "../../types";
 import {
@@ -24,6 +28,8 @@ import {
   Plus,
   Trash2,
   EyeOff,
+  UserX,
+  UserCheck,
 } from "lucide-react";
 import { Avatar, EmptyState, Skeleton, Button } from "../../components/ui";
 
@@ -57,7 +63,7 @@ const LABEL_VALS = [
   "misleading",
 ];
 
-type Tab = "reports" | "labels" | "actions";
+type Tab = "reports" | "labels" | "actions" | "bans";
 
 export default function AdminModeration() {
   const { t } = useTranslation();
@@ -81,6 +87,13 @@ export default function AdminModeration() {
   const [labelSubmitting, setLabelSubmitting] = useState(false);
   const [labelSuccess, setLabelSuccess] = useState(false);
 
+  const [bans, setBans] = useState<BannedAccount[]>([]);
+  const [banDid, setBanDid] = useState("");
+  const [banReason, setBanReason] = useState("");
+  const [banSubmitting, setBanSubmitting] = useState(false);
+  const [banSuccess, setBanSuccess] = useState(false);
+  const [unbanLoading, setUnbanLoading] = useState<string | null>(null);
+
   const loadReports = async (status: string) => {
     const data = await getAdminReports(status || undefined);
     setReports(data.items);
@@ -91,6 +104,11 @@ export default function AdminModeration() {
   const loadLabels = async () => {
     const data = await adminGetLabels();
     setLabels(data.items || []);
+  };
+
+  const loadBans = async () => {
+    const data = await adminGetBannedAccounts();
+    setBans(data.items || []);
   };
 
   useEffect(() => {
@@ -106,6 +124,7 @@ export default function AdminModeration() {
   const handleTabChange = async (tab: Tab) => {
     setActiveTab(tab);
     if (tab === "labels") await loadLabels();
+    if (tab === "bans") await loadBans();
   };
 
   const handleFilterChange = async (status: string) => {
@@ -121,6 +140,36 @@ export default function AdminModeration() {
       setExpandedReport(null);
     }
     setActionLoading(null);
+  };
+
+  const handleBanFromReport = async (did: string, reportId: number) => {
+    setActionLoading(reportId);
+    await adminBanAccount({ did });
+    setActionLoading(null);
+  };
+
+  const handleBanAccount = async () => {
+    if (!banDid.trim()) return;
+    setBanSubmitting(true);
+    const success = await adminBanAccount({
+      did: banDid.trim(),
+      reason: banReason.trim() || undefined,
+    });
+    if (success) {
+      setBanDid("");
+      setBanReason("");
+      setBanSuccess(true);
+      setTimeout(() => setBanSuccess(false), 2000);
+      await loadBans();
+    }
+    setBanSubmitting(false);
+  };
+
+  const handleUnban = async (did: string) => {
+    setUnbanLoading(did);
+    const success = await adminUnbanAccount(did);
+    if (success) setBans((prev) => prev.filter((b) => b.did !== did));
+    setUnbanLoading(null);
   };
 
   const handleCreateLabel = async () => {
@@ -207,6 +256,11 @@ export default function AdminModeration() {
             id: "labels" as Tab,
             label: t("adminModeration.tabs.labels"),
             icon: <Tag size={15} />,
+          },
+          {
+            id: "bans" as Tab,
+            label: "Bans",
+            icon: <UserX size={15} />,
           },
         ].map((tab) => (
           <button
@@ -360,7 +414,7 @@ export default function AdminModeration() {
                       )}
 
                       {report.status === "pending" && (
-                        <div className="flex items-center gap-2 pt-2">
+                        <div className="flex flex-wrap items-center gap-2 pt-2">
                           <Button
                             size="sm"
                             variant="secondary"
@@ -389,6 +443,17 @@ export default function AdminModeration() {
                             className="!bg-red-600 hover:!bg-red-700 !text-white"
                           >
                             {t("adminModeration.reports.takedown")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() =>
+                              handleBanFromReport(report.subject.did, report.id)
+                            }
+                            loading={actionLoading === report.id}
+                            icon={<UserX size={14} />}
+                            className="!bg-gray-800 hover:!bg-gray-900 !text-white dark:!bg-gray-700 dark:hover:!bg-gray-600"
+                          >
+                            Ban user
                           </Button>
                         </div>
                       )}
@@ -551,6 +616,116 @@ export default function AdminModeration() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === "bans" && (
+        <div className="space-y-6">
+          <div className="card p-5">
+            <h3 className="text-base font-semibold text-surface-900 dark:text-white mb-1 flex items-center gap-2">
+              <UserX size={16} className="text-red-500" />
+              Ban account
+            </h3>
+            <p className="text-sm text-surface-500 dark:text-surface-400 mb-4">
+              Banned users cannot sign in and their content is hidden everywhere
+              on Margin.
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-surface-600 dark:text-surface-400 mb-1.5">
+                  Account DID
+                </label>
+                <input
+                  type="text"
+                  value={banDid}
+                  onChange={(e) => setBanDid(e.target.value)}
+                  placeholder="did:plc:..."
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-white placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-surface-600 dark:text-surface-400 mb-1.5">
+                  Reason <span className="text-surface-400">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={banReason}
+                  onChange={(e) => setBanReason(e.target.value)}
+                  placeholder="Reason for ban..."
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-white placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 pt-1">
+                <Button
+                  onClick={handleBanAccount}
+                  loading={banSubmitting}
+                  disabled={!banDid.trim()}
+                  icon={<UserX size={14} />}
+                  size="sm"
+                  className="!bg-red-600 hover:!bg-red-700 !text-white"
+                >
+                  Ban account
+                </Button>
+                {banSuccess && (
+                  <span className="text-sm text-green-600 dark:text-green-400 flex items-center gap-1.5">
+                    <CheckCircle size={14} /> Account banned
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            {bans.length === 0 ? (
+              <EmptyState
+                icon={<UserCheck size={40} />}
+                title="No banned accounts"
+                message="Banned accounts will appear here."
+              />
+            ) : (
+              <div className="space-y-2">
+                {bans.map((ban) => (
+                  <div
+                    key={ban.did}
+                    className="card p-4 flex items-center gap-4"
+                  >
+                    <Avatar
+                      did={ban.did}
+                      avatar={ban.profile?.avatar}
+                      size="sm"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="font-medium text-surface-900 dark:text-white text-sm truncate">
+                          {ban.profile?.displayName ||
+                            (ban.profile?.handle && `@${ban.profile.handle}`) ||
+                            ban.did}
+                        </span>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                          banned
+                        </span>
+                      </div>
+                      <p className="text-xs text-surface-500 dark:text-surface-400 truncate">
+                        {ban.reason ? `${ban.reason} · ` : ""}
+                        {new Date(ban.bannedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleUnban(ban.did)}
+                      disabled={unbanLoading === ban.did}
+                      className="p-2 rounded-lg text-surface-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                      title="Unban"
+                    >
+                      <UserCheck size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

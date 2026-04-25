@@ -400,3 +400,80 @@ func (db *DB) GetAllContentLabels(limit, offset int) ([]ContentLabel, error) {
 func itoa(i int) string {
 	return strings.Repeat("", 0) + fmt.Sprintf("%d", i)
 }
+
+func (db *DB) MarkTakenDown(uri string) error {
+	_, err := db.Exec(`
+		INSERT INTO taken_down_uris (uri, taken_down_at) VALUES ($1, $2)
+		ON CONFLICT(uri) DO NOTHING
+	`, uri, time.Now())
+	return err
+}
+
+func (db *DB) IsTakenDown(uri string) (bool, error) {
+	var exists bool
+	err := db.QueryRow(`SELECT EXISTS(SELECT 1 FROM taken_down_uris WHERE uri = $1)`, uri).Scan(&exists)
+	return exists, err
+}
+
+type BannedAccount struct {
+	DID      string    `json:"did"`
+	Reason   *string   `json:"reason,omitempty"`
+	BannedBy string    `json:"bannedBy"`
+	BannedAt time.Time `json:"bannedAt"`
+}
+
+func (db *DB) BanAccount(did, bannedBy string, reason *string) error {
+	_, err := db.Exec(`
+		INSERT INTO banned_accounts (did, reason, banned_by, banned_at)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT(did) DO UPDATE SET reason = EXCLUDED.reason, banned_by = EXCLUDED.banned_by, banned_at = EXCLUDED.banned_at
+	`, did, reason, bannedBy, time.Now())
+	return err
+}
+
+func (db *DB) UnbanAccount(did string) error {
+	_, err := db.Exec(`DELETE FROM banned_accounts WHERE did = $1`, did)
+	return err
+}
+
+func (db *DB) IsBanned(did string) (bool, error) {
+	var exists bool
+	err := db.QueryRow(`SELECT EXISTS(SELECT 1 FROM banned_accounts WHERE did = $1)`, did).Scan(&exists)
+	return exists, err
+}
+
+func (db *DB) GetBannedAccounts() ([]BannedAccount, error) {
+	rows, err := db.Query(`SELECT did, reason, banned_by, banned_at FROM banned_accounts ORDER BY banned_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var accounts []BannedAccount
+	for rows.Next() {
+		var a BannedAccount
+		if err := rows.Scan(&a.DID, &a.Reason, &a.BannedBy, &a.BannedAt); err != nil {
+			continue
+		}
+		accounts = append(accounts, a)
+	}
+	return accounts, nil
+}
+
+func (db *DB) GetBannedDIDs() ([]string, error) {
+	rows, err := db.Query(`SELECT did FROM banned_accounts`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var dids []string
+	for rows.Next() {
+		var did string
+		if err := rows.Scan(&did); err != nil {
+			continue
+		}
+		dids = append(dids, did)
+	}
+	return dids, nil
+}

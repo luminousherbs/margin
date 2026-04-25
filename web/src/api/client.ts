@@ -1362,6 +1362,63 @@ export async function adminGetLabels(
   }
 }
 
+export interface BannedAccount {
+  did: string;
+  reason?: string;
+  bannedBy: string;
+  bannedAt: string;
+  profile?: {
+    did: string;
+    handle: string;
+    displayName?: string;
+    avatar?: string;
+  };
+}
+
+export async function adminBanAccount(params: {
+  did: string;
+  reason?: string;
+}): Promise<boolean> {
+  try {
+    const res = await apiRequest("/api/moderation/admin/ban", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    });
+    return res.ok;
+  } catch (e) {
+    console.error("Failed to ban account:", e);
+    return false;
+  }
+}
+
+export async function adminUnbanAccount(did: string): Promise<boolean> {
+  try {
+    const res = await apiRequest(
+      `/api/moderation/admin/ban?did=${encodeURIComponent(did)}`,
+      { method: "DELETE" },
+    );
+    return res.ok;
+  } catch (e) {
+    console.error("Failed to unban account:", e);
+    return false;
+  }
+}
+
+export async function adminGetBannedAccounts(): Promise<{
+  items: BannedAccount[];
+  total: number;
+}> {
+  try {
+    const res = await apiRequest("/api/moderation/admin/bans");
+    if (!res.ok) return { items: [], total: 0 };
+    return await res.json();
+  } catch (e) {
+    console.error("Failed to fetch banned accounts:", e);
+    return { items: [], total: 0 };
+  }
+}
+
 export interface DocumentItem {
   uri: string;
   authorDid: string;

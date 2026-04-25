@@ -61,7 +61,11 @@ export default function RichText({ text, className }: RichTextProps) {
     }
   };
 
-  const handleExternalClick = (e: React.MouseEvent, url: string) => {
+  const handleExternalClick = (
+    e: React.MouseEvent,
+    url: string,
+    isBareUrl: boolean = false,
+  ) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -78,7 +82,7 @@ export default function RichText({ text, className }: RichTextProps) {
           return;
         }
 
-        if (preferences.disableExternalLinkWarning) {
+        if (isBareUrl || preferences.disableExternalLinkWarning) {
           window.open(url, "_blank", "noopener,noreferrer");
           return;
         }
@@ -110,7 +114,7 @@ export default function RichText({ text, className }: RichTextProps) {
           target="_blank"
           rel="noopener noreferrer"
           className="text-primary-600 dark:text-primary-400 hover:underline break-all cursor-pointer"
-          onClick={(e) => handleExternalClick(e, part.text)}
+          onClick={(e) => handleExternalClick(e, part.text, true)}
         >
           {part.text}
         </a>,

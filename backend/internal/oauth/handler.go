@@ -456,6 +456,10 @@ func (h *Handler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		expiresAt,
 	)
 	if err != nil {
+		if err == db.ErrAccountBanned {
+			http.Redirect(w, r, "/login?error=banned", http.StatusFound)
+			return
+		}
 		http.Error(w, "Failed to save session", http.StatusInternalServerError)
 		return
 	}

@@ -456,6 +456,8 @@ func (m *ModerationHandler) AdminCheckAccess(w http.ResponseWriter, r *http.Requ
 }
 
 func (m *ModerationHandler) deleteContent(uri string) {
+	m.db.MarkTakenDown(uri)
+	m.db.Exec("DELETE FROM notes WHERE uri = $1", uri)
 	m.db.Exec("DELETE FROM annotations WHERE uri = $1", uri)
 	m.db.Exec("DELETE FROM highlights WHERE uri = $1", uri)
 	m.db.Exec("DELETE FROM bookmarks WHERE uri = $1", uri)
@@ -653,4 +655,105 @@ func (m *ModerationHandler) GetLabelerInfo(w http.ResponseWriter, r *http.Reques
 		"name":   "Margin Moderation",
 		"labels": labels,
 	})
+}
+
+func (m *ModerationHandler) AdminBanAccount(w http.ResponseWriter, r *http.Request) {
+	session, err := m.refresher.GetSessionWithAutoRefresh(r)
+	if err != nil {
+		WriteUnauthorized(w, "Unauthorized")
+		return
+	}
+	if !config.Get().IsAdmin(session.DID) {
+		WriteForbidden(w, "Forbidden")
+		return
+	}
+
+	var req struct {
+		DID    string  `json:"did"`
+		Reason *string `json:"reason,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.DID == "" {
+		WriteBadRequest(w, "did is required")
+		return
+	}
+
+	if err := m.db.BanAccount(req.DID, session.DID, req.Reason); err != nil {
+		logger.Error("Failed to ban account: %v", err)
+		WriteInternalError(w, "Failed to ban account")
+		return
+	}
+
+	m.db.DeleteSessionsByDID(req.DID)
+
+	WriteSuccess(w, map[string]string{"status": "ok"})
+}
+
+func (m *ModerationHandler) AdminUnbanAccount(w http.ResponseWriter, r *http.Request) {
+	session, err := m.refresher.GetSessionWithAutoRefresh(r)
+	if err != nil {
+		WriteUnauthorized(w, "Unauthorized")
+		return
+	}
+	if !config.Get().IsAdmin(session.DID) {
+		WriteForbidden(w, "Forbidden")
+		return
+	}
+
+	did := r.URL.Query().Get("did")
+	if did == "" {
+		WriteBadRequest(w, "did is required")
+		return
+	}
+
+	if err := m.db.UnbanAccount(did); err != nil {
+		logger.Error("Failed to unban account: %v", err)
+		WriteInternalError(w, "Failed to unban account")
+		return
+	}
+
+	WriteSuccess(w, map[string]string{"status": "ok"})
+}
+
+func (m *ModerationHandler) AdminGetBannedAccounts(w http.ResponseWriter, r *http.Request) {
+	session, err := m.refresher.GetSessionWithAutoRefresh(r)
+	if err != nil {
+		WriteUnauthorized(w, "Unauthorized")
+		return
+	}
+	if !config.Get().IsAdmin(session.DID) {
+		WriteForbidden(w, "Forbidden")
+		return
+	}
+
+	accounts, err := m.db.GetBannedAccounts()
+	if err != nil {
+		WriteInternalError(w, "Failed to get banned accounts")
+		return
+	}
+
+	if accounts == nil {
+		accounts = []db.BannedAccount{}
+	}
+
+	dids := make([]string, len(accounts))
+	for i, a := range accounts {
+		dids[i] = a.DID
+	}
+	profileMap := fetchProfilesForDIDs(m.db, dids)
+
+	type BannedEntry struct {
+		db.BannedAccount
+		Profile *Author `json:"profile,omitempty"`
+	}
+	entries := make([]BannedEntry, len(accounts))
+	for i, a := range accounts {
+		p, ok := profileMap[a.DID]
+		var profile *Author
+		if ok {
+			profile = &p
+		}
+		entries[i] = BannedEntry{BannedAccount: a, Profile: profile}
+	}
+
+	WriteSuccess(w, map[string]interface{}{"items": entries, "total": len(entries)})
 }

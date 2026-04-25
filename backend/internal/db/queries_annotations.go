@@ -5,6 +5,9 @@ import (
 )
 
 func (db *DB) CreateAnnotation(a *Annotation) error {
+	if taken, _ := db.IsTakenDown(a.URI); taken {
+		return nil
+	}
 	_, err := db.Exec(`
 		INSERT INTO annotations (uri, author_did, motivation, body_value, body_format, body_uri, target_source, target_hash, target_title, selector_json, tags_json, created_at, indexed_at, cid)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)

@@ -5,6 +5,9 @@ import (
 )
 
 func (db *DB) CreateHighlight(h *Highlight) error {
+	if taken, _ := db.IsTakenDown(h.URI); taken {
+		return nil
+	}
 	_, err := db.Exec(`
 		INSERT INTO highlights (uri, author_did, target_source, target_hash, target_title, selector_json, color, tags_json, created_at, indexed_at, cid)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)

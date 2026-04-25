@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { AtSign } from "lucide-react";
+import { AtSign, ShieldOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import "../../i18n";
 import SignUpModal from "../../components/modals/SignUpModal";
@@ -156,6 +156,48 @@ export default function Login({ initialError }: LoginProps) {
       setLoading(false);
     }
   };
+
+  if (initialError === "banned") {
+    return (
+      <div className="relative min-h-screen flex items-center justify-center bg-surface-100 dark:bg-surface-800 p-4 overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 -z-0">
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 h-96 w-96 rounded-full bg-red-200/30 dark:bg-red-900/20 blur-3xl" />
+        </div>
+        <div className="relative w-full max-w-[440px] bg-white dark:bg-surface-900 rounded-2xl border border-surface-200/60 dark:border-surface-800 p-8 shadow-sm dark:shadow-none text-center">
+          <div className="flex justify-center mb-5">
+            <div className="w-14 h-14 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+              <ShieldOff size={28} className="text-red-500" />
+            </div>
+          </div>
+          <h1 className="text-xl font-bold font-display text-surface-900 dark:text-white mb-2">
+            {t("login.bannedTitle")}
+          </h1>
+          <p className="text-sm text-surface-500 dark:text-surface-400 mb-1 leading-relaxed">
+            {t("login.bannedMessage")}
+          </p>
+          <p className="text-sm text-surface-500 dark:text-surface-400 mb-6 leading-relaxed">
+            {t("login.bannedAppeal")}{" "}
+            <a
+              href="mailto:hello@margin.at"
+              className="text-[#027bff] hover:underline font-medium"
+            >
+              hello@margin.at
+            </a>
+            .
+          </p>
+          <button
+            onClick={async () => {
+              await fetch("/auth/logout", { method: "POST" }).catch(() => {});
+              window.location.href = "/login";
+            }}
+            className="w-full py-3 bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300 rounded-xl font-semibold transition-all text-sm"
+          >
+            {t("login.bannedSignOut")}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen flex items-center justify-center bg-surface-100 dark:bg-surface-800 p-4 overflow-hidden">

@@ -251,6 +251,9 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/moderation/admin/label", h.moderation.AdminCreateLabel)
 		r.Delete("/moderation/admin/label", h.moderation.AdminDeleteLabel)
 		r.Get("/moderation/admin/labels", h.moderation.AdminGetLabels)
+		r.Post("/moderation/admin/ban", h.moderation.AdminBanAccount)
+		r.Delete("/moderation/admin/ban", h.moderation.AdminUnbanAccount)
+		r.Get("/moderation/admin/bans", h.moderation.AdminGetBannedAccounts)
 		r.Get("/moderation/labeler", h.moderation.GetLabelerInfo)
 
 		// Admin
