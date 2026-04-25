@@ -1,1 +1,155 @@
-{}
+{
+    "nav": {
+        "discover": "Objevuj",
+        "activity": "Notifikace",
+        "bookmarks": "Záložky",
+        "annotations": "Vpisky",
+        "highlights": "Úryvky",
+        "collections": "Složky",
+        "signIn": "Přihlásit se",
+        "logOut": "Odhlásit se",
+        "feed": "Feed",
+        "settings": "Nastavení",
+        "new": "Anotovat",
+        "themeLight": "Světlo",
+        "themeDark": "Tma",
+        "themeSystem": "Režim podle OS"
+    },
+    "appTitle": "Margin",
+    "feed": {
+        "mine": "Pouze já",
+        "everyone": "Všichni",
+        "filters": {
+            "bookmarks": "Záložky"
+        },
+        "itemsWithTag": "Položky se štítkem:",
+        "tabs": {
+            "recent": "Nedávné",
+            "popular": "Populární"
+        },
+        "welcome": "Vítejte na Marginu",
+        "getStarted": "Pustit se do toho"
+    },
+    "collections": {
+        "title": "Složky",
+        "namePlaceholderEdit": "Název složky",
+        "nameLabel": "Název",
+        "iconLabel": "Ikona",
+        "iconsTab": "Ikony",
+        "emojisTab": "Emotikony",
+        "selectedIcon": "Vybráno:",
+        "descriptionLabel": "Popisek (volitelně)",
+        "descriptionPlaceholder": "K čemu by měla tato složka sloužit?",
+        "descriptionPlaceholderEdit": "O čem by měla být tato složka?",
+        "cancel": "Zrušit",
+        "creating": "Vytvářím…",
+        "save": "Uložit změny",
+        "saving": "Ukládám…",
+        "subtitle": "Uspořádejte si vpisky a úryvky"
+    },
+    "about": {
+        "footer": {
+            "contact": "Kontakt",
+            "terms": "Smluvní podmínky",
+            "privacy": "Ochrana soukromí"
+        },
+        "cta": {
+            "viewGitHub": "GitHub",
+            "viewTangled": "Tangled",
+            "signIn": "Přihlásit se",
+            "title": "Začněte psát pod čarou"
+        },
+        "protocol": {
+            "descriptionPre": "Margin je vystavěn na"
+        },
+        "extension": {
+            "features": {
+                "keyboard": {
+                    "title": "Klávesové zkratky"
+                }
+            }
+        }
+    },
+    "profile": {
+        "unblock_action": "Zablokovat",
+        "unmute_action": "Ztišit",
+        "emptyCollectionsOwn": "Prozatím jste si nevytvořili žádné složky.",
+        "emptyCollectionsOther": "Žádné složky"
+    },
+    "pageTitles": {
+        "discover": "Objevuj — Margin",
+        "home": "Úvod — Margin",
+        "bookmarks": "Záložky — Margin",
+        "settings": "Nastavení — Margin",
+        "collections": "Složky — Margin",
+        "admin": "Administrace — Margin",
+        "search": "Vyhledávání — Margin",
+        "notifications": "Notifikace — Margin",
+        "new": "Nový vpisek — Margin",
+        "highlights": "Úryvky — Margin",
+        "annotations": "Vpisky — Margin"
+    },
+    "sidebar": {
+        "downloadForFirefox": "Stáhnout pro Firefox",
+        "downloadForEdge": "Stáhnout pro Edge",
+        "downloadForChrome": "Stáhnout pro Chrome",
+        "trending": "Populární",
+        "searchPlaceholder": "Vyhledávejte napříč uživateli, tagy, URL…",
+        "getExtension": "Stáhnout rozšíření",
+        "nothingTrending": "Aktuálně není nic moc v kurzu."
+    },
+    "mobileNav": {
+        "iosShortcut": "Zkratka iOS"
+    },
+    "discover": {
+        "tabs": {
+            "new": "Nové",
+            "popular": "Populární",
+            "forYou": "Výběr"
+        },
+        "comingSoon": "Již brzy",
+        "forYouNotAvailable": "Personalizovaná doporučení nejsou na tomto serveru prozatím k dispozici."
+    },
+    "search": {
+        "noResults": "Nic nenalezeno",
+        "emptyTitle": "Vyhledávejte ve Vaší knihovně",
+        "filters": {
+            "all": "Všechno"
+        }
+    },
+    "notifications": {
+        "inReplyTo": "v odpovědi na",
+        "aReply": "odpověď",
+        "anAnnotation": "vpisek"
+    },
+    "login": {
+        "termsLink": "Smluvní podmínky",
+        "termsAnd": "a",
+        "privacyLink": "Zásady ochrany osobních údajů"
+    },
+    "signUp": {
+        "atProtocol": "Protokol AT",
+        "pdsAddressLabel": "Adresa PDS",
+        "pdsAddressPlaceholder": "pds.vasedomena.cz",
+        "connecting": "Připojuji…",
+        "back": "Zpátky",
+        "continue": "Pokračovat",
+        "invite": "Pozvat",
+        "providerError": "K tomuto poskytovateli se teď nelze připojit. Zkuste to znova.",
+        "customPdsError": "K tomuto PDS se teď nelze připojit. Zkontrolujte, zda zadáváte správnou adresu.",
+        "providers": {
+            "margin": {
+                "name": "Margin"
+            },
+            "customPds": {
+                "description": "PDS už máte? Pokud ano, zadejte jeho adresu."
+            }
+        }
+    },
+    "composer": {
+        "newHighlight": "Nový úryvek",
+        "newAnnotation": "Nový vpisek",
+        "newNote": "Nová poznámka",
+        "saveHighlight": "Uložit úryvek"
+    }
+}
