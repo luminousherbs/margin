@@ -1332,5 +1332,8 @@ func getSubscribedLabelers(database *db.DB, viewerDID string) []string {
 	for i, s := range subs {
 		dids[i] = s.DID
 	}
+	if serviceDID != "" {
+		dids = appendUnique([]string{serviceDID}, dids)
+	}
 	return dids
 }

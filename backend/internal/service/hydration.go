@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"margin.at/internal/config"
 	"margin.at/internal/domain"
 )
 
@@ -180,8 +181,13 @@ func (h *HydrationService) Load(ctx context.Context, notes []domain.Note, viewer
 		})
 	}
 
+	labelerDIDs := dids
+	if serviceDID := config.Get().ServiceDID; serviceDID != "" {
+		labelerDIDs = append([]string{serviceDID}, dids...)
+	}
+
 	run(func() error {
-		ul, err := h.engagement.GetLabelsForURIs(ctx, uris, dids)
+		ul, err := h.engagement.GetLabelsForURIs(ctx, uris, labelerDIDs)
 		if err == nil {
 			mu.Lock()
 			lc.URILabels = ul
@@ -191,7 +197,7 @@ func (h *HydrationService) Load(ctx context.Context, notes []domain.Note, viewer
 	})
 
 	run(func() error {
-		dl, err := h.engagement.GetLabelsForDIDs(ctx, dids, dids)
+		dl, err := h.engagement.GetLabelsForDIDs(ctx, dids, labelerDIDs)
 		if err == nil {
 			mu.Lock()
 			lc.DIDLabels = dl
