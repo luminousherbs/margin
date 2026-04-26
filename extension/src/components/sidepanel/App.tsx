@@ -313,6 +313,7 @@ export function App() {
         const errorMessage = result.error
           ? `Failed to post annotation: ${result.error}`
           : 'Failed to post annotation';
+        alert(errorMessage);
       }
     } catch (error) {
       console.error('Post error:', error);
