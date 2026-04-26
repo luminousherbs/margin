@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Search, Coffee } from "lucide-react";
+import { Search, Coffee, Heart } from "lucide-react";
 import {
   getTrendingTags,
   searchActors,
@@ -314,13 +314,22 @@ export default function RightSidebar({ onNavigate }: RightSidebarProps) {
               Stoat
             </a>
             <a
+              href="https://opencollective.com/margin"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[12px] text-surface-400 dark:text-surface-500 hover:text-[#7FADF2] dark:hover:text-[#7FADF2] transition-colors"
+            >
+              <Heart size={12} className="shrink-0" />
+              Open Collective
+            </a>
+            <a
               href="https://ko-fi.com/scan"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-[12px] text-surface-400 dark:text-surface-500 hover:text-[#FF5E5B] dark:hover:text-[#FF5E5B] transition-colors"
             >
               <Coffee size={12} className="shrink-0" />
-              Support on Ko-fi
+              Ko-fi
             </a>
             <span>{t("sidebar.copyright")}</span>
           </div>
